@@ -1,30 +1,47 @@
 <div class="encounter-forge-shell">
   <aside class="encounter-forge-library">
     <header class="encounter-forge-library-header">
-      <div>
+      <div class="encounter-forge-library-heading">
         <h2>{{localize "PF2E_ENCOUNTER_FORGE.Library.Title"}}</h2>
         <p>{{localize "PF2E_ENCOUNTER_FORGE.Library.Hint"}}</p>
       </div>
-      <div class="encounter-forge-library-actions">
+      <nav class="encounter-forge-library-actions" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Library.ActionsLabel"}}">
         <button type="button" data-action="newBlueprint" data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.New">
           <i class="fa-solid fa-plus"></i>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Library.Action.New"}}</span>
+        </button>
+        <button type="button" data-action="createExampleBlueprint" data-tooltip="PF2E_ENCOUNTER_FORGE.Example.Create">
+          <i class="fa-solid fa-graduation-cap"></i>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Library.Action.Example"}}</span>
         </button>
         <button type="button" data-action="refreshBlueprints" data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.Refresh">
           <i class="fa-solid fa-rotate"></i>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Library.Action.Refresh"}}</span>
         </button>
         <button type="button" data-action="openDirector" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.Open">
           <i class="fa-solid fa-clapperboard"></i>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Library.Action.Director"}}</span>
         </button>
-      </div>
+      </nav>
     </header>
+
+    <div class="encounter-forge-library-section-label">
+      <span>{{localize "PF2E_ENCOUNTER_FORGE.Library.SavedTitle"}}</span>
+    </div>
 
     <div class="encounter-forge-blueprint-list">
       {{#if hasBlueprints}}
         {{#each blueprints}}
-          <button type="button" class="encounter-forge-blueprint-row {{#if selected}}selected{{/if}}" data-action="selectBlueprint" data-blueprint-id="{{id}}">
-            <span class="encounter-forge-blueprint-name">{{name}}</span>
-            <span class="encounter-forge-blueprint-meta">{{localize "PF2E_ENCOUNTER_FORGE.Library.PartyShort"}} {{partySize}} × {{partyLevel}} · {{threat}}</span>
-          </button>
+          <div class="encounter-forge-blueprint-row {{#if selected}}selected{{/if}}" data-blueprint-id="{{id}}">
+            <button type="button" class="encounter-forge-blueprint-select" data-action="selectBlueprint" data-blueprint-id="{{id}}">
+              <span class="encounter-forge-blueprint-name">{{name}}</span>
+              <span class="encounter-forge-blueprint-meta">{{localize "PF2E_ENCOUNTER_FORGE.Library.PartyShort"}} {{partySize}} × {{partyLevel}} · {{threat}}</span>
+            </button>
+            <button type="button" class="encounter-forge-blueprint-delete" data-action="deleteBlueprint" data-blueprint-id="{{id}}"
+                    data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.Delete" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Controls.Delete"}}">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
         {{/each}}
       {{else}}
         <div class="encounter-forge-empty-state">
@@ -79,6 +96,16 @@
         <span data-dirty-text>{{#if isDirty}}{{localize "PF2E_ENCOUNTER_FORGE.Editor.UnsavedChanges"}}{{else}}{{localize "PF2E_ENCOUNTER_FORGE.Editor.AllChangesSaved"}}{{/if}}</span>
       </div>
     </header>
+
+    {{#if isExample}}
+      <section class="encounter-forge-example-banner">
+        <i class="fa-solid fa-graduation-cap"></i>
+        <div>
+          <strong>{{localize "PF2E_ENCOUNTER_FORGE.Example.BannerTitle"}}</strong>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Example.BannerHint"}}</span>
+        </div>
+      </section>
+    {{/if}}
 
     <section class="encounter-forge-card">
       <div class="encounter-forge-section-title">
@@ -192,6 +219,13 @@
         <i class="fa-solid fa-triangle-exclamation"></i>
         {{localize "PF2E_ENCOUNTER_FORGE.Budget.UnknownHint"}}
       </div>
+
+      {{#if hasPlaceholderParticipants}}
+        <div class="encounter-forge-example-placeholder-note">
+          <i class="fa-solid fa-circle-info"></i>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Example.PlaceholderHint"}}</span>
+        </div>
+      {{/if}}
 
       {{#if hasParticipants}}
         <div class="encounter-forge-participant-list">
@@ -474,7 +508,7 @@
                     {{#if actionOptions.length}}
                       <div class="encounter-forge-trigger-actions-list">
                         {{#each actionOptions}}
-                          <label><input type="checkbox" data-trigger-action="{{id}}" {{#if checked}}checked{{/if}}> {{label}}</label>
+                          <label><input type="checkbox" data-trigger-action="{{id}}" {{#if checked}}checked{{/if}}> <span data-trigger-action-label="{{id}}">{{label}}</span></label>
                         {{/each}}
                       </div>
                     {{else}}

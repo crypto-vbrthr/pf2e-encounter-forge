@@ -7,6 +7,7 @@ import { EncounterRuntime } from "./runtime/index.js";
 import { createPublicApi } from "./api/public-api.js";
 import { initializeEncounterForgeUi } from "./ui/index.js";
 import { initializeEncounterDirectorUi } from "./director/index.js";
+import { registerExampleEncounterSettings } from "./examples/index.js";
 
 let api = null;
 let runtime = null;
@@ -14,6 +15,7 @@ let runtime = null;
 Hooks.once("init", () => {
   console.log(`PF2E Encounter Forge | Initializing ${MODULE_VERSION} (API ${API_VERSION})`);
   registerIntegrationSettings();
+  registerExampleEncounterSettings();
   const integrations = registerCoreIntegrations(new IntegrationRegistry());
   const participantSources = registerCoreParticipantSources(new ParticipantSourceRegistry(), integrations);
   const blueprintRepository = createBlueprintRepository();

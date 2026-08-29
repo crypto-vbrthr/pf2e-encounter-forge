@@ -1,5 +1,36 @@
 # Changelog
 
+## 0.1.0-alpha.8.3 - Encounter Library Row Polish
+
+### Added
+- Added a dedicated delete control to every saved Encounter row in the left library, with the existing confirmation flow and safe handling of selected versus background entries.
+
+### Changed
+- Rebuilt saved Encounter rows as proper two-part library cards: a left-aligned selection surface plus a contained delete action.
+- Encounter names and party/threat metadata are now explicitly left-aligned with independent line heights, preventing the title/metadata overlap visible with Foundry button styling.
+- Tightened row overflow and hover/focus behavior so per-Encounter actions remain inside the library column.
+
+## 0.1.0-alpha.8.2 - Encounter Library Layout Polish
+
+### Changed
+- Reworked the Encounter library header into a contained two-column action toolbar with readable labels instead of a single overflowing icon row.
+- Added a distinct “Saved encounters” section heading to visually separate library navigation from creation/runtime tools.
+- Widened the default library column slightly and made its responsive layout stack controls when space becomes tight.
+- Hardened the library, Blueprint rows, and integration controls against horizontal overflow so controls cannot intrude into the Encounter editor pane.
+
+## 0.1.0-alpha.8.1 - Live Flow References & Onboarding Example
+
+### Added
+- Added a bundled, self-documenting example encounter, **The Unstable Rune Altar**, demonstrating moderate XP budgeting, participant roles/groups, Token display policies, phases, objectives, Runtime actions, automatic and GM-confirmed triggers, HP thresholds, and participant defeat transitions.
+- Fresh worlds receive the example automatically the first time Encounter Forge is opened. Existing worlds can create or reopen it from the new graduation-cap button in the Encounter library toolbar.
+- Example participants are explicit placeholders so the sample remains independent of installed PF2e bestiaries and optional Forge modules; deployment stays disabled until they are replaced with real Actors, Creature Forge creatures, or NPC Forge NPCs.
+- Added public `api.examples.createBlueprint()` and `api.examples.isExample()` helpers.
+
+### Fixed
+- Phase names now update immediately in phase-transition actions and trigger phase filters while typing, without requiring a save or selecting the stale option first.
+- The same live-reference refresh now also keeps objective names, participant names, tactical group names, and linked action names current in their dependent controls.
+- The Encounter header title follows name edits live as well.
+
 ## 0.1.0-alpha.8 - Encounter Flow Authoring
 
 ### Added

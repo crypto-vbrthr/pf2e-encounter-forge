@@ -12,6 +12,12 @@ import { randomId } from "../utils/data.js";
 import { ParticipantBrowserApp } from "./participant-browser-app.js";
 import { ForgeParticipantEditorApp } from "./forge-participant-editor-app.js";
 import { EncounterDeploymentDialogApp } from "./deployment-dialog-app.js";
+import {
+  createExampleEncounterBlueprint,
+  isExampleEncounterBlueprint,
+  isInitialExampleSeedDone,
+  markInitialExampleSeedDone
+} from "../examples/index.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -109,6 +115,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     position: { width: 1280, height: 800 },
     actions: {
       newBlueprint: EncounterForgeApp.newBlueprint,
+      createExampleBlueprint: EncounterForgeApp.createExampleBlueprint,
       selectBlueprint: EncounterForgeApp.selectBlueprint,
       saveBlueprint: EncounterForgeApp.saveBlueprint,
       duplicateBlueprint: EncounterForgeApp.duplicateBlueprint,
@@ -165,6 +172,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
 
   async initialize() {
     await this.#reloadBlueprints();
+    const seeded = await this.#seedInitialExampleIfNeeded();
+    if (seeded) await this.#reloadBlueprints();
     if (this.blueprints.length > 0) this.#loadBlueprint(this.blueprints[0].id);
     else this.#resetDraft();
     this.initialized = true;
@@ -239,6 +248,9 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         hpBarDisplayOptions: tokenDisplayOptions(participant.tokenDisplay?.displayBars)
       };
     });
+
+    const hasPlaceholderParticipants = (draft.participants ?? []).some((participant) => participant.source?.type === "example");
+    const isExample = isExampleEncounterBlueprint(draft);
 
     const creatureApi = api?.integrations?.api?.("creatureForge");
     const npcApi = api?.integrations?.api?.("npcForge");
@@ -317,7 +329,9 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       participants,
       groups,
       hasParticipants: participants.length > 0,
-      canDeploy: participants.length > 0,
+      canDeploy: participants.length > 0 && !hasPlaceholderParticipants,
+      hasPlaceholderParticipants,
+      isExample,
       hasGroups: groups.length > 0,
       creatureForgeReady,
       npcForgeReady,
@@ -358,8 +372,12 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     if (!(root instanceof HTMLElement)) return;
 
     for (const input of root.querySelectorAll("[data-blueprint-field], [data-participant-field], [data-group-field], [data-phase-field], [data-objective-field], [data-flow-action-field], [data-trigger-field], [data-trigger-condition-field], [data-trigger-action]")) {
-      input.addEventListener("input", () => this.#syncDraftFromForm());
-      input.addEventListener("change", () => this.#syncDraftFromForm());
+      const syncAndRefreshReferences = () => {
+        this.#syncDraftFromForm();
+        this.#refreshReferenceLabels();
+      };
+      input.addEventListener("input", syncAndRefreshReferences);
+      input.addEventListener("change", syncAndRefreshReferences);
     }
     for (const select of root.querySelectorAll('[data-flow-action-field="type"]')) {
       select.addEventListener("change", async () => {
@@ -411,6 +429,27 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       .map((row) => clone(row?.data ?? row))
       .filter((entry) => entry?.id)
       .sort((a, b) => String(a.name ?? "").localeCompare(String(b.name ?? ""), game.i18n?.lang));
+  }
+
+  async #seedInitialExampleIfNeeded() {
+    if (!game.user?.isGM || isInitialExampleSeedDone()) return false;
+    let created = false;
+    try {
+      if (this.blueprints.length === 0) {
+        const detection = getApi()?.party?.detect?.() ?? null;
+        const example = createExampleEncounterBlueprint({
+          partyLevel: detection?.available ? detection.partyLevel : 5,
+          partySize: detection?.available ? detection.size : 4
+        });
+        await getApi()?.blueprints?.save?.(example);
+        created = true;
+      }
+    } catch (error) {
+      console.error(`${MODULE_ID} | Initial example Encounter could not be created.`, error);
+    } finally {
+      await markInitialExampleSeedDone();
+    }
+    return created;
   }
 
   #resetDraft() {
@@ -545,6 +584,39 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     this.#updateDirtyIndicator();
     this.#updateBudgetDisplay();
     return next;
+  }
+
+  #refreshReferenceLabels() {
+    const root = this.element;
+    if (!(root instanceof HTMLElement)) return;
+
+    const phases = new Map((this.draft?.phases ?? []).map((entry) => [String(entry.id), String(entry.name || entry.id)]));
+    const objectives = new Map((this.draft?.objectives ?? []).map((entry) => [String(entry.id), String(entry.name || entry.id)]));
+    const participants = new Map((this.draft?.participants ?? []).map((entry) => [String(entry.id), String(entry.name || entry.id)]));
+    const groups = new Map((this.draft?.groups ?? []).map((entry) => [String(entry.id), String(entry.name || entry.id)]));
+    const actions = new Map((this.draft?.actions ?? []).map((entry) => [String(entry.id), String(entry.name || entry.id)]));
+
+    const refreshOptions = (selector, labels) => {
+      for (const select of root.querySelectorAll(selector)) {
+        for (const option of select.options ?? []) {
+          const label = labels.get(String(option.value ?? ""));
+          if (label) option.textContent = label;
+        }
+      }
+    };
+
+    refreshOptions('[data-flow-action-field="phaseId"], [data-trigger-field="activePhaseId"]', phases);
+    refreshOptions('[data-flow-action-field="objectiveId"]', objectives);
+    refreshOptions('[data-trigger-field="participantId"]', participants);
+    refreshOptions('[data-participant-field="groupId"]', groups);
+
+    for (const label of root.querySelectorAll("[data-trigger-action-label]")) {
+      const text = actions.get(String(label.dataset.triggerActionLabel ?? ""));
+      if (text) label.textContent = text;
+    }
+
+    const title = root.querySelector(".encounter-forge-editor-header h1");
+    if (title) title.textContent = String(this.draft?.name || localize("PF2E_ENCOUNTER_FORGE.Editor.Untitled", "Untitled Encounter"));
   }
 
   #updateDirtyIndicator() {
@@ -1012,6 +1084,34 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     await this.#renderFresh();
   }
 
+  static async createExampleBlueprint() {
+    if (!await this.#confirmDiscardIfNeeded()) return;
+    const existing = this.blueprints.find((entry) => isExampleEncounterBlueprint(entry));
+    if (existing) {
+      this.#loadBlueprint(existing.id);
+      await markInitialExampleSeedDone();
+      await this.#renderFresh({ preserveScroll: false });
+      return;
+    }
+
+    const detection = getApi()?.party?.detect?.() ?? null;
+    const example = createExampleEncounterBlueprint({
+      partyLevel: detection?.available ? detection.partyLevel : 5,
+      partySize: detection?.available ? detection.size : 4
+    });
+    try {
+      await getApi()?.blueprints?.save?.(example);
+      await markInitialExampleSeedDone();
+      await this.#reloadBlueprints();
+      this.#loadBlueprint(example.id);
+      ui.notifications.info(localize("PF2E_ENCOUNTER_FORGE.Notifications.ExampleCreated", "Example encounter created."));
+      await this.#renderFresh({ preserveScroll: false });
+    } catch (error) {
+      console.error(`${MODULE_ID} | Creating example Encounter failed.`, error);
+      ui.notifications.error(localize("PF2E_ENCOUNTER_FORGE.Notifications.ExampleCreateFailed", "The example encounter could not be created."));
+    }
+  }
+
   static async newBlueprint() {
     if (!await this.#confirmDiscardIfNeeded()) return;
     this.#resetDraft();
@@ -1070,6 +1170,10 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     if (!persisted) return;
     if (!(persisted.blueprint.participants ?? []).length) {
       ui.notifications.warn(localize("PF2E_ENCOUNTER_FORGE.Notifications.DeploymentNeedsParticipants", "Add at least one participant before deployment."));
+      return;
+    }
+    if ((persisted.blueprint.participants ?? []).some((participant) => participant.source?.type === "example")) {
+      ui.notifications.warn(localize("PF2E_ENCOUNTER_FORGE.Notifications.ExampleNeedsParticipants", "Replace the example placeholder opponents with real Encounter participants before deployment."));
       return;
     }
 
@@ -1152,8 +1256,9 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     }
   }
 
-  static async deleteBlueprint() {
-    if (!this.selectedBlueprintId) return;
+  static async deleteBlueprint(_event, target) {
+    const blueprintId = target?.dataset?.blueprintId || this.selectedBlueprintId;
+    if (!blueprintId) return;
     const confirmed = await confirmDialog(
       "PF2E_ENCOUNTER_FORGE.Dialogs.DeleteTitle",
       "PF2E_ENCOUNTER_FORGE.Dialogs.DeletePrompt"
@@ -1161,13 +1266,19 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     if (!confirmed) return;
 
     const api = getApi();
+    const deletingSelected = blueprintId === this.selectedBlueprintId;
+    const previousSelected = this.selectedBlueprintId;
     try {
-      await api?.blueprints?.delete?.(this.selectedBlueprintId);
+      await api?.blueprints?.delete?.(blueprintId);
       await this.#reloadBlueprints();
-      if (this.blueprints.length > 0) this.#loadBlueprint(this.blueprints[0].id);
-      else this.#resetDraft();
+      if (deletingSelected) {
+        if (this.blueprints.length > 0) this.#loadBlueprint(this.blueprints[0].id);
+        else this.#resetDraft();
+      } else if (previousSelected) {
+        this.#loadBlueprint(previousSelected);
+      }
       ui.notifications.info(localize("PF2E_ENCOUNTER_FORGE.Notifications.Deleted", "Encounter deleted."));
-      await this.#renderFresh({ preserveScroll: false });
+      await this.#renderFresh({ preserveScroll: !deletingSelected });
     } catch (error) {
       console.error(`${MODULE_ID} | Deleting encounter blueprint failed.`, error);
       ui.notifications.error(localize("PF2E_ENCOUNTER_FORGE.Notifications.DeleteFailed", "Encounter could not be deleted."));

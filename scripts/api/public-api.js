@@ -12,6 +12,7 @@ import { detectCurrentParty } from "../engine/party-analyzer.js";
 import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } from "../engine/encounter-budget.js";
 import { analyzeEncounterFlow, FLOW_ACTION_TYPES, FLOW_EVENT_TYPES, FLOW_CONDITION_FIELDS, FLOW_OPERATORS } from "../engine/encounter-flow.js";
 import { isIntegrationEnabled, setIntegrationEnabled } from "../integrations/integration-settings.js";
+import { createExampleEncounterBlueprint, isExampleEncounterBlueprint } from "../examples/index.js";
 
 export function createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, deployment, runtime } = {}) {
   const api = Object.freeze({
@@ -87,6 +88,11 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       actionTypes: FLOW_ACTION_TYPES,
       conditionFields: FLOW_CONDITION_FIELDS,
       operators: FLOW_OPERATORS
+    }),
+
+    examples: Object.freeze({
+      createBlueprint: (options = {}) => createExampleEncounterBlueprint(options),
+      isExample: (blueprint) => isExampleEncounterBlueprint(blueprint)
     }),
 
     ui: Object.freeze({

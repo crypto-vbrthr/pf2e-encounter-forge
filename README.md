@@ -1,10 +1,24 @@
 # PF2E Encounter Forge
 
+## 0.1.0-alpha.8.3 — Encounter Library Row Polish
+
+Saved Encounters in the left library now use a dedicated card layout with clearly separated, left-aligned name and party/threat metadata. Each row also has its own trash control, so an Encounter can be deleted directly from the library without first hunting for the editor-footer action. Deletion still uses the existing confirmation dialog.
+
+## 0.1.0-alpha.8.2 — Encounter Library Layout Polish
+
+The left Encounter library is now structured as a compact tool area followed by a clearly labeled saved-encounter list. New, Example, Refresh, and Director controls are contained in a two-column labeled toolbar, and the whole library column now guards against horizontal overflow when the window is resized.
+
 PF2e encounter planning, deployment, and live encounter-direction module in early alpha development.
 
-## 0.1.0-alpha.8 — Encounter Flow Authoring
+## 0.1.0-alpha.8.1 — Live Flow References & Onboarding Example
 
-The Blueprint editor now contains the first real **Encounter Flow** authoring surface. A GM can build the Runtime's declarative screenplay directly in Encounter Forge instead of supplying phases, objectives, triggers, and actions through raw data/API content.
+This patch polishes Encounter Flow authoring and adds an onboarding encounter so a new GM can immediately see how the pieces fit together. Phase, objective, participant, group, and action names now propagate live to every dependent dropdown/linked-action label while editing.
+
+Fresh worlds receive **Example: The Unstable Rune Altar** on the first Encounter Forge launch. Existing worlds can create or reopen it with the graduation-cap button in the Encounter library toolbar. The sample is intentionally independent of specific bestiaries: its opponent entries are clearly marked placeholders that demonstrate budget, roles, groups, and participant-scoped triggers, and deployment remains disabled until they are replaced with real participants.
+
+The example demonstrates a moderate-budget encounter, three phases, a Runtime-managed objective, a GM-managed objective, an automatic repeating round trigger, a 50% HP phase transition requiring GM confirmation, and a leader-defeated transition.
+
+The underlying **Encounter Flow** authoring surface remains the Runtime's declarative screenplay editor:
 
 ### Flow authoring
 

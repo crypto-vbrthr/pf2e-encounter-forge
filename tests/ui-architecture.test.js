@@ -234,3 +234,47 @@ test("Encounter Flow authoring exposes phases, objectives, actions, triggers, co
   assert.match(apiSource, /flow:\s*Object\.freeze/);
   assert.match(apiSource, /actionTypes:\s*FLOW_ACTION_TYPES/);
 });
+
+
+test("flow reference labels refresh live while names are edited", () => {
+  assert.match(appSource, /#refreshReferenceLabels\(\)/);
+  assert.match(appSource, /syncAndRefreshReferences/);
+  assert.match(appSource, /data-flow-action-field=\"phaseId\".*data-trigger-field=\"activePhaseId\"/s);
+  assert.match(appSource, /data-flow-action-field=\"objectiveId\"/);
+  assert.match(appSource, /data-trigger-field=\"participantId\"/);
+  assert.match(appSource, /data-participant-field=\"groupId\"/);
+  assert.match(template, /data-trigger-action-label=\"\{\{id\}\}\"/);
+});
+
+test("Encounter Forge exposes and safeguards the onboarding example encounter", () => {
+  assert.match(template, /data-action=\"createExampleBlueprint\"/);
+  assert.match(template, /encounter-forge-example-banner/);
+  assert.match(template, /hasPlaceholderParticipants/);
+  assert.match(appSource, /#seedInitialExampleIfNeeded/);
+  assert.match(appSource, /createExampleEncounterBlueprint/);
+  assert.match(appSource, /participant\.source\?\.type === \"example\"/);
+});
+
+
+test("encounter library toolbar is labeled and overflow-safe", () => {
+  const libraryTemplate = fs.readFileSync(new URL("../templates/encounter-forge-app.hbs", import.meta.url), "utf8");
+  const css = fs.readFileSync(new URL("../styles/encounter-forge.css", import.meta.url), "utf8");
+  assert.match(libraryTemplate, /encounter-forge-library-section-label/);
+  assert.match(libraryTemplate, /PF2E_ENCOUNTER_FORGE\.Library\.Action\.New/);
+  assert.match(libraryTemplate, /PF2E_ENCOUNTER_FORGE\.Library\.Action\.Director/);
+  assert.match(css, /encounter-forge-library-actions[\s\S]*grid-template-columns:\s*repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(css, /encounter-forge-library[\s\S]*overflow:\s*hidden/);
+});
+
+
+test("saved Encounter rows are left-aligned cards with direct delete controls", () => {
+  const libraryTemplate = fs.readFileSync(new URL("../templates/encounter-forge-app.hbs", import.meta.url), "utf8");
+  const css = fs.readFileSync(new URL("../styles/encounter-forge.css", import.meta.url), "utf8");
+  assert.match(libraryTemplate, /encounter-forge-blueprint-select/);
+  assert.match(libraryTemplate, /encounter-forge-blueprint-delete/);
+  assert.match(libraryTemplate, /data-action="deleteBlueprint" data-blueprint-id="\{\{id\}\}"/);
+  assert.match(css, /encounter-forge-blueprint-select[\s\S]*text-align:\s*left\s*!important/);
+  assert.match(css, /encounter-forge-blueprint-name,[\s\S]*encounter-forge-blueprint-meta[\s\S]*text-align:\s*left\s*!important/);
+  assert.match(css, /grid-template-columns:\s*minmax\(0, 1fr\) 2rem/);
+  assert.match(appSource, /target\?\.dataset\?\.blueprintId \|\| this\.selectedBlueprintId/);
+});
