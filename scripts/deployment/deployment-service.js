@@ -4,6 +4,7 @@ import { assertEncounterBlueprint } from "../model/encounter-blueprint.js";
 import { deepClone, nowIso } from "../utils/data.js";
 import { EncounterForgeError } from "../utils/errors.js";
 import { ActorFolderService } from "./folder-service.js";
+import { SceneDeploymentService } from "./scene-deployment-service.js";
 
 function actorUuid(actor) {
   if (actor?.uuid) return actor.uuid;
@@ -74,10 +75,11 @@ async function stampInstanceUuidOnActor(actor, instanceUuid) {
 }
 
 export class EncounterDeploymentService {
-  constructor({ participantSources, instanceRepository, folderService = null, gameRef = globalThis.game } = {}) {
+  constructor({ participantSources, instanceRepository, folderService = null, sceneDeployment = null, gameRef = globalThis.game } = {}) {
     this.participantSources = participantSources;
     this.instanceRepository = instanceRepository;
     this.folderService = folderService ?? new ActorFolderService({ gameRef });
+    this.sceneDeployment = sceneDeployment ?? new SceneDeploymentService();
     this.gameRef = gameRef;
   }
 
@@ -116,6 +118,8 @@ export class EncounterDeploymentService {
     instance.deployment.materializedAt = null;
 
     const createdActors = [];
+    let sceneDeploymentResult = null;
+    let persistedInstance = null;
     try {
       if (actorMode === "per-participant") {
         for (const template of blueprint.participants ?? []) {
@@ -172,13 +176,37 @@ export class EncounterDeploymentService {
         }
       }
 
+      for (const runtimeParticipant of instance.participants ?? []) {
+        if (runtimeParticipant.actorUuid && runtimeParticipant.state === "pending") runtimeParticipant.state = "materialized";
+      }
+
       instance.deployment.materializedActorUuids = [...new Set(createdActors.map(actorUuid).filter(Boolean))];
       instance.deployment.materializedAt = nowIso();
+
+      const placeTokens = Boolean(scene) && options.placeTokens !== false;
+      if (placeTokens) {
+        sceneDeploymentResult = await this.sceneDeployment.deploy(instance, {
+          scene,
+          actors: createdActors,
+          placementMode: options.placementMode ?? "staging-center",
+          createCombat: options.createCombat === true,
+          includePlayerTokens: options.includePlayerTokens !== false
+        });
+      }
+
       instance.metadata.modifiedAt = nowIso();
       const saved = await this.instanceRepository.save(instance);
+      persistedInstance = saved;
       const instanceUuid = saved?.document?.uuid ?? null;
 
       await Promise.all(createdActors.map((actor) => stampInstanceUuidOnActor(actor, instanceUuid)));
+      await this.sceneDeployment.stampReferences({
+        instance: saved?.data ?? instance,
+        instanceUuid,
+        scene,
+        tokens: sceneDeploymentResult?.tokens ?? [],
+        combat: sceneDeploymentResult?.combat ?? null
+      });
       if (folderTarget.created && folder?.update) {
         try {
           await folder.update({
@@ -200,9 +228,17 @@ export class EncounterDeploymentService {
         actors: createdActors,
         folder,
         folderCreated: folderTarget.created,
-        scene
+        scene,
+        tokens: sceneDeploymentResult?.tokens ?? [],
+        combat: sceneDeploymentResult?.combat ?? null
       };
     } catch (error) {
+      if (sceneDeploymentResult) {
+        try { await this.sceneDeployment.rollback(sceneDeploymentResult); } catch {}
+      }
+      if (persistedInstance) {
+        try { await this.instanceRepository?.delete?.(instance.id); } catch {}
+      }
       for (const actor of [...createdActors].reverse()) {
         try { await actor?.delete?.({ render: false }); } catch {}
       }

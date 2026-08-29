@@ -2,69 +2,99 @@
 
 PF2e encounter planning and orchestration module in early alpha development.
 
-## 0.1.0-alpha.5.1 — Deployment & Actor Materialization
+## 0.1.0-alpha.6.1 — Interactive Scene Placement
 
-Encounter Blueprints can now be turned into persistent, prepared Encounter Instances. The Deployment block deliberately stops before token placement and live orchestration, keeping the transition from planning data to world documents explicit and reversible.
+Encounter deployment now supports both automatic staging and direct interactive placement on the selected Scene. A saved Blueprint can create its World Actors, place one Token for every concrete runtime participant, optionally prepare a Foundry Combat, and persist all resulting document references in the Encounter Instance.
 
-This maintenance build also keeps the deployment dialog above the main Encounter Forge window and explicitly enforces the selected Actor destination folder after every provider materializes its World Actor. This is important for providers such as Creature Forge whose public Actor creation contract does not itself assign the supplied folder.
+The Encounter Runtime and Encounter Director remain intentionally inactive. This release prepares the stage; it does not yet run the performance.
 
 ### Deployment workflow
 
-The Blueprint editor now exposes **Deploy Encounter**. Deployment automatically saves the current Blueprint first, then opens a dedicated configuration dialog where the GM can choose:
+The Blueprint editor exposes **Deploy Encounter**. Deployment automatically saves the current Blueprint first, then opens a configuration dialog where the GM can choose:
 
-- an optional target Scene, defaulting to the currently active Scene when available
+- a target Scene, defaulting to the currently viewed/active Scene when available
 - an existing Actor folder or the Actor Directory root
-- whether to create a new Encounter-specific Actor subfolder
-- the subfolder name
+- whether to create a unique Encounter-specific Actor subfolder
 - whether World Actors are created once per opponent type or once per concrete participant
-
-Encounter-specific subfolders use unique names instead of silently mixing a new Instance into an existing same-named folder.
+- whether concrete opponents are placed as Tokens on the selected Scene
+- whether Tokens are staged automatically at the Scene center or placed manually one by one on the map
+- whether a Foundry Combat should be prepared
+- whether existing PC/character Tokens on the Scene should also be added to that Combat
+- whether the client should switch to the selected Scene after deployment
 
 ### Actor materialization
 
-All supported participant sources now converge on real World Actors during deployment:
+All supported participant sources converge on real World Actors during deployment:
 
 - World/compendium Actor references are copied into the target Actor folder.
 - Creature Forge participant blueprints are materialized through Creature Forge's public `createActor()` API.
 - NPC Forge participants are materialized through NPC Forge's public document API.
 
-The Blueprint participant name is respected for the materialized Actor. In per-participant mode repeated opponents are numbered (`Guardian 1`, `Guardian 2`, and so on).
+Encounter Forge enforces the selected Actor destination after provider materialization so external Forge implementations do not need to own Encounter folder semantics.
 
-Materialized Actors receive Encounter Forge provenance and deployment metadata in `flags.pf2e-encounter-forge.participant`, including Blueprint/template identity, Instance identity, Actor mode, concrete runtime participant IDs, and the destination folder.
+`per-type` creates one World Actor per opponent template. Its concrete Tokens are unlinked and receive independent Token Actor state.
+
+`per-participant` creates one World Actor for every concrete opponent. Its Token is linked to that individual Actor so persistent individual state can live on the World Actor.
+
+### Scene placement
+
+When Token placement is enabled, Encounter Forge creates exactly one Token for every concrete runtime participant. **Manual placement is selected by default**; automatic staging remains available when a quick center formation is preferred. Two placement modes are available:
+
+- **Automatic staging** places the cast in a compact formation around the Scene center. Token size is considered when spacing the formation, and tactical groups remain together in stable participant order.
+- **Manual placement** opens the selected Scene and uses Foundry's native sequential Token placement workflow. A ghost Token follows the cursor; left-click confirms each opponent, the mouse wheel can rotate the preview, and Esc cancels the deployment transaction. A compact placement HUD identifies the current opponent and progress.
+
+Manual placement minimizes the Encounter Forge window while the GM works on the map. The actual clicked Token coordinates and rotation are persisted in the Encounter Instance.
+
+Every generated Token receives Encounter Forge flags containing:
+
+- Encounter Instance ID and UUID
+- concrete runtime participant ID
+- participant template ID
+- tactical group ID
+
+The Instance stores every Token UUID and each runtime participant's exact Token UUID, so later Runtime services do not need to rediscover identities from names or Actor types.
+
+### Optional Combat preparation
+
+Deployment can create a Foundry Combat for the selected Scene. Generated opponent Tokens are added as Combatants. If requested, character Tokens already present on that Scene are added as well.
+
+Combat preparation deliberately does **not**:
+
+- roll initiative
+- activate/start combat
+- start the Encounter Runtime
+- execute tactics or phases
+
+The Combat document and Scene receive back-references to the Encounter Instance after persistence.
 
 ### Prepared Encounter Instance
 
-Deployment expands Blueprint quantities into concrete runtime participants and persists an Encounter Instance under `Encounter Forge/Runtime`.
+The Instance now records:
 
-The Instance records:
-
-- Blueprint ID and saved Blueprint UUID
-- optional target Scene UUID and name snapshot
-- Actor destination folder ID and name snapshot
+- saved Blueprint identity
+- Scene UUID/name
+- Actor destination folder
 - Actor materialization mode
-- concrete runtime participant IDs
-- World Actor UUIDs assigned to every runtime participant
-- the unique set of World Actors created by this deployment
-- prepared status and materialization timestamp
+- materialized World Actor UUIDs
+- concrete runtime participant identities and Actor UUIDs
+- concrete Token UUIDs and automatic/manual starting positions (including rotation when available)
+- Token placement timestamp/mode
+- optional Combat UUID and preparation timestamp
+- whether existing PC Tokens were included in the prepared Combat
+- initial phase/objective state
 
-In `per-type` mode all runtime participants of one template share one World Actor reference, ready for later unlinked Token deployment. In `per-participant` mode every runtime participant receives a separate World Actor.
+Native Actor/Token state such as HP, conditions, inventory, spell resources, and PF2e rule data remains owned by Foundry/PF2e documents rather than being duplicated into the Instance.
 
 ### Transaction safety
 
-Actor materialization is treated as one deployment transaction. If a participant fails to materialize before the Instance is persisted, Encounter Forge removes Actors created by that failed attempt and removes an automatically created deployment folder. A half-built Encounter Instance is not saved.
+Deployment is treated as one world-mutation transaction. If Actor materialization, Token placement, Combat preparation, or Instance persistence fails, Encounter Forge rolls back documents created by that attempt where possible:
 
-### Still intentionally inactive
+- newly created Combat
+- newly created encounter Tokens
+- newly materialized World Actors
+- automatically created Actor subfolder
 
-This build does **not** yet:
-
-- place Tokens on the Scene
-- create Combatants or a Combat encounter
-- assign deployment zones
-- start or restore the Encounter Runtime
-- run objectives, phases, triggers, or tactical instructions
-- open the Encounter Director
-
-The selected Scene is stored on the prepared Instance so the next deployment block can continue from a stable target without guessing.
+A failed deployment should therefore not leave a half-built encounter scattered through the world.
 
 ### Existing planning features
 
@@ -80,16 +110,29 @@ The module also includes:
 - Encounter Blueprint schema v1 and Encounter Instance schema v1
 - primary-GM authority handling and inert Encounter Runtime service skeleton
 
+### Still intentionally inactive
+
+This build does **not** yet:
+
+- start or restore the Encounter Runtime
+- run objectives, phases, triggers, or tactical instructions
+- provide authored deployment zones/Regions or tactical auto-positioning beyond center staging and manual placement
+- open the Encounter Director
+
 ### Public deployment API
 
 ```js
 game.modules.get("pf2e-encounter-forge").api.deployment.deploy(blueprint, {
   blueprintUuid: "JournalEntry...",
-  sceneUuid: "Scene...",       // optional
-  actorFolderId: "...",        // optional, null = Actor root
+  sceneUuid: "Scene...",        // optional
+  actorFolderId: "...",         // optional, null = Actor root
   createSubfolder: true,
   subfolderName: blueprint.name,
-  actorMode: "per-type"         // or "per-participant"
+  actorMode: "per-type",         // or "per-participant"
+  placeTokens: true,
+  placementMode: "staging-center", // or "interactive"
+  createCombat: false,
+  includePlayerTokens: true
 });
 ```
 

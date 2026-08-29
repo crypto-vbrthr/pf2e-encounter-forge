@@ -148,3 +148,25 @@ test("deployment dialog is rendered after the parent refresh and explicitly brou
   assert.ok(childRender > parentRefresh);
   assert.ok(bringToFront > childRender);
 });
+
+test("Scene deployment UI exposes automatic/manual Token placement and optional Combat preparation", () => {
+  for (const field of ["placeTokens", "placementMode", "createCombat", "includePlayerTokens", "viewScene"]) {
+    assert.match(deploymentTemplate, new RegExp(`name="${field}"`));
+  }
+  assert.match(deploymentTemplate, /value="staging-center"/);
+  assert.match(deploymentTemplate, /value="interactive"/);
+  assert.match(deploymentTemplate, /value="interactive"\s+selected/);
+  assert.match(deploymentDialogSource, /placementMode: String\(read\("placementMode"\)\?\.value \?\? "interactive"\)/);
+  assert.match(deploymentTemplate, /data-interactive-placement-note/);
+  assert.match(deploymentDialogSource, /tokensEnabled/);
+  assert.match(deploymentDialogSource, /placementMode\?\.value === "interactive"/);
+  assert.match(deploymentDialogSource, /SCENE_PLACEMENT_CANCELLED/);
+  assert.match(deploymentDialogSource, /createCombat:/);
+  assert.match(deploymentDialogSource, /includePlayerTokens:/);
+  assert.match(deploymentDialogSource, /viewScene:/);
+  assert.match(appSource, /this\.minimize\?\.\(\)/);
+  assert.match(appSource, /this\.maximize\?\.\(\)/);
+  assert.match(appSource, /result\.tokens/);
+  assert.match(appSource, /result\.combat/);
+  assert.match(appSource, /!interactive && options\.viewScene/);
+});

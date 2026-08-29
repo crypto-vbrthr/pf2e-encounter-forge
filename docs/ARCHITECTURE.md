@@ -77,6 +77,9 @@ The prepared Instance stores:
 - Actor materialization mode
 - unique materialized World Actor UUIDs
 - concrete runtime participants and their Actor UUID assignments
+- concrete Token UUIDs and per-participant Token assignments
+- Token placement mode and timestamp
+- optional prepared Combat UUID/timestamp
 - initial phase/objective state
 - prepared status and timestamps
 
@@ -84,15 +87,21 @@ Actor hit points, conditions, equipment state, and other native Actor data are *
 
 ## Deployment transaction boundary
 
-World Actor creation happens before Instance persistence. Encounter Forge tracks every Actor created by the attempt. If materialization fails, those Actors are deleted and an automatically created deployment folder is removed. The Instance is persisted only when the full materialization pass succeeds.
+World Actor materialization and optional Scene preparation form one deployment transaction. Encounter Forge tracks every World Actor, Token, Combat, and automatically created Actor folder created by the attempt. If a later step fails, those documents are rolled back where possible and no half-built Instance should remain persisted.
 
-Once the Instance document exists, its UUID is added back to the materialized Actor provenance flags. Failure of this final convenience stamp does not invalidate the already successful deployment.
+The Instance payload is persisted only after the requested Actor and Scene preparation succeeds. Once the Instance document exists, its UUID is stamped back onto materialized Actors, Tokens, the Scene, the optional Combat, and an auto-created deployment folder. Failure of these final convenience back-reference stamps is logged but does not invalidate the already successful deployment.
 
 ## Scene and Combat boundary
 
-The current Deployment block can associate a prepared Instance with a Scene but deliberately does not mutate that Scene, create Tokens, or create a Combat document. `combatUuid` therefore remains null.
+Scene preparation is owned by `SceneDeploymentService`, not by the Runtime. It consumes concrete runtime participants and their already materialized World Actor references.
 
-A later Scene Deployment block will consume the stored Scene target, deployment zones, and materialized Actor references to create Tokens/Combatants and establish Scene/Combat back-references.
+For every concrete runtime participant, Scene deployment creates exactly one Token and stores its Token UUID back on the participant. `per-type` deployments create unlinked Tokens from the shared World Actor; `per-participant` deployments create linked Tokens from the participant's individual World Actor. The recorded placement coordinates are an initial staging snapshot only; current position remains native Token state and must not be shadow-copied into Encounter state.
+
+The initial placement mode is `staging-center`: a compact, size-aware formation centered on the Scene. It is intentionally a staging formation for GM adjustment, not tactical automatic placement. Authored deployment zones/Regions can be layered on top in a later block without changing participant identity semantics.
+
+Optional Combat preparation creates a Foundry Combat for the selected Scene, adds the generated opponent Tokens as Combatants, and can also include existing character Tokens already on the Scene. It does not roll initiative, start combat, or start the Encounter Runtime.
+
+The Scene and Combat receive Instance back-references after persistence. Native Token and Combat state remains owned by Foundry/PF2e.
 
 ## Encounter budget service
 
@@ -111,3 +120,10 @@ Only the primary active GM should execute Encounter Runtime mutations. The autho
 The planning layer is exposed through an ApplicationV2 window launched from the Actor Directory. The Deployment dialog is a separate ApplicationV2 surface because deployment is a concrete world mutation, not merely an editor operation.
 
 The future Encounter Director remains a separate surface again: Forge is the workshop, Deployment puts the cast on the production, Director is the live control desk.
+
+
+## Interactive Scene placement
+
+`SceneDeploymentService` owns the stable Encounter-to-Scene contract. For `placementMode: "interactive"` it delegates the canvas interaction to `InteractiveTokenPlacementService`, which uses Foundry VTT 14's public `TokenLayer.placeTokens()` workflow. The interactive service owns only Scene viewing, preview/placement interaction, and the temporary placement HUD. Encounter identity, persistence, Combat preparation, and rollback remain owned by the normal deployment pipeline.
+
+Pressing Esc produces a deployment cancellation error rather than a partially prepared Encounter Instance. The outer deployment transaction therefore retains a single rollback boundary across World Actor materialization, Token placement, Combat creation, and Instance persistence.

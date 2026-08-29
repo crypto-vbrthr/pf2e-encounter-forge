@@ -8,11 +8,12 @@
     <i class="fa-solid fa-clapperboard encounter-deployment-mark"></i>
   </header>
 
+  <div class="encounter-deployment-body">
   <section class="encounter-deployment-card">
     <div class="encounter-deployment-form-grid">
       <label class="wide">
         <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.SceneLabel"}}</span>
-        <select name="sceneUuid">
+        <select name="sceneUuid" data-scene-select>
           <option value="">{{localize "PF2E_ENCOUNTER_FORGE.Deployment.NoScene"}}</option>
           {{#each scenes}}
             <option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}{{#if active}} · {{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActiveScene"}}{{/if}}</option>
@@ -50,10 +51,75 @@
     </div>
   </section>
 
+  <section class="encounter-deployment-card encounter-deployment-scene-card" data-scene-preparation>
+    <div class="encounter-deployment-section-heading">
+      <div>
+        <h3>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.SceneSetupTitle"}}</h3>
+        <p>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.SceneSetupHint"}}</p>
+      </div>
+      <i class="fa-solid fa-map-location-dot"></i>
+    </div>
+
+    <div class="encounter-deployment-form-grid">
+      <label class="encounter-deployment-checkbox wide">
+        <input type="checkbox" name="placeTokens" checked>
+        <span>
+          <strong>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.PlaceTokens"}}</strong>
+          <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.PlaceTokensHint"}}</small>
+        </span>
+      </label>
+
+      <label class="wide">
+        <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.PlacementModeLabel"}}</span>
+        <select name="placementMode">
+          <option value="staging-center">{{localize "PF2E_ENCOUNTER_FORGE.Deployment.PlacementModeCenterGroups"}}</option>
+          <option value="interactive" selected>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.PlacementModeInteractive"}}</option>
+        </select>
+        <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.PlacementModeHint"}}</small>
+      </label>
+
+      <div class="encounter-deployment-interactive-note wide" data-interactive-placement-note hidden>
+        <i class="fa-solid fa-location-crosshairs"></i>
+        <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.InteractivePlacementNote"}}</span>
+      </div>
+
+      <label class="encounter-deployment-checkbox wide">
+        <input type="checkbox" name="createCombat">
+        <span>
+          <strong>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.CreateCombat"}}</strong>
+          <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.CreateCombatHint"}}</small>
+        </span>
+      </label>
+
+      <label class="encounter-deployment-checkbox wide encounter-deployment-nested">
+        <input type="checkbox" name="includePlayerTokens" checked>
+        <span>
+          <strong>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.IncludePlayerTokens"}}</strong>
+          <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.IncludePlayerTokensHint"}}</small>
+        </span>
+      </label>
+
+      <label class="encounter-deployment-checkbox wide">
+        <input type="checkbox" name="viewScene" checked>
+        <span>
+          <strong>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ViewScene"}}</strong>
+          <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ViewSceneHint"}}</small>
+        </span>
+      </label>
+    </div>
+
+    <div class="encounter-deployment-scene-disabled" data-scene-disabled-note hidden>
+      <i class="fa-solid fa-circle-info"></i>
+      <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.NoScenePreparation"}}</span>
+    </div>
+  </section>
+  </div>
+
   <section class="encounter-deployment-summary">
     <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.Participants"}}</span><strong>{{participantCount}}</strong></div>
     <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActorTemplates"}}</span><strong>{{templateCount}}</strong></div>
     <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActorsToCreate"}}</span><strong data-deployment-actor-count>{{templateCount}}</strong></div>
+    <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.TokensToCreate"}}</span><strong data-deployment-token-count>{{participantCount}}</strong></div>
   </section>
 
   <div class="encounter-deployment-note">

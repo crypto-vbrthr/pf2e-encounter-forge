@@ -1,5 +1,48 @@
 # Changelog
 
+## 0.1.0-alpha.6.2 - Manual Placement Default
+
+### Changed
+- Manual Scene Token placement is now preselected in the Encounter deployment dialog.
+- The deployment dialog's defensive UI fallback now also resolves to `interactive`, while the lower-level Scene Deployment API keeps its existing explicit/default behavior for programmatic callers.
+- Automatic center staging remains available as an opt-in placement mode.
+- Added regression coverage for the manual-placement default.
+
+## 0.1.0-alpha.6.1 - Interactive Scene Placement
+
+### Added
+- Added a manual Scene placement mode alongside the existing automatic center staging formation.
+- Manual placement uses Foundry VTT 14's native Token placement workflow, including a live ghost preview, grid snapping, sequential left-click placement, and mouse-wheel rotation.
+- Added a compact Encounter placement HUD showing the current opponent, placement progress, and controls while the canvas is in placement mode.
+- The selected Scene is opened automatically for manual placement and the main Encounter Forge window is minimized so it does not obstruct the map.
+- Concrete runtime participant placement now records the actual manually chosen coordinates and Token rotation in the Encounter Instance.
+- Added rollback-aware cancellation: pressing Esc cancels manual placement and the deployment transaction removes newly created deployment Actors/folders and any other documents from the interrupted attempt where possible.
+- Added regression coverage for interactive placement delegation, Foundry TokenLayer placement integration, Scene switching, cancellation, and UI contracts.
+
+### Changed
+- Scene deployment now supports `placementMode: "interactive"` in addition to `"staging-center"`.
+- The deployment dialog now describes Token placement rather than only a staging formation and explains the manual-placement workflow before it begins.
+- Successful manual deployment leaves Encounter Forge minimized on the selected Scene so the GM can immediately inspect or adjust the final setup.
+
+## 0.1.0-alpha.6 - Scene Deployment
+
+### Added
+- Added Scene preparation to Encounter deployment. Every concrete runtime participant can now be materialized as exactly one Token on the selected Scene.
+- Added a size-aware `staging-center` placement mode that creates a compact Scene-center formation intended for immediate GM adjustment.
+- Added Encounter identity flags to generated Tokens and persisted each runtime participant's concrete Token UUID.
+- Added Scene back-references to persisted Encounter Instances.
+- Added optional Foundry Combat preparation with generated opponent Tokens as Combatants.
+- Added an option to include character/PC Tokens already present on the selected Scene in the prepared Combat.
+- Added Combat back-references to the Encounter Instance without rolling initiative or starting combat.
+- Added an optional post-deployment Scene switch so the GM can immediately arrange staged Tokens.
+- Extended Encounter Instance deployment state with Token UUIDs, placement metadata, Combat preparation metadata, and PC-inclusion state.
+- Added Scene Deployment regression coverage for Token identity, Actor linking semantics, Combat preparation, back-reference stamping, and rollback.
+
+### Changed
+- Deployment rollback now covers Tokens and prepared Combat documents in addition to World Actors and auto-created Actor folders.
+- The Deployment dialog now exposes Scene preparation separately from Actor materialization.
+- `per-type` Scene deployment intentionally uses unlinked Tokens, while `per-participant` deployment uses linked Tokens so individual World Actor state persists.
+
 ## 0.1.0-alpha.5.1 - Deployment Dialog & Creature Folder Fix
 
 ### Fixed

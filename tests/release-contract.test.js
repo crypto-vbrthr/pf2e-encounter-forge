@@ -18,7 +18,7 @@ test("LICENSE and CHANGELOG ship with the module", () => {
   const license = fs.readFileSync(new URL("../LICENSE", import.meta.url), "utf8");
   const changelog = fs.readFileSync(new URL("../CHANGELOG.md", import.meta.url), "utf8");
   assert.match(license, /^MIT License/m);
-  assert.match(changelog, /0\.1\.0-alpha\.5/);
+  assert.match(changelog, /0\.1\.0-alpha\.6\.2/);
 });
 
 test("German and English localization catalogs expose the same keys", () => {

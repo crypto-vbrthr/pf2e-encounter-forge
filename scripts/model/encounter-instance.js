@@ -44,7 +44,12 @@ export function createEncounterInstance(blueprint, options = {}) {
       sceneName: options.sceneName ?? null,
       actorFolderName: options.actorFolderName ?? null,
       materializedActorUuids: [],
-      materializedAt: null
+      materializedAt: null,
+      tokenUuids: [],
+      tokensPlacedAt: null,
+      placementMode: null,
+      combatPreparedAt: null,
+      includePlayerTokensInCombat: false
     },
     participants: expandParticipants(blueprint),
     currentPhaseId: options.currentPhaseId ?? blueprint.phases?.[0]?.id ?? null,
@@ -76,6 +81,7 @@ export function validateEncounterInstance(value) {
   if (!INSTANCE_STATUSES.includes(value.status)) errors.push({ code: "STATUS", path: "status", message: `Unknown instance status '${value.status}'.` });
   if (!Array.isArray(value.participants)) errors.push({ code: "PARTICIPANTS", path: "participants", message: "Instance participants must be an array." });
   if (!ACTOR_MODES.includes(value.deployment?.actorMode)) errors.push({ code: "ACTOR_MODE", path: "deployment.actorMode", message: `Unknown Actor mode '${value.deployment?.actorMode}'.` });
+  if (value.deployment?.tokenUuids !== undefined && !Array.isArray(value.deployment.tokenUuids)) errors.push({ code: "TOKEN_UUIDS", path: "deployment.tokenUuids", message: "deployment.tokenUuids must be an array when present." });
   const ids = new Set();
   for (const participant of value.participants ?? []) {
     if (!participant?.id) errors.push({ code: "PARTICIPANT_ID", path: "participants", message: "Runtime participant id is required." });

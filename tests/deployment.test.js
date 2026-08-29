@@ -38,7 +38,7 @@ function blueprint() {
   });
 }
 
-function harness({ actorMode = "per-type", failAt = null } = {}) {
+function harness({ actorMode = "per-type", failAt = null, sceneDeployment = null } = {}) {
   const factory = actorFactory();
   let call = 0;
   const participantSources = {
@@ -57,7 +57,7 @@ function harness({ actorMode = "per-type", failAt = null } = {}) {
   };
   const folder = { id: "folder-enc", name: "Storm Shrine", update: async () => {}, delete: async () => {} };
   const folderService = { resolveTarget: async () => ({ folder, created: true }) };
-  const deployment = new EncounterDeploymentService({ participantSources, instanceRepository, folderService, gameRef: { user: { isGM: true } } });
+  const deployment = new EncounterDeploymentService({ participantSources, instanceRepository, folderService, sceneDeployment, gameRef: { user: { isGM: true } } });
   return { deployment, factory, saved, folder, actorMode };
 }
 
@@ -123,5 +123,49 @@ test("deployment enforces the resolved Actor folder after provider materializati
     const folderUpdate = actor.updates.find((update) => Object.prototype.hasOwnProperty.call(update, "folder"));
     assert.ok(folderUpdate, `Expected ${actor.name} to receive an explicit folder update`);
     assert.equal(folderUpdate.folder, "folder-enc");
+  }
+});
+
+
+test("deployment delegates selected Scene preparation and persists concrete Token/Combat references", async () => {
+  const previousFromUuid = globalThis.fromUuid;
+  const scene = { id: "scene-1", uuid: "Scene.scene-1", name: "Arena", documentName: "Scene" };
+  globalThis.fromUuid = async (uuid) => uuid === scene.uuid ? scene : null;
+  const tokens = [{ id: "t1", uuid: "Scene.scene-1.Token.t1" }];
+  const combat = { id: "c1", uuid: "Combat.c1" };
+  const calls = [];
+  const sceneDeployment = {
+    async deploy(instance, options) {
+      calls.push({ type: "deploy", options });
+      instance.deployment.tokenUuids = tokens.map((token) => token.uuid);
+      instance.deployment.tokensPlacedAt = "now";
+      instance.deployment.placementMode = options.placementMode;
+      instance.deployment.combatUuid = combat.uuid;
+      instance.participants[0].tokenUuid = tokens[0].uuid;
+      return { scene, tokens, combat };
+    },
+    async stampReferences(options) { calls.push({ type: "stamp", options }); },
+    async rollback() {}
+  };
+  try {
+    const h = harness({ sceneDeployment });
+    const result = await h.deployment.deploy(blueprint(), {
+      actorMode: "per-type",
+      sceneUuid: scene.uuid,
+      placeTokens: true,
+      placementMode: "staging-center",
+      createCombat: true,
+      includePlayerTokens: true
+    });
+    assert.equal(calls[0].type, "deploy");
+    assert.equal(calls[0].options.scene, scene);
+    assert.equal(calls[0].options.createCombat, true);
+    assert.equal(result.tokens, tokens);
+    assert.equal(result.combat, combat);
+    assert.equal(result.instance.deployment.tokenUuids[0], tokens[0].uuid);
+    assert.equal(result.instance.deployment.combatUuid, combat.uuid);
+    assert.equal(calls[1].type, "stamp");
+  } finally {
+    globalThis.fromUuid = previousFromUuid;
   }
 });

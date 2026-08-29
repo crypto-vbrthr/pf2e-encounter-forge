@@ -81,15 +81,43 @@ export class EncounterDeploymentDialogApp extends HandlebarsApplicationMixin(App
     const checkbox = root.querySelector('[name="createSubfolder"]');
     const nameInput = root.querySelector('[name="subfolderName"]');
     const actorMode = root.querySelector('[name="actorMode"]');
+    const sceneSelect = root.querySelector('[name="sceneUuid"]');
+    const placeTokens = root.querySelector('[name="placeTokens"]');
+    const placementMode = root.querySelector('[name="placementMode"]');
+    const createCombat = root.querySelector('[name="createCombat"]');
+    const includePlayerTokens = root.querySelector('[name="includePlayerTokens"]');
+    const viewScene = root.querySelector('[name="viewScene"]');
     const summary = root.querySelector("[data-deployment-actor-count]");
+    const tokenSummary = root.querySelector("[data-deployment-token-count]");
+    const sceneDisabledNote = root.querySelector("[data-scene-disabled-note]");
+    const interactiveNote = root.querySelector("[data-interactive-placement-note]");
     const update = () => {
       if (nameInput) nameInput.disabled = !checkbox?.checked;
       if (summary) summary.textContent = String(actorMode?.value === "per-participant"
         ? (context.participantCount ?? 0)
         : (context.templateCount ?? 0));
+
+      const hasScene = Boolean(sceneSelect?.value);
+      const tokensEnabled = hasScene && Boolean(placeTokens?.checked);
+      const interactive = tokensEnabled && placementMode?.value === "interactive";
+      if (placeTokens) placeTokens.disabled = !hasScene;
+      if (placementMode) placementMode.disabled = !tokensEnabled;
+      if (createCombat) createCombat.disabled = !tokensEnabled;
+      if (includePlayerTokens) includePlayerTokens.disabled = !tokensEnabled || !createCombat?.checked;
+      if (viewScene) {
+        if (interactive) viewScene.checked = true;
+        viewScene.disabled = !hasScene || interactive;
+      }
+      if (sceneDisabledNote instanceof HTMLElement) sceneDisabledNote.hidden = hasScene;
+      if (interactiveNote instanceof HTMLElement) interactiveNote.hidden = !interactive;
+      if (tokenSummary) tokenSummary.textContent = String(tokensEnabled ? (context.participantCount ?? 0) : 0);
     };
     checkbox?.addEventListener("change", update);
     actorMode?.addEventListener("change", update);
+    sceneSelect?.addEventListener("change", update);
+    placeTokens?.addEventListener("change", update);
+    placementMode?.addEventListener("change", update);
+    createCombat?.addEventListener("change", update);
     update();
   }
 
@@ -109,19 +137,32 @@ export class EncounterDeploymentDialogApp extends HandlebarsApplicationMixin(App
       actorFolderId: String(read("actorFolderId")?.value ?? "").trim() || null,
       createSubfolder,
       subfolderName: createSubfolder ? String(read("subfolderName")?.value ?? "").trim() || this.blueprint?.name : null,
-      actorMode: String(read("actorMode")?.value ?? "per-type")
+      actorMode: String(read("actorMode")?.value ?? "per-type"),
+      placeTokens: Boolean(read("sceneUuid")?.value) && Boolean(read("placeTokens")?.checked),
+      placementMode: String(read("placementMode")?.value ?? "interactive"),
+      createCombat: Boolean(read("sceneUuid")?.value) && Boolean(read("placeTokens")?.checked) && Boolean(read("createCombat")?.checked),
+      includePlayerTokens: Boolean(read("includePlayerTokens")?.checked),
+      viewScene: Boolean(read("sceneUuid")?.value) && Boolean(read("viewScene")?.checked)
     };
 
+    const interactive = options.placeTokens && options.placementMode === "interactive";
     this.deploying = true;
     for (const button of root.querySelectorAll("button, input, select")) button.disabled = true;
+    if (interactive) await this.close({ animate: false });
     try {
       const result = await this.onDeploy?.(options);
-      if (result !== false) await this.close();
+      if (result !== false && !interactive) await this.close();
     } catch (error) {
-      console.error(`${MODULE_ID} | Encounter deployment failed.`, error);
-      ui.notifications.error(localize("PF2E_ENCOUNTER_FORGE.Notifications.DeploymentFailed", "Encounter deployment failed."));
+      if (error?.code === "SCENE_PLACEMENT_CANCELLED") {
+        console.info(`${MODULE_ID} | Interactive Encounter placement cancelled by GM.`);
+        ui.notifications.info(localize("PF2E_ENCOUNTER_FORGE.Notifications.PlacementCancelled", "Interactive placement cancelled. Deployment changes were rolled back."));
+      } else {
+        console.error(`${MODULE_ID} | Encounter deployment failed.`, error);
+        ui.notifications.error(localize("PF2E_ENCOUNTER_FORGE.Notifications.DeploymentFailed", "Encounter deployment failed."));
+      }
       this.deploying = false;
-      await this.render({ force: true });
+      if (interactive) await this.render({ force: true });
+      else await this.render({ force: true });
     }
   }
 }

@@ -749,13 +749,31 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       blueprint: clone(persisted.blueprint),
       blueprintUuid,
       onDeploy: async (options) => {
-        const result = await api?.deployment?.deploy?.(persisted.blueprint, { ...options, blueprintUuid });
-        if (!result) return false;
-        const actorCount = result.actors?.length ?? 0;
-        const folderName = result.folder?.name ?? localize("PF2E_ENCOUNTER_FORGE.Deployment.ActorRoot", "Actor Directory root");
-        ui.notifications.info(game.i18n.format?.("PF2E_ENCOUNTER_FORGE.Notifications.DeploymentComplete", { actors: actorCount, folder: folderName })
-          ?? `${actorCount} Actors created in ${folderName}.`);
-        return result;
+        const interactive = options.placeTokens && options.placementMode === "interactive";
+        let completed = false;
+        if (interactive) await this.minimize?.();
+        try {
+          const result = await api?.deployment?.deploy?.(persisted.blueprint, { ...options, blueprintUuid });
+          if (!result) return false;
+          completed = true;
+          const actorCount = result.actors?.length ?? 0;
+          const tokenCount = result.tokens?.length ?? 0;
+          const folderName = result.folder?.name ?? localize("PF2E_ENCOUNTER_FORGE.Deployment.ActorRoot", "Actor Directory root");
+          const combatPrepared = Boolean(result.combat);
+          ui.notifications.info(game.i18n.format?.("PF2E_ENCOUNTER_FORGE.Notifications.DeploymentComplete", {
+            actors: actorCount,
+            tokens: tokenCount,
+            folder: folderName,
+            combat: combatPrepared ? localize("PF2E_ENCOUNTER_FORGE.Deployment.CombatYes", "Combat prepared") : localize("PF2E_ENCOUNTER_FORGE.Deployment.CombatNo", "no Combat")
+          }) ?? `${actorCount} Actors and ${tokenCount} Tokens prepared in ${folderName}.`);
+          if (!interactive && options.viewScene && result.scene?.view) await result.scene.view();
+          return result;
+        } finally {
+          // Manual placement needs the map unobstructed. On success the Forge stays
+          // minimized so the GM can inspect the staged Scene; on cancellation/failure
+          // restore it immediately.
+          if (interactive && !completed) await this.maximize?.();
+        }
       }
     }));
     await app.render({ force: true });
