@@ -23,7 +23,8 @@ function matchesEvent(trigger, event) {
   return expected === event.type;
 }
 
-function matchesConditions(trigger, event) {
+function matchesConditions(trigger, event, instance = null) {
+  if (trigger?.activePhaseId && trigger.activePhaseId !== instance?.currentPhaseId) return false;
   if (trigger?.participantId && trigger.participantId !== event.participantId) return false;
   if (Number.isFinite(Number(trigger?.round)) && Number(event.round) < Number(trigger.round)) return false;
   const conditions = Array.isArray(trigger?.conditions) ? trigger.conditions : [];
@@ -65,7 +66,7 @@ export class TriggerService extends RuntimeService {
       if (trigger?.enabled === false) continue;
       const once = trigger?.once !== false;
       if (once && fired.has(trigger.id)) continue;
-      if (!matchesEvent(trigger, event) || !matchesConditions(trigger, event)) continue;
+      if (!matchesEvent(trigger, event) || !matchesConditions(trigger, event, instance)) continue;
       matches.push(trigger);
       await this.onTrigger?.(trigger, event);
     }

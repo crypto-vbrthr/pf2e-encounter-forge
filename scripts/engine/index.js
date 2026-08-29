@@ -8,3 +8,10 @@ export {
   targetBudgetForThreat,
   analyzeEncounterBudget
 } from "./encounter-budget.js";
+export {
+  FLOW_EVENT_TYPES,
+  FLOW_CONDITION_FIELDS,
+  FLOW_OPERATORS,
+  FLOW_ACTION_TYPES,
+  analyzeEncounterFlow
+} from "./encounter-flow.js";

@@ -222,3 +222,15 @@ test("Encounter Director participant cards prioritize readable Actor identity an
   assert.match(directorTemplate, /role="meter"/);
   assert.match(css, /data-health="critical"/);
 });
+
+test("Encounter Flow authoring exposes phases, objectives, actions, triggers, conditions and validation", () => {
+  for (const action of ["addPhase", "removePhase", "movePhaseUp", "movePhaseDown", "addObjective", "removeObjective", "addFlowAction", "removeFlowAction", "addTrigger", "removeTrigger", "addTriggerCondition", "removeTriggerCondition"]) {
+    assert.match(template, new RegExp(`data-action="${action}"`));
+  }
+  for (const field of ["data-phase-field", "data-objective-field", "data-flow-action-field", "data-trigger-field", "data-trigger-condition-field", "data-trigger-action"]) {
+    assert.match(template, new RegExp(field));
+  }
+  assert.match(appSource, /analyzeEncounterFlow/);
+  assert.match(apiSource, /flow:\s*Object\.freeze/);
+  assert.match(apiSource, /actionTypes:\s*FLOW_ACTION_TYPES/);
+});

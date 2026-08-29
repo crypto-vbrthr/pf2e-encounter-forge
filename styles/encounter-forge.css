@@ -1481,3 +1481,118 @@
   .encounter-director-objective { grid-template-columns: 1fr; }
   .encounter-director-objective-progress { justify-content: flex-start; }
 }
+
+/* Encounter Flow authoring */
+.encounter-forge-flow-card { display: grid; gap: 0.75rem; }
+.encounter-forge-flow-heading { align-items: center; }
+.encounter-forge-flow-validation-summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.28rem 0.5rem;
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 999px;
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+.encounter-forge-flow-validation-summary[data-valid="false"] { border-color: rgba(190,90,70,0.55); }
+.encounter-forge-flow-issues { display: grid; gap: 0.25rem; }
+.encounter-forge-flow-issue {
+  display: grid;
+  grid-template-columns: auto minmax(0,1fr) auto;
+  gap: 0.4rem;
+  align-items: center;
+  padding: 0.35rem 0.45rem;
+  border-radius: 4px;
+  background: rgba(170,120,30,0.08);
+  font-size: 0.74rem;
+}
+.encounter-forge-flow-issue[data-severity="error"] { background: rgba(170,55,45,0.1); }
+.encounter-forge-flow-issue code { opacity: 0.55; font-size: 0.65rem; }
+.encounter-forge-flow-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 0.7rem;
+  align-items: start;
+}
+.encounter-forge-flow-panel {
+  min-width: 0;
+  padding: 0.65rem;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 6px;
+  background: rgba(0,0,0,0.035);
+}
+.encounter-forge-flow-panel > header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.6rem;
+  margin-bottom: 0.55rem;
+}
+.encounter-forge-flow-panel > header h3 { margin: 0; font-size: 0.92rem; }
+.encounter-forge-flow-panel > header p { margin: 0.15rem 0 0; font-size: 0.72rem; opacity: 0.65; }
+.encounter-forge-flow-list { display: grid; gap: 0.45rem; }
+.encounter-forge-phase-row,
+.encounter-forge-objective-row,
+.encounter-forge-flow-action-row,
+.encounter-forge-trigger-row {
+  display: grid;
+  gap: 0.42rem;
+  padding: 0.5rem;
+  border: 1px solid rgba(255,255,255,0.075);
+  border-radius: 5px;
+  background: rgba(255,255,255,0.025);
+}
+.encounter-forge-flow-row-head {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+.encounter-forge-flow-row-head > input,
+.encounter-forge-flow-row-title { flex: 1 1 auto; min-width: 0; }
+.encounter-forge-flow-row-title { display: flex; align-items: center; gap: 0.35rem; }
+.encounter-forge-flow-row-title input { flex: 1 1 auto; min-width: 0; }
+.encounter-forge-flow-row-actions { display: flex; gap: 0.2rem; }
+.encounter-forge-initial-badge {
+  flex: 0 0 auto;
+  padding: 0.12rem 0.32rem;
+  border-radius: 999px;
+  border: 1px solid rgba(201,165,106,0.35);
+  font-size: 0.62rem;
+  white-space: nowrap;
+}
+.encounter-forge-flow-panel label { display: grid; gap: 0.18rem; font-size: 0.7rem; }
+.encounter-forge-flow-panel label > span { opacity: 0.7; }
+.encounter-forge-objective-fields,
+.encounter-forge-flow-action-grid,
+.encounter-forge-trigger-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 0.4rem;
+}
+.encounter-forge-objective-fields .wide { grid-column: 1 / -1; }
+.encounter-forge-trigger-grid { grid-template-columns: repeat(3, minmax(0,1fr)); }
+.encounter-forge-trigger-flags { display: flex; flex-wrap: wrap; gap: 0.45rem 0.75rem; }
+.encounter-forge-trigger-flags label { display: flex; align-items: center; gap: 0.25rem; }
+.encounter-forge-trigger-subsection {
+  display: grid;
+  gap: 0.3rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.encounter-forge-trigger-subhead { display: flex; justify-content: space-between; align-items: center; }
+.encounter-forge-trigger-condition {
+  display: grid;
+  grid-template-columns: 1.2fr 0.9fr 1fr auto;
+  gap: 0.3rem;
+  align-items: center;
+}
+.encounter-forge-trigger-actions-list { display: flex; flex-wrap: wrap; gap: 0.25rem 0.55rem; }
+.encounter-forge-trigger-actions-list label { display: flex; align-items: center; gap: 0.2rem; }
+.encounter-forge-flow-empty { margin: 0.3rem 0; opacity: 0.55; font-size: 0.78rem; }
+.encounter-forge-flow-panel button.compact { min-height: 1.7rem; padding: 0.1rem 0.35rem; }
+
+@media (max-width: 1050px) {
+  .encounter-forge-flow-columns { grid-template-columns: 1fr; }
+  .encounter-forge-trigger-grid { grid-template-columns: 1fr; }
+}

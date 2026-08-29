@@ -10,6 +10,7 @@ import { openEncounterForge } from "../ui/encounter-forge-ui.js";
 import { openEncounterDirector } from "../director/encounter-director-ui.js";
 import { detectCurrentParty } from "../engine/party-analyzer.js";
 import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } from "../engine/encounter-budget.js";
+import { analyzeEncounterFlow, FLOW_ACTION_TYPES, FLOW_EVENT_TYPES, FLOW_CONDITION_FIELDS, FLOW_OPERATORS } from "../engine/encounter-flow.js";
 import { isIntegrationEnabled, setIntegrationEnabled } from "../integrations/integration-settings.js";
 
 export function createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, deployment, runtime } = {}) {
@@ -78,6 +79,14 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       analyze: (options = {}) => analyzeEncounterBudget(options),
       targetForThreat: (threat, partySize = 4) => targetBudgetForThreat(threat, partySize),
       xpForCreatureLevel: (creatureLevel, partyLevel) => xpForCreatureLevel(creatureLevel, partyLevel)
+    }),
+
+    flow: Object.freeze({
+      analyze: (blueprint) => analyzeEncounterFlow(blueprint),
+      events: FLOW_EVENT_TYPES,
+      actionTypes: FLOW_ACTION_TYPES,
+      conditionFields: FLOW_CONDITION_FIELDS,
+      operators: FLOW_OPERATORS
     }),
 
     ui: Object.freeze({

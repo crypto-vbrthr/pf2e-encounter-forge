@@ -1,6 +1,13 @@
 import { MODULE_ID, TOKEN_DISPLAY_MODE_KEYS } from "../constants.js";
 import { createEncounterBlueprint } from "../model/encounter-blueprint.js";
 import { analyzeEncounterBudget } from "../engine/encounter-budget.js";
+import {
+  FLOW_EVENT_TYPES,
+  FLOW_CONDITION_FIELDS,
+  FLOW_OPERATORS,
+  FLOW_ACTION_TYPES,
+  analyzeEncounterFlow
+} from "../engine/encounter-flow.js";
 import { randomId } from "../utils/data.js";
 import { ParticipantBrowserApp } from "./participant-browser-app.js";
 import { ForgeParticipantEditorApp } from "./forge-participant-editor-app.js";
@@ -115,6 +122,18 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       removeParticipant: EncounterForgeApp.removeParticipant,
       addGroup: EncounterForgeApp.addGroup,
       removeGroup: EncounterForgeApp.removeGroup,
+      addPhase: EncounterForgeApp.addPhase,
+      removePhase: EncounterForgeApp.removePhase,
+      movePhaseUp: EncounterForgeApp.movePhaseUp,
+      movePhaseDown: EncounterForgeApp.movePhaseDown,
+      addObjective: EncounterForgeApp.addObjective,
+      removeObjective: EncounterForgeApp.removeObjective,
+      addFlowAction: EncounterForgeApp.addFlowAction,
+      removeFlowAction: EncounterForgeApp.removeFlowAction,
+      addTrigger: EncounterForgeApp.addTrigger,
+      removeTrigger: EncounterForgeApp.removeTrigger,
+      addTriggerCondition: EncounterForgeApp.addTriggerCondition,
+      removeTriggerCondition: EncounterForgeApp.removeTriggerCondition,
       toggleIntegrations: EncounterForgeApp.toggleIntegrations,
       toggleIntegration: EncounterForgeApp.toggleIntegration,
       deployEncounter: EncounterForgeApp.deployEncounter,
@@ -226,6 +245,49 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const creatureForgeReady = Boolean(api?.integrations?.status?.("creatureForge")?.usable && creatureApi?.ui?.creatureEditor?.create);
     const npcForgeReady = Boolean(api?.integrations?.status?.("npcForge")?.usable && npcApi?.ui?.createEditor);
 
+    const phaseChoices = (draft.phases ?? []).map((phase) => ({ value: phase.id, label: phase.name || phase.id }));
+    const objectiveChoices = (draft.objectives ?? []).map((objective) => ({ value: objective.id, label: objective.name || objective.id }));
+    const participantChoices = (draft.participants ?? []).map((participant) => ({ value: participant.id, label: participant.name || participant.id }));
+    const flowActions = (draft.actions ?? []).map((action) => {
+      const type = String(action.type ?? action.kind ?? "director.message");
+      return {
+        ...action,
+        type,
+        isPhaseTransition: type === "phase.transition",
+        isObjectiveProgress: type === "objective.progress",
+        isDirectorMessage: type === "director.message",
+        amountValue: Number.isFinite(Number(action.amount)) ? Number(action.amount) : 1,
+        typeOptions: FLOW_ACTION_TYPES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ActionType.${value}`, value), selected: type === value })),
+        phaseOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectPhase", "Select phase"), selected: !action.phaseId }, ...phaseChoices.map((entry) => ({ ...entry, selected: action.phaseId === entry.value }))],
+        objectiveOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectObjective", "Select objective"), selected: !action.objectiveId }, ...objectiveChoices.map((entry) => ({ ...entry, selected: action.objectiveId === entry.value }))]
+      };
+    });
+    const triggers = (draft.triggers ?? []).map((trigger) => ({
+      ...trigger,
+      enabledChecked: trigger.enabled !== false,
+      onceChecked: trigger.once !== false,
+      confirmChecked: trigger.confirm !== false && trigger.automatic !== true,
+      eventOptions: FLOW_EVENT_TYPES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.Event.${value}`, value), selected: String(trigger.event ?? "") === value })),
+      activePhaseOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.AnyPhase", "Any phase"), selected: !trigger.activePhaseId }, ...phaseChoices.map((entry) => ({ ...entry, selected: trigger.activePhaseId === entry.value }))],
+      participantOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.AnyParticipant", "Any participant"), selected: !trigger.participantId }, ...participantChoices.map((entry) => ({ ...entry, selected: trigger.participantId === entry.value }))],
+      conditions: (trigger.conditions ?? []).map((condition, conditionIndex) => ({
+        ...condition,
+        conditionIndex,
+        fieldOptions: FLOW_CONDITION_FIELDS.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ConditionField.${value}`, value), selected: String(condition.field ?? condition.path ?? "") === value })),
+        operatorOptions: FLOW_OPERATORS.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.Operator.${value}`, value), selected: String(condition.operator ?? "eq") === value }))
+      })),
+      actionOptions: flowActions.map((action) => ({ id: action.id, label: action.name || action.id, checked: (trigger.actions ?? trigger.actionIds ?? []).includes(action.id) }))
+    }));
+    const phases = (draft.phases ?? []).map((phase, index, rows) => ({ ...phase, index, initial: index === 0, canMoveUp: index > 0, canMoveDown: index < rows.length - 1 }));
+    const objectives = (draft.objectives ?? []).map((objective) => ({ ...objective, targetValue: Number.isFinite(Number(objective.target)) ? Number(objective.target) : 1 }));
+    const flowReport = analyzeEncounterFlow(draft);
+    const flowIssues = [...flowReport.errors.map((issue) => ({ ...issue, severity: "error" })), ...flowReport.warnings.map((issue) => ({ ...issue, severity: "warning" }))].map((issue) => ({
+      ...issue,
+      label: localize(`PF2E_ENCOUNTER_FORGE.Flow.Validation.${issue.code}`, issue.message),
+      pathLabel: issue.path || "flow",
+      icon: issue.severity === "error" ? "fa-circle-xmark" : "fa-triangle-exclamation"
+    }));
+
     return {
       blueprints: this.blueprints.map((entry) => ({
         id: entry.id,
@@ -259,6 +321,15 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       hasGroups: groups.length > 0,
       creatureForgeReady,
       npcForgeReady,
+      phases,
+      objectives,
+      flowActions,
+      triggers,
+      hasPhases: phases.length > 0,
+      hasObjectives: objectives.length > 0,
+      hasFlowActions: flowActions.length > 0,
+      hasTriggers: triggers.length > 0,
+      flowReport: { ...flowReport, issues: flowIssues, issueCount: flowIssues.length },
       budget: {
         ...budget,
         statusLabel: localize(`PF2E_ENCOUNTER_FORGE.Budget.Status.${budget.status}`, budget.status),
@@ -286,9 +357,21 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const root = this.element;
     if (!(root instanceof HTMLElement)) return;
 
-    for (const input of root.querySelectorAll("[data-blueprint-field], [data-participant-field], [data-group-field]")) {
+    for (const input of root.querySelectorAll("[data-blueprint-field], [data-participant-field], [data-group-field], [data-phase-field], [data-objective-field], [data-flow-action-field], [data-trigger-field], [data-trigger-condition-field], [data-trigger-action]")) {
       input.addEventListener("input", () => this.#syncDraftFromForm());
       input.addEventListener("change", () => this.#syncDraftFromForm());
+    }
+    for (const select of root.querySelectorAll('[data-flow-action-field="type"]')) {
+      select.addEventListener("change", async () => {
+        this.#syncDraftFromForm();
+        await this.#renderFresh();
+      });
+    }
+    for (const control of root.querySelectorAll('[data-flow-action-field="phaseId"], [data-flow-action-field="objectiveId"], [data-trigger-field="event"], [data-trigger-field="activePhaseId"], [data-trigger-field="participantId"], [data-trigger-condition-field], [data-trigger-action]')) {
+      control.addEventListener("change", async () => {
+        this.#syncDraftFromForm();
+        await this.#renderFresh();
+      });
     }
 
     const dropZone = root.querySelector("[data-participant-drop]");
@@ -394,6 +477,68 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       if (!group) continue;
       const name = row.querySelector('[data-group-field="name"]')?.value;
       group.name = String(name ?? group.name ?? group.id).trim() || group.id;
+    }
+
+    const phaseById = new Map((next.phases ?? []).map((phase) => [phase.id, phase]));
+    for (const row of root.querySelectorAll(".encounter-forge-phase-row[data-phase-id]")) {
+      const phase = phaseById.get(row.dataset.phaseId);
+      if (!phase) continue;
+      const read = (field) => row.querySelector(`[data-phase-field="${field}"]`)?.value;
+      phase.name = String(read("name") ?? phase.name ?? phase.id).trim() || phase.id;
+      phase.description = String(read("description") ?? phase.description ?? "");
+    }
+
+    const objectiveById = new Map((next.objectives ?? []).map((objective) => [objective.id, objective]));
+    for (const row of root.querySelectorAll(".encounter-forge-objective-row[data-objective-id]")) {
+      const objective = objectiveById.get(row.dataset.objectiveId);
+      if (!objective) continue;
+      const read = (field) => row.querySelector(`[data-objective-field="${field}"]`)?.value;
+      objective.name = String(read("name") ?? objective.name ?? objective.id).trim() || objective.id;
+      objective.description = String(read("description") ?? objective.description ?? "");
+      objective.target = asInteger(read("target"), Number(objective.target ?? 1), { min: 1, max: 999 });
+    }
+
+    const actionById = new Map((next.actions ?? []).map((action) => [action.id, action]));
+    for (const row of root.querySelectorAll(".encounter-forge-flow-action-row[data-flow-action-id]")) {
+      const action = actionById.get(row.dataset.flowActionId);
+      if (!action) continue;
+      const read = (field) => row.querySelector(`[data-flow-action-field="${field}"]`)?.value;
+      action.name = String(read("name") ?? action.name ?? action.id).trim() || action.id;
+      action.type = String(read("type") ?? action.type ?? "director.message");
+      action.phaseId = String(read("phaseId") ?? "").trim() || null;
+      action.objectiveId = String(read("objectiveId") ?? "").trim() || null;
+      action.amount = asInteger(read("amount"), Number(action.amount ?? 1), { min: -999, max: 999 });
+      action.message = String(read("message") ?? action.message ?? "");
+    }
+
+    const triggerById = new Map((next.triggers ?? []).map((trigger) => [trigger.id, trigger]));
+    const numericConditionFields = new Set(["round", "turn", "hpValue", "hpMax", "hpPercent"]);
+    for (const row of root.querySelectorAll(".encounter-forge-trigger-row[data-trigger-id]")) {
+      const trigger = triggerById.get(row.dataset.triggerId);
+      if (!trigger) continue;
+      const field = (name) => row.querySelector(`[data-trigger-field="${name}"]`);
+      const read = (name) => field(name)?.value;
+      trigger.name = String(read("name") ?? trigger.name ?? trigger.id).trim() || trigger.id;
+      trigger.event = String(read("event") ?? trigger.event ?? "combat.roundChanged");
+      trigger.activePhaseId = String(read("activePhaseId") ?? "").trim() || null;
+      trigger.participantId = String(read("participantId") ?? "").trim() || null;
+      trigger.enabled = Boolean(field("enabled")?.checked);
+      trigger.once = Boolean(field("once")?.checked);
+      trigger.confirm = Boolean(field("confirm")?.checked);
+      trigger.automatic = !trigger.confirm;
+      trigger.conditions = [];
+      for (const conditionRow of row.querySelectorAll(".encounter-forge-trigger-condition[data-condition-index]")) {
+        const readCondition = (name) => conditionRow.querySelector(`[data-trigger-condition-field="${name}"]`)?.value;
+        const conditionField = String(readCondition("field") ?? "").trim();
+        if (!conditionField) continue;
+        const rawValue = String(readCondition("value") ?? "").trim();
+        trigger.conditions.push({
+          field: conditionField,
+          operator: String(readCondition("operator") ?? "eq"),
+          value: numericConditionFields.has(conditionField) && rawValue !== "" && Number.isFinite(Number(rawValue)) ? Number(rawValue) : rawValue
+        });
+      }
+      trigger.actions = [...row.querySelectorAll('[data-trigger-action]:checked')].map((input) => String(input.dataset.triggerAction ?? "")).filter(Boolean);
     }
 
     this.draft = next;
@@ -631,6 +776,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     if (!id) return;
     const next = clone(this.draft);
     next.participants = (next.participants ?? []).filter((entry) => entry.id !== id);
+    for (const trigger of next.triggers ?? []) if (trigger.participantId === id) trigger.participantId = null;
     this.draft = next;
     await this.#renderFresh();
   }
@@ -652,6 +798,169 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const next = clone(this.draft);
     next.groups = (next.groups ?? []).filter((entry) => entry.id !== id);
     for (const participant of next.participants ?? []) if (participant.groupId === id) participant.groupId = null;
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async addPhase() {
+    this.#syncDraftFromForm();
+    const next = clone(this.draft);
+    next.phases ??= [];
+    const number = next.phases.length + 1;
+    next.phases.push({
+      id: randomId("phase"),
+      name: `${localize("PF2E_ENCOUNTER_FORGE.Flow.Phase", "Phase")} ${number}`,
+      description: ""
+    });
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async removePhase(_event, target) {
+    this.#syncDraftFromForm();
+    const id = target?.dataset?.phaseId;
+    if (!id) return;
+    const next = clone(this.draft);
+    next.phases = (next.phases ?? []).filter((entry) => entry.id !== id);
+    for (const action of next.actions ?? []) if (action.phaseId === id) action.phaseId = null;
+    for (const trigger of next.triggers ?? []) if (trigger.activePhaseId === id) trigger.activePhaseId = null;
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async movePhaseUp(_event, target) {
+    this.#syncDraftFromForm();
+    const id = target?.dataset?.phaseId;
+    const next = clone(this.draft);
+    const index = next.phases?.findIndex?.((entry) => entry.id === id) ?? -1;
+    if (index <= 0) return;
+    [next.phases[index - 1], next.phases[index]] = [next.phases[index], next.phases[index - 1]];
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async movePhaseDown(_event, target) {
+    this.#syncDraftFromForm();
+    const id = target?.dataset?.phaseId;
+    const next = clone(this.draft);
+    const index = next.phases?.findIndex?.((entry) => entry.id === id) ?? -1;
+    if (index < 0 || index >= (next.phases?.length ?? 0) - 1) return;
+    [next.phases[index], next.phases[index + 1]] = [next.phases[index + 1], next.phases[index]];
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async addObjective() {
+    this.#syncDraftFromForm();
+    const next = clone(this.draft);
+    next.objectives ??= [];
+    const number = next.objectives.length + 1;
+    next.objectives.push({
+      id: randomId("objective"),
+      name: `${localize("PF2E_ENCOUNTER_FORGE.Flow.Objective", "Objective")} ${number}`,
+      description: "",
+      target: 1
+    });
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async removeObjective(_event, target) {
+    this.#syncDraftFromForm();
+    const id = target?.dataset?.objectiveId;
+    if (!id) return;
+    const next = clone(this.draft);
+    next.objectives = (next.objectives ?? []).filter((entry) => entry.id !== id);
+    for (const action of next.actions ?? []) if (action.objectiveId === id) action.objectiveId = null;
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async addFlowAction() {
+    this.#syncDraftFromForm();
+    const next = clone(this.draft);
+    next.actions ??= [];
+    const number = next.actions.length + 1;
+    next.actions.push({
+      id: randomId("action"),
+      name: `${localize("PF2E_ENCOUNTER_FORGE.Flow.Action", "Action")} ${number}`,
+      type: "director.message",
+      message: "",
+      amount: 1,
+      phaseId: null,
+      objectiveId: null
+    });
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async removeFlowAction(_event, target) {
+    this.#syncDraftFromForm();
+    const id = target?.dataset?.flowActionId;
+    if (!id) return;
+    const next = clone(this.draft);
+    next.actions = (next.actions ?? []).filter((entry) => entry.id !== id);
+    for (const trigger of next.triggers ?? []) {
+      trigger.actions = (trigger.actions ?? trigger.actionIds ?? []).filter((actionId) => actionId !== id);
+      delete trigger.actionIds;
+    }
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async addTrigger() {
+    this.#syncDraftFromForm();
+    const next = clone(this.draft);
+    next.triggers ??= [];
+    const number = next.triggers.length + 1;
+    next.triggers.push({
+      id: randomId("trigger"),
+      name: `${localize("PF2E_ENCOUNTER_FORGE.Flow.Trigger", "Trigger")} ${number}`,
+      event: "combat.roundChanged",
+      activePhaseId: null,
+      participantId: null,
+      enabled: true,
+      once: true,
+      confirm: true,
+      automatic: false,
+      conditions: [],
+      actions: []
+    });
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async removeTrigger(_event, target) {
+    this.#syncDraftFromForm();
+    const id = target?.dataset?.triggerId;
+    if (!id) return;
+    const next = clone(this.draft);
+    next.triggers = (next.triggers ?? []).filter((entry) => entry.id !== id);
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async addTriggerCondition(_event, target) {
+    this.#syncDraftFromForm();
+    const id = target?.dataset?.triggerId;
+    const next = clone(this.draft);
+    const trigger = next.triggers?.find?.((entry) => entry.id === id);
+    if (!trigger) return;
+    trigger.conditions ??= [];
+    trigger.conditions.push({ field: trigger.event === "participant.hpChanged" ? "hpPercent" : "round", operator: "gte", value: trigger.event === "participant.hpChanged" ? 50 : 1 });
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async removeTriggerCondition(_event, target) {
+    this.#syncDraftFromForm();
+    const id = target?.dataset?.triggerId;
+    const index = Number.parseInt(target?.dataset?.conditionIndex ?? "-1", 10);
+    if (!id || index < 0) return;
+    const next = clone(this.draft);
+    const trigger = next.triggers?.find?.((entry) => entry.id === id);
+    if (!trigger) return;
+    trigger.conditions = (trigger.conditions ?? []).filter((_entry, conditionIndex) => conditionIndex !== index);
     this.draft = next;
     await this.#renderFresh();
   }

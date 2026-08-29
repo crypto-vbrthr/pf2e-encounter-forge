@@ -5,7 +5,7 @@
 - **Encounter Forge**: planning and editing layer.
 - **Encounter Blueprint**: reusable, serializable encounter plan.
 - **Encounter Instance**: persistent state for one concrete deployment.
-- **Encounter Director**: future GM-facing direction and decision UI.
+- **Encounter Director**: GM-facing live direction and decision UI.
 - **Encounter Runtime**: authoritative background orchestration layer.
 
 ## Ownership rule
@@ -113,13 +113,13 @@ The integration registry is dynamic. Encounter Forge has no hard module dependen
 
 ## Runtime authority
 
-Only the primary active GM should execute Encounter Runtime mutations. The authority contract and runtime service boundaries exist, but deployment does not start or restore the Runtime yet.
+Only the primary active GM executes Encounter Runtime mutations. Prepared deployments remain inert until explicitly started or their prepared Combat begins; active/paused Instances can be restored on world ready.
 
 ## GM-facing UI
 
 The planning layer is exposed through an ApplicationV2 window launched from the Actor Directory. The Deployment dialog is a separate ApplicationV2 surface because deployment is a concrete world mutation, not merely an editor operation.
 
-The future Encounter Director remains a separate surface again: Forge is the workshop, Deployment puts the cast on the production, Director is the live control desk.
+The Encounter Director remains a separate surface: Forge is the workshop, Deployment puts the cast on the production, Director is the live control desk.
 
 
 ## Interactive Scene placement
@@ -213,3 +213,21 @@ The Director shows:
 The Director subscribes to Runtime bus notifications and rerenders on relevant changes. It can be opened from Encounter Forge or the Combat Tracker. Selecting an Instance for viewing does not itself mutate that Instance; mutation starts only when the GM invokes a lifecycle/action control or the prepared Combat starts.
 
 This preserves the project vocabulary boundary: **Forge plans, Deployment materializes, Director communicates, Runtime executes, Instance remembers.**
+
+
+## Encounter Flow authoring
+
+As of `0.1.0-alpha.8`, the Blueprint editor authors the Runtime flow directly rather than treating these sections as raw extension data. Flow data remains plain serializable objects, never executable JavaScript.
+
+The authoring model consists of:
+
+- **phases**: ordered Encounter states; the first phase initializes `EncounterInstance.currentPhaseId`
+- **objectives**: definitions whose progress/state live in the Encounter Instance
+- **actions**: reusable declarative Runtime instructions
+- **triggers**: normalized Runtime event listeners with optional phase/participant scope, conditions, execution policy, and action references
+
+Initial authorable action types are `phase.transition`, `objective.progress`, and `director.message`. Initial event types are normalized Combat round/turn changes and participant HP/defeat/restore/Token-removal events. `participant.hpChanged` includes `hpValue`, `hpMax`, and `hpPercent` snapshots read from native PF2e Actor state; these values are event payload only and are not shadow-persisted into the Encounter Instance.
+
+`TriggerService` supports `activePhaseId` as an Encounter-owned scope filter in addition to participant and condition filters. Consequential actions still default to a persistent GM decision unless the trigger explicitly opts into automatic execution.
+
+`analyzeEncounterFlow()` provides authoring-time structural analysis. Dead references are hard validation errors. Unreachable phases and scoped phase cycles are warnings because they can be intentional in hand-directed encounters. The public `api.flow` surface exposes this contract for add-ons.

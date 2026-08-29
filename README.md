@@ -2,6 +2,36 @@
 
 PF2e encounter planning, deployment, and live encounter-direction module in early alpha development.
 
+## 0.1.0-alpha.8 — Encounter Flow Authoring
+
+The Blueprint editor now contains the first real **Encounter Flow** authoring surface. A GM can build the Runtime's declarative screenplay directly in Encounter Forge instead of supplying phases, objectives, triggers, and actions through raw data/API content.
+
+### Flow authoring
+
+The editor now supports:
+
+- ordered **phases**, with the first phase becoming the Instance start phase
+- **objectives** with persistent progress targets
+- Runtime **actions** for phase transitions, objective progress, and Director messages
+- **triggers** bound to normalized Runtime events
+- optional trigger scoping to one active phase or participant
+- reusable declarative trigger **conditions**
+- one-shot/repeating and enabled/disabled trigger policies
+- GM-confirmed actions or explicit automatic execution
+- linking multiple prepared actions to one trigger
+
+The first authorable normalized events are Combat round/turn changes, participant HP changes, participant defeated/restored state, and participant Token removal. HP-change events now expose current HP, maximum HP, and HP percentage so a trigger can express conditions such as “boss HP at most 50%”.
+
+### Flow validation
+
+The Forge analyzes the authored flow while editing. Save-blocking errors include dead action, phase, objective, participant, and trigger references. Softer warnings call out unsupported event/action contracts, phases that currently appear unreachable, and phase-transition cycles that deserve a GM sanity check.
+
+The public API exposes the same contract through `api.flow`, including supported event/action/operator metadata and `api.flow.analyze(blueprint)`.
+
+### Runtime integration
+
+Triggers may now be scoped to an active phase. This keeps phase-specific choreography declarative: a trigger can listen for the same Combat event throughout the encounter but only react while its authored phase is current. The Director remains the visible GM partner and the Runtime remains the execution layer.
+
 ## 0.1.0-alpha.7.2 — Reopen Encounter & Unobstructed Placement
 
 This patch adds a safe lifecycle undo for accidentally completed encounters and keeps the canvas fully clear during interactive Token placement.

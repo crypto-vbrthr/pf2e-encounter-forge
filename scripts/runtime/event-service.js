@@ -7,6 +7,19 @@ function uuidOf(document, fallback = null) {
   return null;
 }
 
+
+function hpSnapshot(actor) {
+  const hp = actor?.system?.attributes?.hp ?? actor?.system?.attributes?.hitPoints ?? null;
+  const value = Number(hp?.value);
+  const max = Number(hp?.max);
+  if (!Number.isFinite(value) || !Number.isFinite(max) || max <= 0) return { hpValue: null, hpMax: null, hpPercent: null };
+  return {
+    hpValue: value,
+    hpMax: max,
+    hpPercent: Math.max(0, Math.min(100, Math.round((value / max) * 100)))
+  };
+}
+
 function hasPathLike(change, needles) {
   const text = JSON.stringify(change ?? {}).toLowerCase();
   return needles.some((needle) => text.includes(String(needle).toLowerCase()));
@@ -83,6 +96,7 @@ export class EventService extends RuntimeService {
       await this.#emit(hpChanged ? "participant.hpChanged" : "participant.tokenUpdated", {
         participantId: participant.id,
         tokenUuid: uuidOf(token),
+        ...(hpChanged ? hpSnapshot(token?.actor) : {}),
         changed
       });
     });
@@ -95,6 +109,7 @@ export class EventService extends RuntimeService {
         await this.#emit(hpChanged ? "participant.hpChanged" : "participant.actorUpdated", {
           participantId: participant.id,
           actorUuid: uuidOf(actor, "Actor"),
+          ...(hpChanged ? hpSnapshot(actor) : {}),
           changed
         });
       }

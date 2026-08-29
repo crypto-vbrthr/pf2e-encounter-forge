@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.0-alpha.8 - Encounter Flow Authoring
+
+### Added
+- Added first-class Blueprint authoring UI for Encounter phases, objectives, Runtime actions, triggers, trigger conditions, and linked actions.
+- Phases can be reordered directly in the Forge; the first phase is the Encounter Instance start phase.
+- Objectives can define persistent progress targets consumed by the existing Runtime/Director objective state.
+- Added authoring for the first Runtime action types: `phase.transition`, `objective.progress`, and `director.message`.
+- Added trigger authoring for normalized Combat/participant Runtime events, optional active-phase and participant filters, reusable conditions, once/enabled flags, GM confirmation, and automatic execution.
+- Added HP condition fields (`hpValue`, `hpMax`, `hpPercent`) to normalized participant HP-change events so authored threshold triggers can react to the live PF2e Actor state.
+- Added active-phase scoping to TriggerService so a trigger can be limited to a particular Encounter phase.
+- Added Encounter Flow analysis for dead phase/objective/action/participant references, unsupported action/event contracts, unreachable phases, and suspicious scoped phase cycles.
+- Added public `api.flow` metadata/analysis for add-ons and external tooling.
+
+### Changed
+- Blueprint validation now treats dead Flow references as save-blocking errors while retaining softer authoring warnings for reachability/cycles.
+- Blueprint structure/status copy now reflects that objectives, phases, triggers, and actions are editable rather than deferred.
+- Added regression coverage for Flow validation, phase-scoped Runtime triggers, HP percentage events, and the Flow authoring UI contract.
+
 ## 0.1.0-alpha.7.2 - Reopen Encounter & Unobstructed Placement
 
 ### Added

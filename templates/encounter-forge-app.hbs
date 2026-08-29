@@ -298,6 +298,199 @@
       </div>
     </section>
 
+    <section class="encounter-forge-card encounter-forge-flow-card">
+      <div class="encounter-forge-section-title encounter-forge-flow-heading">
+        <div>
+          <h2>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Title"}}</h2>
+          <p>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Hint"}}</p>
+        </div>
+        <div class="encounter-forge-flow-validation-summary" data-valid="{{flowReport.valid}}">
+          {{#if flowReport.issueCount}}
+            <i class="fa-solid fa-triangle-exclamation"></i>
+            <span>{{flowReport.issueCount}} {{localize "PF2E_ENCOUNTER_FORGE.Flow.Validation.Issues"}}</span>
+          {{else}}
+            <i class="fa-solid fa-circle-check"></i>
+            <span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Validation.Clean"}}</span>
+          {{/if}}
+        </div>
+      </div>
+
+      {{#if flowReport.issueCount}}
+        <div class="encounter-forge-flow-issues">
+          {{#each flowReport.issues}}
+            <div class="encounter-forge-flow-issue" data-severity="{{severity}}">
+              <i class="fa-solid {{icon}}"></i>
+              <span>{{label}}</span>
+              <code>{{pathLabel}}</code>
+            </div>
+          {{/each}}
+        </div>
+      {{/if}}
+
+      <div class="encounter-forge-flow-columns">
+        <section class="encounter-forge-flow-panel">
+          <header>
+            <div>
+              <h3><i class="fa-solid fa-layer-group"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.PhasesTitle"}}</h3>
+              <p>{{localize "PF2E_ENCOUNTER_FORGE.Flow.PhasesHint"}}</p>
+            </div>
+            <button type="button" data-action="addPhase" class="secondary"><i class="fa-solid fa-plus"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.AddPhase"}}</button>
+          </header>
+          {{#if hasPhases}}
+            <div class="encounter-forge-flow-list">
+              {{#each phases}}
+                <article class="encounter-forge-phase-row" data-phase-id="{{id}}">
+                  <div class="encounter-forge-flow-row-head">
+                    <div class="encounter-forge-flow-row-title">
+                      {{#if initial}}<span class="encounter-forge-initial-badge"><i class="fa-solid fa-play"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.InitialPhase"}}</span>{{/if}}
+                      <input type="text" value="{{name}}" data-phase-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}">
+                    </div>
+                    <div class="encounter-forge-flow-row-actions">
+                      <button type="button" data-action="movePhaseUp" data-phase-id="{{id}}" class="icon-only" {{#unless canMoveUp}}disabled{{/unless}}><i class="fa-solid fa-arrow-up"></i></button>
+                      <button type="button" data-action="movePhaseDown" data-phase-id="{{id}}" class="icon-only" {{#unless canMoveDown}}disabled{{/unless}}><i class="fa-solid fa-arrow-down"></i></button>
+                      <button type="button" data-action="removePhase" data-phase-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                    </div>
+                  </div>
+                  <textarea rows="2" data-phase-field="description" placeholder="{{localize "PF2E_ENCOUNTER_FORGE.Flow.DescriptionPlaceholder"}}">{{description}}</textarea>
+                </article>
+              {{/each}}
+            </div>
+          {{else}}
+            <p class="encounter-forge-flow-empty">{{localize "PF2E_ENCOUNTER_FORGE.Flow.NoPhases"}}</p>
+          {{/if}}
+        </section>
+
+        <section class="encounter-forge-flow-panel">
+          <header>
+            <div>
+              <h3><i class="fa-solid fa-bullseye"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.ObjectivesTitle"}}</h3>
+              <p>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ObjectivesHint"}}</p>
+            </div>
+            <button type="button" data-action="addObjective" class="secondary"><i class="fa-solid fa-plus"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.AddObjective"}}</button>
+          </header>
+          {{#if hasObjectives}}
+            <div class="encounter-forge-flow-list">
+              {{#each objectives}}
+                <article class="encounter-forge-objective-row" data-objective-id="{{id}}">
+                  <div class="encounter-forge-flow-row-head">
+                    <input type="text" value="{{name}}" data-objective-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}">
+                    <button type="button" data-action="removeObjective" data-objective-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                  <div class="encounter-forge-objective-fields">
+                    <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Target"}}</span><input type="number" min="1" max="999" step="1" value="{{targetValue}}" data-objective-field="target"></label>
+                    <label class="wide"><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Description"}}</span><textarea rows="2" data-objective-field="description">{{description}}</textarea></label>
+                  </div>
+                </article>
+              {{/each}}
+            </div>
+          {{else}}
+            <p class="encounter-forge-flow-empty">{{localize "PF2E_ENCOUNTER_FORGE.Flow.NoObjectives"}}</p>
+          {{/if}}
+        </section>
+      </div>
+
+      <div class="encounter-forge-flow-columns encounter-forge-flow-columns-runtime">
+        <section class="encounter-forge-flow-panel">
+          <header>
+            <div>
+              <h3><i class="fa-solid fa-bolt"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.ActionsTitle"}}</h3>
+              <p>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ActionsHint"}}</p>
+            </div>
+            <button type="button" data-action="addFlowAction" class="secondary"><i class="fa-solid fa-plus"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.AddAction"}}</button>
+          </header>
+          {{#if hasFlowActions}}
+            <div class="encounter-forge-flow-list">
+              {{#each flowActions}}
+                <article class="encounter-forge-flow-action-row" data-flow-action-id="{{id}}" data-flow-action-type="{{type}}">
+                  <div class="encounter-forge-flow-row-head">
+                    <input type="text" value="{{name}}" data-flow-action-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}">
+                    <button type="button" data-action="removeFlowAction" data-flow-action-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                  <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ActionTypeLabel"}}</span><select data-flow-action-field="type">{{#each typeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                  {{#if isPhaseTransition}}
+                    <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.TargetPhase"}}</span><select data-flow-action-field="phaseId">{{#each phaseOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                  {{/if}}
+                  {{#if isObjectiveProgress}}
+                    <div class="encounter-forge-flow-action-grid">
+                      <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.TargetObjective"}}</span><select data-flow-action-field="objectiveId">{{#each objectiveOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                      <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Amount"}}</span><input type="number" step="1" value="{{amountValue}}" data-flow-action-field="amount"></label>
+                    </div>
+                  {{/if}}
+                  {{#if isDirectorMessage}}
+                    <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Message"}}</span><textarea rows="2" data-flow-action-field="message">{{message}}</textarea></label>
+                  {{/if}}
+                </article>
+              {{/each}}
+            </div>
+          {{else}}
+            <p class="encounter-forge-flow-empty">{{localize "PF2E_ENCOUNTER_FORGE.Flow.NoActions"}}</p>
+          {{/if}}
+        </section>
+
+        <section class="encounter-forge-flow-panel encounter-forge-trigger-panel">
+          <header>
+            <div>
+              <h3><i class="fa-solid fa-code-branch"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.TriggersTitle"}}</h3>
+              <p>{{localize "PF2E_ENCOUNTER_FORGE.Flow.TriggersHint"}}</p>
+            </div>
+            <button type="button" data-action="addTrigger" class="secondary"><i class="fa-solid fa-plus"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.AddTrigger"}}</button>
+          </header>
+          {{#if hasTriggers}}
+            <div class="encounter-forge-flow-list">
+              {{#each triggers}}
+                <article class="encounter-forge-trigger-row" data-trigger-id="{{id}}">
+                  <div class="encounter-forge-flow-row-head">
+                    <input type="text" value="{{name}}" data-trigger-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}">
+                    <button type="button" data-action="removeTrigger" data-trigger-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                  <div class="encounter-forge-trigger-grid">
+                    <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.EventLabel"}}</span><select data-trigger-field="event">{{#each eventOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                    <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ActivePhase"}}</span><select data-trigger-field="activePhaseId">{{#each activePhaseOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                    <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Participant"}}</span><select data-trigger-field="participantId">{{#each participantOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                  </div>
+                  <div class="encounter-forge-trigger-flags">
+                    <label><input type="checkbox" data-trigger-field="enabled" {{#if enabledChecked}}checked{{/if}}> {{localize "PF2E_ENCOUNTER_FORGE.Flow.Enabled"}}</label>
+                    <label><input type="checkbox" data-trigger-field="once" {{#if onceChecked}}checked{{/if}}> {{localize "PF2E_ENCOUNTER_FORGE.Flow.Once"}}</label>
+                    <label><input type="checkbox" data-trigger-field="confirm" {{#if confirmChecked}}checked{{/if}}> {{localize "PF2E_ENCOUNTER_FORGE.Flow.RequireConfirmation"}}</label>
+                  </div>
+
+                  <div class="encounter-forge-trigger-subsection">
+                    <div class="encounter-forge-trigger-subhead">
+                      <strong>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Conditions"}}</strong>
+                      <button type="button" data-action="addTriggerCondition" data-trigger-id="{{id}}" class="secondary compact"><i class="fa-solid fa-plus"></i></button>
+                    </div>
+                    {{#each conditions}}
+                      <div class="encounter-forge-trigger-condition" data-condition-index="{{conditionIndex}}">
+                        <select data-trigger-condition-field="field">{{#each fieldOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+                        <select data-trigger-condition-field="operator">{{#each operatorOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+                        <input type="text" value="{{value}}" data-trigger-condition-field="value" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Flow.Value"}}">
+                        <button type="button" data-action="removeTriggerCondition" data-trigger-id="{{../id}}" data-condition-index="{{conditionIndex}}" class="icon-only danger"><i class="fa-solid fa-xmark"></i></button>
+                      </div>
+                    {{/each}}
+                  </div>
+
+                  <div class="encounter-forge-trigger-subsection">
+                    <strong>{{localize "PF2E_ENCOUNTER_FORGE.Flow.LinkedActions"}}</strong>
+                    {{#if actionOptions.length}}
+                      <div class="encounter-forge-trigger-actions-list">
+                        {{#each actionOptions}}
+                          <label><input type="checkbox" data-trigger-action="{{id}}" {{#if checked}}checked{{/if}}> {{label}}</label>
+                        {{/each}}
+                      </div>
+                    {{else}}
+                      <small>{{localize "PF2E_ENCOUNTER_FORGE.Flow.NoActionsToLink"}}</small>
+                    {{/if}}
+                  </div>
+                </article>
+              {{/each}}
+            </div>
+          {{else}}
+            <p class="encounter-forge-flow-empty">{{localize "PF2E_ENCOUNTER_FORGE.Flow.NoTriggers"}}</p>
+          {{/if}}
+        </section>
+      </div>
+    </section>
+
     <section class="encounter-forge-card encounter-forge-structure-card">
       <div class="encounter-forge-section-title">
         <div>

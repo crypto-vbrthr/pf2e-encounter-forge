@@ -1,6 +1,7 @@
 import { BLUEPRINT_SCHEMA_VERSION, TOKEN_DISPLAY_MODE_KEYS } from "../constants.js";
 import { asArray, asId, deepClone, nowIso, randomId, uniqueStrings } from "../utils/data.js";
 import { EncounterValidationError } from "../utils/errors.js";
+import { analyzeEncounterFlow } from "../engine/encounter-flow.js";
 
 
 function normalizeTokenDisplay(value = {}) {
@@ -131,6 +132,9 @@ export function validateEncounterBlueprint(value) {
     const refs = asArray(trigger.actions ?? trigger.actionIds);
     for (const actionId of refs) if (!actionIds.has(actionId)) warnings.push({ code: "UNKNOWN_ACTION", path: `triggers.${trigger.id}`, message: `Trigger references unknown action '${actionId}'.` });
   }
+  const flow = analyzeEncounterFlow(value);
+  errors.push(...flow.errors);
+  warnings.push(...flow.warnings);
   return { valid: errors.length === 0, errors, warnings };
 }
 

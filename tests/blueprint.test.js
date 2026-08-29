@@ -31,14 +31,15 @@ test("blueprint validation reports duplicate ids", () => {
   assert(report.errors.some((entry) => entry.code === "DUPLICATE_ID"));
 });
 
-test("unknown group and action references are warnings rather than schema failures", () => {
+test("unknown group remains a warning while dead trigger action references block saving", () => {
   const blueprint = sample();
   blueprint.participants[0].groupId = "missing";
   blueprint.triggers[0].actions.push("missing-action");
   const report = validateEncounterBlueprint(blueprint);
-  assert.equal(report.valid, true);
+  assert.equal(report.valid, false);
   assert(report.warnings.some((entry) => entry.code === "UNKNOWN_GROUP"));
   assert(report.warnings.some((entry) => entry.code === "UNKNOWN_ACTION"));
+  assert(report.errors.some((entry) => entry.code === "FLOW_TRIGGER_ACTION"));
 });
 
 
