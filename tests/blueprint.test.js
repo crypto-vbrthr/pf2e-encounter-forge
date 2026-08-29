@@ -67,3 +67,34 @@ test("participant round-trip preserves level, role, and tactical group", () => {
   assert.equal(restored.participants[0].role, "leader");
   assert.equal(restored.participants[0].groupId, "guards");
 });
+
+
+test("participant Token display settings survive Blueprint round-trip", () => {
+  const original = createEncounterBlueprint({
+    participants: [{
+      id: "visible-guard",
+      name: "Visible Guard",
+      source: { type: "document", uuid: "Actor.guard" },
+      tokenDisplay: { displayName: "ALWAYS", displayBars: "HOVER", hpBarAttribute: "attributes.hp" }
+    }]
+  });
+  const restored = createEncounterBlueprint(JSON.parse(JSON.stringify(original)));
+  assert.deepEqual(restored.participants[0].tokenDisplay, {
+    displayName: "ALWAYS",
+    displayBars: "HOVER",
+    hpBarAttribute: "attributes.hp"
+  });
+  assert.equal(validateEncounterBlueprint(restored).valid, true);
+});
+
+test("unknown participant Token display modes normalize to Actor inheritance", () => {
+  const blueprint = createEncounterBlueprint({
+    participants: [{
+      id: "guard",
+      source: { type: "document", uuid: "Actor.guard" },
+      tokenDisplay: { displayName: "SECRET_MODE", displayBars: "ALWAYS" }
+    }]
+  });
+  assert.equal(blueprint.participants[0].tokenDisplay.displayName, null);
+  assert.equal(blueprint.participants[0].tokenDisplay.displayBars, "ALWAYS");
+});

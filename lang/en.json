@@ -191,5 +191,16 @@
   "PF2E_ENCOUNTER_FORGE.Placement.LeftClick": "Left-click to place",
   "PF2E_ENCOUNTER_FORGE.Placement.Wheel": "Mouse wheel rotates",
   "PF2E_ENCOUNTER_FORGE.Placement.Cancel": "cancels deployment",
-  "PF2E_ENCOUNTER_FORGE.Placement.UnknownParticipant": "Encounter participant"
+  "PF2E_ENCOUNTER_FORGE.Placement.UnknownParticipant": "Encounter participant",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Title": "Token Display",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Hint": "Applies to Tokens placed by this encounter; the Actor prototype remains unchanged.",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Name": "Token name visibility",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.HpBar": "HP bar visibility",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Inherit": "Use Actor token setting",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.NONE": "Never",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.CONTROL": "While controlled",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.OWNER_HOVER": "Owner hover",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.HOVER": "Hover",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.OWNER": "Owners",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.ALWAYS": "Always"
 }

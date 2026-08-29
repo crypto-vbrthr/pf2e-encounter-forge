@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0-alpha.6.3 - Per-Participant Token Display
+
+### Added
+- Added per-participant Token name visibility using the same display-mode semantics as Foundry Token configuration.
+- Added per-participant HP bar visibility with Foundry display modes; explicit HP-bar overrides bind Token Bar 1 to PF2e `attributes.hp`.
+- Added an inherit option for both controls so existing Actor prototype Token settings can remain authoritative.
+- Encounter Instances now carry the resolved participant Token-display policy into concrete runtime participants for Scene deployment.
+
+### Changed
+- Enlarged the Encounter Forge default window and added a dedicated Token Display row to each participant card.
+- Scene deployment applies Encounter-specific Token display settings only to deployed Tokens; source Actors and prototype Token configuration remain untouched.
+- Added regression coverage for Blueprint persistence, Instance propagation, UI controls, and Scene Token materialization of display modes.
+
 ## 0.1.0-alpha.6.2 - Manual Placement Default
 
 ### Changed

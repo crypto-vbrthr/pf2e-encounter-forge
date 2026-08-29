@@ -2,11 +2,20 @@
 
 PF2e encounter planning and orchestration module in early alpha development.
 
-## 0.1.0-alpha.6.1 — Interactive Scene Placement
+## 0.1.0-alpha.6.3 — Per-Participant Token Display
 
 Encounter deployment now supports both automatic staging and direct interactive placement on the selected Scene. A saved Blueprint can create its World Actors, place one Token for every concrete runtime participant, optionally prepare a Foundry Combat, and persist all resulting document references in the Encounter Instance.
 
 The Encounter Runtime and Encounter Director remain intentionally inactive. This release prepares the stage; it does not yet run the performance.
+
+### Per-participant Token display
+
+Each Encounter participant now has Token-display overrides for the Tokens created during deployment:
+
+- **Token name visibility** can inherit the Actor prototype or use Foundry-style Never, Controlled, Owner Hover, Hover, Owner, or Always modes.
+- **HP bar visibility** offers the same modes. When explicitly overridden, Token Bar 1 is bound to PF2e `attributes.hp`.
+
+These settings are Encounter-specific. They are persisted in the Blueprint, copied into concrete Encounter Instance participants, and applied only to the deployed Tokens. The source Actor and its prototype Token remain unchanged. This makes it possible, for example, to keep enemy names visible to the GM for battlefield overview while choosing whether players can see HP bars on a participant-by-participant basis.
 
 ### Deployment workflow
 

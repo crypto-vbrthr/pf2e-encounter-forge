@@ -3,6 +3,37 @@ import { collectionContents, deepClone, nowIso } from "../utils/data.js";
 import { EncounterForgeError } from "../utils/errors.js";
 import { InteractiveTokenPlacementService } from "./interactive-token-placement-service.js";
 
+
+const FALLBACK_TOKEN_DISPLAY_MODES = Object.freeze({
+  NONE: 0,
+  CONTROL: 10,
+  OWNER_HOVER: 20,
+  HOVER: 30,
+  OWNER: 40,
+  ALWAYS: 50
+});
+
+function tokenDisplayModeValue(mode) {
+  const key = String(mode ?? "").trim();
+  if (!key) return null;
+  const foundryModes = globalThis.CONST?.TOKEN_DISPLAY_MODES ?? FALLBACK_TOKEN_DISPLAY_MODES;
+  const value = foundryModes?.[key];
+  return Number.isFinite(Number(value)) ? Number(value) : (FALLBACK_TOKEN_DISPLAY_MODES[key] ?? null);
+}
+
+function applyParticipantTokenDisplay(source, participant) {
+  const display = participant?.tokenDisplay ?? {};
+  const displayName = tokenDisplayModeValue(display.displayName);
+  const displayBars = tokenDisplayModeValue(display.displayBars);
+  if (displayName !== null) source.displayName = displayName;
+  if (displayBars !== null) {
+    source.displayBars = displayBars;
+    source.bar1 ??= {};
+    source.bar1.attribute = String(display.hpBarAttribute ?? "attributes.hp").trim() || "attributes.hp";
+  }
+  return source;
+}
+
 function documentUuid(document, fallback = null) {
   if (document?.uuid) return document.uuid;
   if (document?.documentName === "Token" && document?.parent?.id && document?.id) return `Scene.${document.parent.id}.Token.${document.id}`;
@@ -118,6 +149,7 @@ async function tokenSourceForActor(actor, { participant, instance, scene = null,
   source.actorLink = actorLink;
   source.x = x;
   source.y = y;
+  applyParticipantTokenDisplay(source, participant);
   source.flags ??= {};
   source.flags[MODULE_ID] = {
     ...(source.flags[MODULE_ID] ?? {}),

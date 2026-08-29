@@ -1,6 +1,16 @@
-import { BLUEPRINT_SCHEMA_VERSION } from "../constants.js";
+import { BLUEPRINT_SCHEMA_VERSION, TOKEN_DISPLAY_MODE_KEYS } from "../constants.js";
 import { asArray, asId, deepClone, nowIso, randomId, uniqueStrings } from "../utils/data.js";
 import { EncounterValidationError } from "../utils/errors.js";
+
+
+function normalizeTokenDisplay(value = {}) {
+  const normalizeMode = (mode) => TOKEN_DISPLAY_MODE_KEYS.includes(String(mode ?? "")) ? String(mode) : null;
+  return {
+    displayName: normalizeMode(value?.displayName),
+    displayBars: normalizeMode(value?.displayBars),
+    hpBarAttribute: String(value?.hpBarAttribute ?? "attributes.hp").trim() || "attributes.hp"
+  };
+}
 
 function normalizeParticipant(participant = {}, index = 0) {
   const id = asId(participant.id, `participant-${index + 1}`);
@@ -14,6 +24,7 @@ function normalizeParticipant(participant = {}, index = 0) {
     role: participant.role ? String(participant.role) : null,
     groupId: participant.groupId ? String(participant.groupId) : null,
     tacticsProfileId: participant.tacticsProfileId ? String(participant.tacticsProfileId) : null,
+    tokenDisplay: normalizeTokenDisplay(participant.tokenDisplay),
     adjustments: deepClone(asArray(participant.adjustments)),
     overrides: deepClone(participant.overrides ?? {})
   };
@@ -106,6 +117,12 @@ export function validateEncounterBlueprint(value) {
     }
     if (participant.level !== null && (!Number.isInteger(participant.level) || participant.level < -1 || participant.level > 24)) {
       errors.push({ code: "PARTICIPANT_LEVEL", path: `participants.${participant?.id ?? "?"}.level`, message: "Participant level must be an integer from -1 to 24 or null." });
+    }
+    for (const field of ["displayName", "displayBars"]) {
+      const mode = participant.tokenDisplay?.[field] ?? null;
+      if (mode !== null && !TOKEN_DISPLAY_MODE_KEYS.includes(mode)) {
+        errors.push({ code: "PARTICIPANT_TOKEN_DISPLAY", path: `participants.${participant?.id ?? "?"}.tokenDisplay.${field}`, message: `Unknown Token display mode '${mode}'.` });
+      }
     }
     if (participant.groupId && !groupIds.has(participant.groupId)) warnings.push({ code: "UNKNOWN_GROUP", path: `participants.${participant.id}.groupId`, message: `Unknown group '${participant.groupId}'.` });
     if (participant.tacticsProfileId && !tacticsIds.has(participant.tacticsProfileId)) warnings.push({ code: "UNKNOWN_TACTICS", path: `participants.${participant.id}.tacticsProfileId`, message: `Unknown tactics profile '${participant.tacticsProfileId}'.` });

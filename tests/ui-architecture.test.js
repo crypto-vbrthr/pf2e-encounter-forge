@@ -170,3 +170,15 @@ test("Scene deployment UI exposes automatic/manual Token placement and optional 
   assert.match(appSource, /result\.combat/);
   assert.match(appSource, /!interactive && options\.viewScene/);
 });
+
+
+test("participant cards expose per-participant Token name and HP bar visibility controls", () => {
+  assert.match(template, /data-participant-field="tokenDisplayName"/);
+  assert.match(template, /data-participant-field="tokenDisplayBars"/);
+  assert.match(template, /PF2E_ENCOUNTER_FORGE\.Participants\.TokenDisplay\.Name/);
+  assert.match(template, /PF2E_ENCOUNTER_FORGE\.Participants\.TokenDisplay\.HpBar/);
+  assert.match(appSource, /TOKEN_DISPLAY_MODE_KEYS/);
+  assert.match(appSource, /participant\.tokenDisplay\.displayName/);
+  assert.match(appSource, /participant\.tokenDisplay\.displayBars/);
+  assert.match(appSource, /position:\s*\{\s*width:\s*1280,\s*height:\s*800\s*\}/);
+});

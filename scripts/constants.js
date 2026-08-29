@@ -1,7 +1,16 @@
 export const MODULE_ID = "pf2e-encounter-forge";
-export const MODULE_VERSION = "0.1.0-alpha.6.2";
+export const MODULE_VERSION = "0.1.0-alpha.6.3";
 export const API_VERSION = 1;
 export const BLUEPRINT_SCHEMA_VERSION = 1;
+
+export const TOKEN_DISPLAY_MODE_KEYS = Object.freeze([
+  "NONE",
+  "CONTROL",
+  "OWNER_HOVER",
+  "HOVER",
+  "OWNER",
+  "ALWAYS"
+]);
 export const INSTANCE_SCHEMA_VERSION = 1;
 
 export const DOCUMENT_KINDS = Object.freeze({

@@ -1,4 +1,4 @@
-import { MODULE_ID } from "../constants.js";
+import { MODULE_ID, TOKEN_DISPLAY_MODE_KEYS } from "../constants.js";
 import { createEncounterBlueprint } from "../model/encounter-blueprint.js";
 import { analyzeEncounterBudget } from "../engine/encounter-budget.js";
 import { randomId } from "../utils/data.js";
@@ -56,6 +56,17 @@ function normalizeSuggestedRole(value) {
   return direct[role] ?? (ENCOUNTER_ROLES.includes(role) ? role : null);
 }
 
+function tokenDisplayOptions(selected) {
+  return [
+    { value: "", label: localize("PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Inherit", "Use Actor token setting"), selected: !selected },
+    ...TOKEN_DISPLAY_MODE_KEYS.map((value) => ({
+      value,
+      label: localize(`PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.${value}`, value),
+      selected: selected === value
+    }))
+  ];
+}
+
 function getApi() {
   return game.modules.get(MODULE_ID)?.api ?? null;
 }
@@ -88,7 +99,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       icon: "fa-solid fa-shield-halved",
       resizable: true
     },
-    position: { width: 1120, height: 760 },
+    position: { width: 1280, height: 800 },
     actions: {
       newBlueprint: EncounterForgeApp.newBlueprint,
       selectBlueprint: EncounterForgeApp.selectBlueprint,
@@ -203,7 +214,9 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         groupOptions: [
           { value: "", label: localize("PF2E_ENCOUNTER_FORGE.Participants.GroupNone", "No group"), selected: !participant.groupId },
           ...groups.map((group) => ({ ...group, value: group.id, label: group.name, selected: participant.groupId === group.id }))
-        ]
+        ],
+        tokenNameDisplayOptions: tokenDisplayOptions(participant.tokenDisplay?.displayName),
+        hpBarDisplayOptions: tokenDisplayOptions(participant.tokenDisplay?.displayBars)
       };
     });
 
@@ -366,6 +379,12 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       participant.quantity = asInteger(read("quantity"), participant.quantity ?? 1, { min: 1, max: 99 });
       participant.role = String(read("role") ?? "").trim() || null;
       participant.groupId = String(read("groupId") ?? "").trim() || null;
+      participant.tokenDisplay ??= {};
+      const displayName = String(read("tokenDisplayName") ?? "").trim();
+      const displayBars = String(read("tokenDisplayBars") ?? "").trim();
+      participant.tokenDisplay.displayName = TOKEN_DISPLAY_MODE_KEYS.includes(displayName) ? displayName : null;
+      participant.tokenDisplay.displayBars = TOKEN_DISPLAY_MODE_KEYS.includes(displayBars) ? displayBars : null;
+      participant.tokenDisplay.hpBarAttribute = "attributes.hp";
     }
 
     const groupById = new Map((next.groups ?? []).map((group) => [group.id, group]));
@@ -489,6 +508,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       role: normalizeSuggestedRole(payload.suggestedRole),
       groupId: null,
       tacticsProfileId: null,
+      tokenDisplay: { displayName: null, displayBars: null, hpBarAttribute: "attributes.hp" },
       adjustments: [],
       overrides: {}
     };

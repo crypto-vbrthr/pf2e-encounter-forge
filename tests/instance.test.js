@@ -29,3 +29,20 @@ test("instance validation rejects unknown Actor materialization modes", () => {
   instance.deployment.actorMode = "mystery";
   assert.equal(validateEncounterInstance(instance).valid, false);
 });
+
+
+test("Encounter Instance propagates per-participant Token display policy", () => {
+  const blueprint = createEncounterBlueprint({
+    participants: [{
+      id: "guard",
+      source: { type: "document", uuid: "Actor.guard" },
+      quantity: 2,
+      tokenDisplay: { displayName: "ALWAYS", displayBars: "OWNER_HOVER", hpBarAttribute: "attributes.hp" }
+    }]
+  });
+  const instance = createEncounterInstance(blueprint);
+  assert.equal(instance.participants.length, 2);
+  assert.ok(instance.participants.every((participant) => participant.tokenDisplay.displayName === "ALWAYS"));
+  assert.ok(instance.participants.every((participant) => participant.tokenDisplay.displayBars === "OWNER_HOVER"));
+  assert.ok(instance.participants.every((participant) => participant.tokenDisplay.hpBarAttribute === "attributes.hp"));
+});

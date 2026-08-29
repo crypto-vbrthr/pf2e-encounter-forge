@@ -16,6 +16,7 @@ function expandParticipants(blueprint) {
         state: "pending",
         groupId: template.groupId ?? null,
         tacticsProfileId: template.tacticsProfileId ?? null,
+        tokenDisplay: deepClone(template.tokenDisplay ?? {}),
         runtime: {}
       });
     }

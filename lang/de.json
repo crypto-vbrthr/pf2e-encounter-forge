@@ -191,5 +191,16 @@
   "PF2E_ENCOUNTER_FORGE.Placement.LeftClick": "Linksklick zum Platzieren",
   "PF2E_ENCOUNTER_FORGE.Placement.Wheel": "Mausrad dreht den Token",
   "PF2E_ENCOUNTER_FORGE.Placement.Cancel": "bricht das Deployment ab",
-  "PF2E_ENCOUNTER_FORGE.Placement.UnknownParticipant": "Encounter-Teilnehmer"
+  "PF2E_ENCOUNTER_FORGE.Placement.UnknownParticipant": "Encounter-Teilnehmer",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Title": "Tokenanzeige",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Hint": "Gilt für die beim Encounter platzierten Tokens; die Actor-Vorlage bleibt unverändert.",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Name": "Tokenname sichtbar",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.HpBar": "TP-Leiste sichtbar",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Inherit": "Actor-Tokeneinstellung übernehmen",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.NONE": "Nie",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.CONTROL": "Bei Steuerung",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.OWNER_HOVER": "Bei Mauszeiger (Besitzer)",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.HOVER": "Bei Mauszeiger",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.OWNER": "Für Besitzer",
+  "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.ALWAYS": "Immer"
 }

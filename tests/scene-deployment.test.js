@@ -237,3 +237,53 @@ test("stamping Scene deployment references stores Instance UUID on Scene, Tokens
   const sceneFlag = h.updates[0][`flags.${MODULE_ID}.instances`];
   assert.equal(sceneFlag[instance.id].instanceUuid, "JournalEntry.instance");
 });
+
+
+test("Scene deployment applies participant Token name and HP-bar visibility without changing Actor prototypes", async () => {
+  const bp = createEncounterBlueprint({
+    id: "token-display",
+    name: "Token Display",
+    participants: [{
+      id: "guard",
+      name: "Guard",
+      source: { type: "fake" },
+      quantity: 1,
+      tokenDisplay: { displayName: "ALWAYS", displayBars: "HOVER", hpBarAttribute: "attributes.hp" }
+    }]
+  });
+  const instance = createEncounterInstance(bp, { actorMode: "per-type", sceneUuid: "Scene.scene-1" });
+  const guard = actor("guard");
+  guard.prototypeToken.displayName = 0;
+  guard.prototypeToken.displayBars = 0;
+  instance.participants[0].actorUuid = guard.uuid;
+  const h = sceneHarness();
+  const service = new SceneDeploymentService();
+
+  await service.deploy(instance, { scene: h.scene, actors: [guard] });
+  assert.equal(h.createdSources[0].displayName, 50);
+  assert.equal(h.createdSources[0].displayBars, 30);
+  assert.equal(h.createdSources[0].bar1.attribute, "attributes.hp");
+  assert.equal(guard.prototypeToken.displayName, 0);
+  assert.equal(guard.prototypeToken.displayBars, 0);
+});
+
+test("Scene deployment preserves prototype Token display settings when participant uses inherit", async () => {
+  const bp = createEncounterBlueprint({
+    id: "token-inherit",
+    name: "Token Inherit",
+    participants: [{ id: "guard", name: "Guard", source: { type: "fake" }, quantity: 1 }]
+  });
+  const instance = createEncounterInstance(bp, { actorMode: "per-type", sceneUuid: "Scene.scene-1" });
+  const guard = actor("guard");
+  guard.getTokenDocument = async (overrides = {}) => ({
+    toObject() { return { name: "guard", hidden: false, displayName: 40, displayBars: 20, bar1: { attribute: "custom.resource" }, flags: {}, ...overrides }; }
+  });
+  instance.participants[0].actorUuid = guard.uuid;
+  const h = sceneHarness();
+  const service = new SceneDeploymentService();
+
+  await service.deploy(instance, { scene: h.scene, actors: [guard] });
+  assert.equal(h.createdSources[0].displayName, 40);
+  assert.equal(h.createdSources[0].displayBars, 20);
+  assert.equal(h.createdSources[0].bar1.attribute, "custom.resource");
+});

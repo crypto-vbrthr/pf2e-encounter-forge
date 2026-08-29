@@ -240,6 +240,25 @@
                   <small><span data-participant-xp-each="{{id}}">{{xpEachText}}</span> × <span data-participant-xp-quantity="{{id}}">{{quantity}}</span></small>
                 </div>
               </div>
+              <div class="encounter-forge-participant-token-display">
+                <div class="encounter-forge-participant-token-display-label">
+                  <i class="fa-solid fa-id-badge"></i>
+                  <span>{{localize "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Title"}}</span>
+                  <small>{{localize "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Hint"}}</small>
+                </div>
+                <label>
+                  <span>{{localize "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.Name"}}</span>
+                  <select data-participant-field="tokenDisplayName">
+                    {{#each tokenNameDisplayOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+                  </select>
+                </label>
+                <label>
+                  <span>{{localize "PF2E_ENCOUNTER_FORGE.Participants.TokenDisplay.HpBar"}}</span>
+                  <select data-participant-field="tokenDisplayBars">
+                    {{#each hpBarDisplayOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+                  </select>
+                </label>
+              </div>
             </article>
           {{/each}}
         </div>
