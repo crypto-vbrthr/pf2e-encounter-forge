@@ -8,6 +8,8 @@ const template = fs.readFileSync(new URL("../templates/encounter-forge-app.hbs",
 const apiSource = fs.readFileSync(new URL("../scripts/api/public-api.js", import.meta.url), "utf8");
 const browserSource = fs.readFileSync(new URL("../scripts/ui/participant-browser-app.js", import.meta.url), "utf8");
 const forgeEditorSource = fs.readFileSync(new URL("../scripts/ui/forge-participant-editor-app.js", import.meta.url), "utf8");
+const deploymentDialogSource = fs.readFileSync(new URL("../scripts/ui/deployment-dialog-app.js", import.meta.url), "utf8");
+const deploymentTemplate = fs.readFileSync(new URL("../templates/deployment-dialog-app.hbs", import.meta.url), "utf8");
 
 test("Encounter Forge installs a GM Actor Directory launcher with Foundry 14 fallbacks", () => {
   assert.match(uiSource, /renderActorDirectory/);
@@ -122,4 +124,27 @@ test("in-place participant rerenders preserve the Encounter Forge scroll positio
   assert.match(appSource, /next\.participants = .*filter/);
   assert.match(appSource, /await this\.#renderFresh\(\);/);
   assert.match(appSource, /#renderFresh\(\{ preserveScroll: false \}\)/);
+});
+
+
+test("Encounter Forge exposes prepared Encounter deployment from the Blueprint editor", () => {
+  assert.match(template, /data-action="deployEncounter"/);
+  assert.match(appSource, /EncounterDeploymentDialogApp/);
+  assert.match(appSource, /api\?\.deployment\?\.deploy/);
+  assert.match(deploymentTemplate, /name="sceneUuid"/);
+  assert.match(deploymentTemplate, /name="actorFolderId"/);
+  assert.match(deploymentTemplate, /name="createSubfolder"/);
+  assert.match(deploymentTemplate, /name="subfolderName"/);
+  assert.match(deploymentTemplate, /name="actorMode"/);
+  assert.match(deploymentDialogSource, /ActorFolderService\(\)\.options\(\)/);
+});
+
+test("deployment dialog is rendered after the parent refresh and explicitly brought to front", () => {
+  const deployMethod = appSource.slice(appSource.indexOf("static async deployEncounter()"), appSource.indexOf("static async saveBlueprint()"));
+  const parentRefresh = deployMethod.indexOf("await this.#renderFresh()");
+  const childRender = deployMethod.indexOf("await app.render({ force: true })");
+  const bringToFront = deployMethod.indexOf("app.bringToFront?.()");
+  assert.ok(parentRefresh >= 0);
+  assert.ok(childRender > parentRefresh);
+  assert.ok(bringToFront > childRender);
 });

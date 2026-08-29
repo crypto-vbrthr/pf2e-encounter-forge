@@ -11,7 +11,7 @@ import { detectCurrentParty } from "../engine/party-analyzer.js";
 import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } from "../engine/encounter-budget.js";
 import { isIntegrationEnabled, setIntegrationEnabled } from "../integrations/integration-settings.js";
 
-export function createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, runtime } = {}) {
+export function createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, deployment, runtime } = {}) {
   const api = Object.freeze({
     version: API_VERSION,
     moduleVersion: MODULE_VERSION,
@@ -62,6 +62,11 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
 
     folders: Object.freeze({
       actors: () => new ActorFolderService()
+    }),
+
+
+    deployment: Object.freeze({
+      deploy: (blueprint, options = {}) => deployment.deploy(assertEncounterBlueprint(blueprint), options)
     }),
 
     party: Object.freeze({

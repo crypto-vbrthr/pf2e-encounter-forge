@@ -1,5 +1,5 @@
 export const MODULE_ID = "pf2e-encounter-forge";
-export const MODULE_VERSION = "0.1.0-alpha.4.4";
+export const MODULE_VERSION = "0.1.0-alpha.5.1";
 export const API_VERSION = 1;
 export const BLUEPRINT_SCHEMA_VERSION = 1;
 export const INSTANCE_SCHEMA_VERSION = 1;
@@ -14,6 +14,12 @@ export const REPOSITORY_FOLDERS = Object.freeze({
   BLUEPRINTS: "Blueprints",
   RUNTIME: "Runtime"
 });
+
+
+export const ACTOR_MODES = Object.freeze([
+  "per-type",
+  "per-participant"
+]);
 
 export const INSTANCE_STATUSES = Object.freeze([
   "prepared",

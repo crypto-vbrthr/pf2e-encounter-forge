@@ -21,3 +21,11 @@ test("instance expands participant quantity into concrete runtime identities", (
   assert.equal(instance.deployment.actorFolderId, "folder-x");
   assert.equal(validateEncounterInstance(instance).valid, true);
 });
+
+
+test("instance validation rejects unknown Actor materialization modes", () => {
+  const blueprint = createEncounterBlueprint({ id: "mode", name: "Mode" });
+  const instance = createEncounterInstance(blueprint);
+  instance.deployment.actorMode = "mystery";
+  assert.equal(validateEncounterInstance(instance).valid, false);
+});

@@ -1,0 +1,72 @@
+<div class="encounter-deployment-shell">
+  <header class="encounter-deployment-header">
+    <div>
+      <div class="encounter-forge-kicker">{{localize "PF2E_ENCOUNTER_FORGE.Deployment.Kicker"}}</div>
+      <h2>{{blueprint.name}}</h2>
+      <p>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.Hint"}}</p>
+    </div>
+    <i class="fa-solid fa-clapperboard encounter-deployment-mark"></i>
+  </header>
+
+  <section class="encounter-deployment-card">
+    <div class="encounter-deployment-form-grid">
+      <label class="wide">
+        <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.SceneLabel"}}</span>
+        <select name="sceneUuid">
+          <option value="">{{localize "PF2E_ENCOUNTER_FORGE.Deployment.NoScene"}}</option>
+          {{#each scenes}}
+            <option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}{{#if active}} · {{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActiveScene"}}{{/if}}</option>
+          {{/each}}
+        </select>
+        <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.SceneHint"}}</small>
+      </label>
+
+      <label class="wide">
+        <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActorFolderLabel"}}</span>
+        <select name="actorFolderId">
+          <option value="">{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActorRoot"}}</option>
+          {{#each folders}}<option value="{{id}}">{{label}}</option>{{/each}}
+        </select>
+        <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActorFolderHint"}}</small>
+      </label>
+
+      <label class="encounter-deployment-checkbox wide">
+        <input type="checkbox" name="createSubfolder" checked>
+        <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.CreateSubfolder"}}</span>
+      </label>
+
+      <label class="wide">
+        <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.SubfolderNameLabel"}}</span>
+        <input type="text" name="subfolderName" value="{{defaultSubfolderName}}">
+      </label>
+
+      <label class="wide">
+        <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActorModeLabel"}}</span>
+        <select name="actorMode">
+          {{#each actorModes}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+        </select>
+        <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActorModeHint"}}</small>
+      </label>
+    </div>
+  </section>
+
+  <section class="encounter-deployment-summary">
+    <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.Participants"}}</span><strong>{{participantCount}}</strong></div>
+    <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActorTemplates"}}</span><strong>{{templateCount}}</strong></div>
+    <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActorsToCreate"}}</span><strong data-deployment-actor-count>{{templateCount}}</strong></div>
+  </section>
+
+  <div class="encounter-deployment-note">
+    <i class="fa-solid fa-circle-info"></i>
+    <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.PreparedNote"}}</span>
+  </div>
+
+  <footer class="encounter-deployment-actions">
+    <button type="button" data-action="cancel" class="secondary">
+      <i class="fa-solid fa-xmark"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Cancel"}}
+    </button>
+    <button type="button" data-action="deploy" class="primary" {{#if deploying}}disabled{{/if}}>
+      <i class="fa-solid fa-people-arrows"></i> {{localize "PF2E_ENCOUNTER_FORGE.Deployment.Deploy"}}
+    </button>
+  </footer>
+</div>

@@ -2,94 +2,96 @@
 
 PF2e encounter planning and orchestration module in early alpha development.
 
-## 0.1.0-alpha.4.4 — Participant Composition + Integration Controls
+## 0.1.0-alpha.5.1 — Deployment & Actor Materialization
 
-### 0.1.0-alpha.4.4 fixes
+Encounter Blueprints can now be turned into persistent, prepared Encounter Instances. The Deployment block deliberately stops before token placement and live orchestration, keeping the transition from planning data to world documents explicit and reversible.
 
-- Participant add/edit/remove rerenders preserve the Encounter Forge editor scroll position instead of jumping back to the top.
-- Library and integration-list scroll positions are preserved across ordinary in-place rerenders as well.
-- Explicitly switching to a different/new/duplicated Encounter Blueprint still opens that document from the top.
+This maintenance build also keeps the deployment dialog above the main Encounter Forge window and explicitly enforces the selected Actor destination folder after every provider materializes its World Actor. This is important for providers such as Creature Forge whose public Actor creation contract does not itself assign the supplied folder.
 
-### 0.1.0-alpha.4.3 fixes
+### Deployment workflow
 
-- Persisted participant levels now survive save/reopen for Actor, Creature Forge, and NPC Forge participants.
-- Tactical roles and group assignments are no longer cleared during save.
-- XP contributions are recalculated from the restored participant level whenever a saved Blueprint is loaded.
+The Blueprint editor now exposes **Deploy Encounter**. Deployment automatically saves the current Blueprint first, then opens a dedicated configuration dialog where the GM can choose:
 
-The Encounter Forge can now assemble real encounter rosters while keeping planning data separate from World Actor creation.
+- an optional target Scene, defaulting to the currently active Scene when available
+- an existing Actor folder or the Actor Directory root
+- whether to create a new Encounter-specific Actor subfolder
+- the subfolder name
+- whether World Actors are created once per opponent type or once per concrete participant
 
+Encounter-specific subfolders use unique names instead of silently mixing a new Instance into an existing same-named folder.
 
-### 0.1.0-alpha.4.2 fixes
+### Actor materialization
 
-- Integrated Creature Forge uses the same full two-column Concept / Creature layout as its standalone editor when enough width is available.
-- Creature Forge participant level snapshots are recovered from either the generated blueprint or the current Creature Forge request.
-- Per-participant and total encounter XP feedback updates live when level or quantity is edited.
+All supported participant sources now converge on real World Actors during deployment:
 
-### Participant sources
+- World/compendium Actor references are copied into the target Actor folder.
+- Creature Forge participant blueprints are materialized through Creature Forge's public `createActor()` API.
+- NPC Forge participants are materialized through NPC Forge's public document API.
 
-- Drag PF2e NPC Actors directly from the Actor sidebar or Actor compendiums into an Encounter Blueprint.
-- Browse World Actors and Actor compendiums from the built-in participant source browser.
-- Create or edit encounter participants through the public embedded Creature Forge editor when Creature Forge is active.
-- Create or edit encounter participants through the public embedded NPC Forge editor when NPC Forge is active.
-- Creature/NPC Forge planning stores their neutral source data in the Encounter Blueprint; World Actors are intentionally not created until the later Deployment block.
+The Blueprint participant name is respected for the materialized Actor. In per-participant mode repeated opponents are numbered (`Guardian 1`, `Guardian 2`, and so on).
 
-### Composition metadata
+Materialized Actors receive Encounter Forge provenance and deployment metadata in `flags.pf2e-encounter-forge.participant`, including Blueprint/template identity, Instance identity, Actor mode, concrete runtime participant IDs, and the destination folder.
 
-Each participant template can currently store:
+### Prepared Encounter Instance
 
-- display name
-- source provenance
-- level snapshot
-- portrait snapshot
-- quantity
-- encounter role
-- tactical group
-- future tactics profile reference
-- adjustments/overrides placeholders
+Deployment expands Blueprint quantities into concrete runtime participants and persists an Encounter Instance under `Encounter Forge/Runtime`.
 
-Tactical groups can be created, renamed, assigned, and removed in the Encounter Forge UI.
+The Instance records:
 
-### PF2e encounter budget
+- Blueprint ID and saved Blueprint UUID
+- optional target Scene UUID and name snapshot
+- Actor destination folder ID and name snapshot
+- Actor materialization mode
+- concrete runtime participant IDs
+- World Actor UUIDs assigned to every runtime participant
+- the unique set of World Actors created by this deployment
+- prepared status and materialization timestamp
 
-The UI now evaluates standard PF2e creature XP values from party level −4 through party level +4 and multiplies them by participant quantity.
+In `per-type` mode all runtime participants of one template share one World Actor reference, ready for later unlinked Token deployment. In `per-participant` mode every runtime participant receives a separate World Actor.
 
-Threat budgets use the four-character baseline and adjust for party size:
+### Transaction safety
 
-- Trivial: 40 XP, ±10 per character
-- Low: 60 XP, ±15 per character
-- Moderate: 80 XP, ±20 per character
-- Severe: 120 XP, ±30 per character
-- Extreme: 160 XP, ±40 per character
+Actor materialization is treated as one deployment transaction. If a participant fails to materialize before the Instance is persisted, Encounter Forge removes Actors created by that failed attempt and removes an automatically created deployment folder. A half-built Encounter Instance is not saved.
 
-A manual XP budget can still override the calculated target. Participants with unknown levels or levels outside the supported relative range are shown explicitly and make the budget analysis incomplete rather than silently guessing.
+### Still intentionally inactive
 
-Public helpers are exposed through:
+This build does **not** yet:
 
-```js
-game.modules.get("pf2e-encounter-forge").api.budget
-```
+- place Tokens on the Scene
+- create Combatants or a Combat encounter
+- assign deployment zones
+- start or restore the Encounter Runtime
+- run objectives, phases, triggers, or tactical instructions
+- open the Encounter Director
 
+The selected Scene is stored on the prepared Instance so the next deployment block can continue from a stable target without guessing.
 
-### Integration manager
+### Existing planning features
 
-The library sidebar now exposes the configured Forge integrations. For each supported module it shows whether the module is installed, active, API-ready, disabled for Encounter Forge, or currently integrated. Ready integrations can be enabled or disabled per world without changing Foundry's own module activation state.
-
-### Existing foundation
-
-The module still includes:
+The module also includes:
 
 - automatic PF2e party detection
 - Actor Directory launcher for GMs
-- ApplicationV2 Encounter Forge window
 - persistent JournalEntry-backed Encounter Blueprint library
+- participant composition from Actors, Creature Forge, and NPC Forge
+- tactical groups and encounter roles
+- live PF2e encounter XP budgeting
+- optional integration manager for supported Forge modules
 - Encounter Blueprint schema v1 and Encounter Instance schema v1
-- optional Forge Integration Registry
-- Participant Source Registry and Actor materialization contracts
-- Actor folder service for future deployment
-- primary-GM authority handling
-- inert Encounter Runtime service skeleton
+- primary-GM authority handling and inert Encounter Runtime service skeleton
 
-Deployment, token placement, live encounter hooks, objectives/phases/triggers editing, tactics execution, and the Encounter Director remain intentionally inactive in this block.
+### Public deployment API
+
+```js
+game.modules.get("pf2e-encounter-forge").api.deployment.deploy(blueprint, {
+  blueprintUuid: "JournalEntry...",
+  sceneUuid: "Scene...",       // optional
+  actorFolderId: "...",        // optional, null = Actor root
+  createSubfolder: true,
+  subfolderName: blueprint.name,
+  actorMode: "per-type"         // or "per-participant"
+});
+```
 
 ## Development
 
@@ -101,4 +103,3 @@ npm run check
 ## License
 
 MIT. See [LICENSE](LICENSE).
-

@@ -2,6 +2,7 @@ import { API_VERSION, MODULE_ID, MODULE_VERSION } from "./constants.js";
 import { IntegrationRegistry, registerCoreIntegrations, registerIntegrationSettings } from "./integrations/index.js";
 import { ParticipantSourceRegistry, registerCoreParticipantSources } from "./engine/index.js";
 import { createBlueprintRepository, createInstanceRepository } from "./persistence/index.js";
+import { EncounterDeploymentService } from "./deployment/index.js";
 import { EncounterRuntime } from "./runtime/index.js";
 import { createPublicApi } from "./api/public-api.js";
 import { initializeEncounterForgeUi } from "./ui/index.js";
@@ -16,8 +17,9 @@ Hooks.once("init", () => {
   const participantSources = registerCoreParticipantSources(new ParticipantSourceRegistry(), integrations);
   const blueprintRepository = createBlueprintRepository();
   const instanceRepository = createInstanceRepository();
+  const deployment = new EncounterDeploymentService({ participantSources, instanceRepository });
   runtime = new EncounterRuntime({ instanceRepository, integrations });
-  api = createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, runtime });
+  api = createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, deployment, runtime });
   initializeEncounterForgeUi();
   Hooks.callAll("pf2eEncounterForgeReady", api);
 });

@@ -308,9 +308,14 @@
           <i class="fa-solid fa-trash"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Delete"}}
         </button>
       </div>
-      <button type="button" data-action="saveBlueprint" class="primary">
-        <i class="fa-solid fa-floppy-disk"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Save"}}
-      </button>
+      <div class="encounter-forge-editor-actions-primary">
+        <button type="button" data-action="deployEncounter" class="secondary deploy" {{#unless canDeploy}}disabled{{/unless}}>
+          <i class="fa-solid fa-people-arrows"></i> {{localize "PF2E_ENCOUNTER_FORGE.Deployment.Deploy"}}
+        </button>
+        <button type="button" data-action="saveBlueprint" class="primary">
+          <i class="fa-solid fa-floppy-disk"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Save"}}
+        </button>
+      </div>
     </footer>
   </main>
 </div>

@@ -1,4 +1,4 @@
-import { INSTANCE_SCHEMA_VERSION, INSTANCE_STATUSES } from "../constants.js";
+import { ACTOR_MODES, INSTANCE_SCHEMA_VERSION, INSTANCE_STATUSES } from "../constants.js";
 import { asId, deepClone, nowIso, randomId } from "../utils/data.js";
 import { EncounterValidationError } from "../utils/errors.js";
 import { assertEncounterBlueprint } from "./encounter-blueprint.js";
@@ -40,7 +40,11 @@ export function createEncounterInstance(blueprint, options = {}) {
       sceneUuid: options.sceneUuid ?? null,
       combatUuid: options.combatUuid ?? null,
       actorFolderId: options.actorFolderId ?? null,
-      actorMode: options.actorMode ?? "per-type"
+      actorMode: ACTOR_MODES.includes(options.actorMode) ? options.actorMode : "per-type",
+      sceneName: options.sceneName ?? null,
+      actorFolderName: options.actorFolderName ?? null,
+      materializedActorUuids: [],
+      materializedAt: null
     },
     participants: expandParticipants(blueprint),
     currentPhaseId: options.currentPhaseId ?? blueprint.phases?.[0]?.id ?? null,
@@ -71,6 +75,7 @@ export function validateEncounterInstance(value) {
   if (!String(value.id ?? "").trim()) errors.push({ code: "MISSING_ID", path: "id", message: "Instance id is required." });
   if (!INSTANCE_STATUSES.includes(value.status)) errors.push({ code: "STATUS", path: "status", message: `Unknown instance status '${value.status}'.` });
   if (!Array.isArray(value.participants)) errors.push({ code: "PARTICIPANTS", path: "participants", message: "Instance participants must be an array." });
+  if (!ACTOR_MODES.includes(value.deployment?.actorMode)) errors.push({ code: "ACTOR_MODE", path: "deployment.actorMode", message: `Unknown Actor mode '${value.deployment?.actorMode}'.` });
   const ids = new Set();
   for (const participant of value.participants ?? []) {
     if (!participant?.id) errors.push({ code: "PARTICIPANT_ID", path: "participants", message: "Runtime participant id is required." });

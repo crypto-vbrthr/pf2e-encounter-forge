@@ -1,8 +1,8 @@
 {
   "id": "pf2e-encounter-forge",
   "title": "PF2E Encounter Forge",
-  "description": "Builds persistent PF2e encounter blueprints, composes opponents from Actors and Forge modules, evaluates encounter budgets, and provides the foundation for deployment, runtime orchestration, and the GM-facing Encounter Director.",
-  "version": "0.1.0-alpha.4.4",
+  "description": "Builds persistent PF2e encounter blueprints, composes opponents from Actors and Forge modules, materializes them into prepared Encounter Instances, evaluates encounter budgets, and provides the foundation for runtime orchestration and the GM-facing Encounter Director.",
+  "version": "0.1.0-alpha.5.1",
   "authors": [
     {
       "name": "crypto-vbrthr"

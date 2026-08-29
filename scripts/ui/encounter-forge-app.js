@@ -4,6 +4,7 @@ import { analyzeEncounterBudget } from "../engine/encounter-budget.js";
 import { randomId } from "../utils/data.js";
 import { ParticipantBrowserApp } from "./participant-browser-app.js";
 import { ForgeParticipantEditorApp } from "./forge-participant-editor-app.js";
+import { EncounterDeploymentDialogApp } from "./deployment-dialog-app.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -104,7 +105,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       addGroup: EncounterForgeApp.addGroup,
       removeGroup: EncounterForgeApp.removeGroup,
       toggleIntegrations: EncounterForgeApp.toggleIntegrations,
-      toggleIntegration: EncounterForgeApp.toggleIntegration
+      toggleIntegration: EncounterForgeApp.toggleIntegration,
+      deployEncounter: EncounterForgeApp.deployEncounter
     }
   };
 
@@ -239,6 +241,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       participants,
       groups,
       hasParticipants: participants.length > 0,
+      canDeploy: participants.length > 0,
       hasGroups: groups.length > 0,
       creatureForgeReady,
       npcForgeReady,
@@ -692,9 +695,9 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     if (this.#loadBlueprint(id)) await this.#renderFresh({ preserveScroll: false });
   }
 
-  static async saveBlueprint() {
+  async #persistDraft({ notify = true } = {}) {
     const api = getApi();
-    if (!api?.blueprints?.save) return;
+    if (!api?.blueprints?.save) return null;
     this.#syncDraftFromForm();
 
     const normalized = createEncounterBlueprint({
@@ -709,21 +712,60 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     if (!validation.valid) {
       const details = validation.errors.slice(0, 5).map((entry) => `• ${entry.message}`).join("\n");
       ui.notifications.error(`${localize("PF2E_ENCOUNTER_FORGE.Notifications.ValidationFailed", "Encounter blueprint is invalid.")}\n${details}`);
-      return;
+      return null;
     }
 
     try {
-      await api.blueprints.save(normalized);
+      const saved = await api.blueprints.save(normalized);
       this.draft = clone(normalized);
       this.selectedBlueprintId = normalized.id;
       this.savedSnapshot = JSON.stringify(this.draft);
       await this.#reloadBlueprints();
-      ui.notifications.info(localize("PF2E_ENCOUNTER_FORGE.Notifications.Saved", "Encounter saved."));
-      await this.#renderFresh();
+      if (notify) ui.notifications.info(localize("PF2E_ENCOUNTER_FORGE.Notifications.Saved", "Encounter saved."));
+      return { saved, blueprint: normalized };
     } catch (error) {
       console.error(`${MODULE_ID} | Saving encounter blueprint failed.`, error);
       ui.notifications.error(localize("PF2E_ENCOUNTER_FORGE.Notifications.SaveFailed", "Encounter could not be saved."));
+      return null;
     }
+  }
+
+  static async deployEncounter() {
+    const persisted = await this.#persistDraft({ notify: false });
+    if (!persisted) return;
+    if (!(persisted.blueprint.participants ?? []).length) {
+      ui.notifications.warn(localize("PF2E_ENCOUNTER_FORGE.Notifications.DeploymentNeedsParticipants", "Add at least one participant before deployment."));
+      return;
+    }
+
+    const api = getApi();
+    const blueprintUuid = persisted.saved?.document?.uuid ?? api?.blueprints?.get?.(persisted.blueprint.id)?.document?.uuid ?? null;
+
+    // Refresh the parent before opening the modal-like child. Rendering the parent after
+    // the deployment dialog would put the Encounter Forge back above its own child.
+    await this.#renderFresh();
+
+    const app = this.#trackChild(new EncounterDeploymentDialogApp({
+      blueprint: clone(persisted.blueprint),
+      blueprintUuid,
+      onDeploy: async (options) => {
+        const result = await api?.deployment?.deploy?.(persisted.blueprint, { ...options, blueprintUuid });
+        if (!result) return false;
+        const actorCount = result.actors?.length ?? 0;
+        const folderName = result.folder?.name ?? localize("PF2E_ENCOUNTER_FORGE.Deployment.ActorRoot", "Actor Directory root");
+        ui.notifications.info(game.i18n.format?.("PF2E_ENCOUNTER_FORGE.Notifications.DeploymentComplete", { actors: actorCount, folder: folderName })
+          ?? `${actorCount} Actors created in ${folderName}.`);
+        return result;
+      }
+    }));
+    await app.render({ force: true });
+    app.bringToFront?.();
+  }
+
+  static async saveBlueprint() {
+    const persisted = await this.#persistDraft({ notify: true });
+    if (!persisted) return;
+    await this.#renderFresh();
   }
 
   static async duplicateBlueprint() {

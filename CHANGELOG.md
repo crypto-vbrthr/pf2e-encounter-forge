@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.1.0-alpha.5.1 - Deployment Dialog & Creature Folder Fix
+
+### Fixed
+- Deployment configuration now opens above the Encounter Forge window instead of being covered by a parent rerender. The parent is refreshed before the child dialog is rendered, and the deployment dialog is explicitly brought to the front.
+- Materialized World Actors are now explicitly moved into the resolved Encounter deployment folder after provider creation. This fixes Creature Forge generated Actors remaining at the Actor Directory root because Creature Forge's public `createActor()` does not itself persist the supplied folder option.
+- Folder enforcement is provider-agnostic, so all participant sources now converge on the same final Actor destination even if an external Forge ignores or changes its own folder-create option semantics.
+- Added regression coverage for deployment-window foreground ordering and deployment-folder enforcement.
+
+## 0.1.0-alpha.5 - Deployment & Actor Materialization
+
+### Added
+- Added the first Encounter deployment workflow from a saved Blueprint into a persistent prepared Encounter Instance.
+- Added a GM deployment dialog with optional Scene association, Actor-folder selection, Encounter-specific subfolder creation, custom subfolder naming, and Actor materialization mode.
+- Added `per-type` materialization, creating one World Actor per participant template and assigning that Actor to every concrete runtime participant of the type.
+- Added `per-participant` materialization, creating a distinct World Actor for every concrete opponent and numbering repeated participant names.
+- Added hierarchical Actor-folder options and unique Encounter subfolder naming to avoid silently reusing same-named deployment folders.
+- Added Encounter deployment/provenance metadata to created World Actors.
+- Added prepared Instance deployment metadata for Scene, Actor folder, Actor mode, materialized Actor UUIDs, and materialization time.
+- Added the public `api.deployment.deploy()` contract.
+- Added deployment transaction rollback so failed materialization removes Actors and newly created folders before an Instance is persisted.
+- Added deployment, folder hierarchy, Actor mode validation, and UI contract regression coverage.
+
+### Changed
+- The Blueprint editor now automatically persists the current Blueprint before opening deployment, ensuring every prepared Instance can reference the saved Blueprint UUID.
+- The foundation note now reflects that World Actor materialization and prepared Instance persistence are active, while token placement, Combat creation, live Runtime hooks, and the Encounter Director remain inactive.
+
 ## 0.1.0-alpha.4.4 - Editor Scroll Preservation
 
 ### Fixed
