@@ -52,5 +52,16 @@
   "PF2E_ENCOUNTER_FORGE.Dialogs.DiscardTitle": "Unsaved Changes",
   "PF2E_ENCOUNTER_FORGE.Dialogs.DiscardPrompt": "Discard unsaved changes?",
   "PF2E_ENCOUNTER_FORGE.Dialogs.DeleteTitle": "Delete Encounter",
-  "PF2E_ENCOUNTER_FORGE.Dialogs.DeletePrompt": "Really delete this saved encounter?"
+  "PF2E_ENCOUNTER_FORGE.Dialogs.DeletePrompt": "Really delete this saved encounter?",
+  "PF2E_ENCOUNTER_FORGE.Controls.DetectParty": "Refresh party",
+  "PF2E_ENCOUNTER_FORGE.Notifications.PartyDetected": "Party size and party level were updated from the current player characters.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.PartyNotDetected": "No player characters could be found for party detection.",
+  "PF2E_ENCOUNTER_FORGE.Party.Detected": "Automatically detected",
+  "PF2E_ENCOUNTER_FORGE.Party.PCs": "PCs",
+  "PF2E_ENCOUNTER_FORGE.Party.Average": "average level",
+  "PF2E_ENCOUNTER_FORGE.Party.NotDetected": "No active player party detected. Party size and level can still be set manually.",
+  "PF2E_ENCOUNTER_FORGE.Party.Source.activeParty": "active PF2e party",
+  "PF2E_ENCOUNTER_FORGE.Party.Source.assignedUsers": "assigned player characters",
+  "PF2E_ENCOUNTER_FORGE.Party.Source.playerOwnedActors": "player-owned actors",
+  "PF2E_ENCOUNTER_FORGE.Party.Source.none": "no source"
 }

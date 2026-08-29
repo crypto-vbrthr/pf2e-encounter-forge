@@ -7,6 +7,7 @@ import {
 } from "../model/index.js";
 import { ActorFolderService } from "../deployment/folder-service.js";
 import { openEncounterForge } from "../ui/encounter-forge-ui.js";
+import { detectCurrentParty } from "../engine/party-analyzer.js";
 
 export function createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, runtime } = {}) {
   const api = Object.freeze({
@@ -57,6 +58,10 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
 
     folders: Object.freeze({
       actors: () => new ActorFolderService()
+    }),
+
+    party: Object.freeze({
+      detect: (options = {}) => detectCurrentParty(options)
     }),
 
     ui: Object.freeze({

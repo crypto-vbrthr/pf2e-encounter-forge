@@ -21,7 +21,7 @@ test("public API exposes the stable UI launcher", () => {
 });
 
 test("blueprint UI includes persistence actions and base encounter fields", () => {
-  for (const action of ["newBlueprint", "selectBlueprint", "saveBlueprint", "duplicateBlueprint", "deleteBlueprint", "refreshBlueprints"]) {
+  for (const action of ["newBlueprint", "selectBlueprint", "saveBlueprint", "duplicateBlueprint", "deleteBlueprint", "refreshBlueprints", "detectParty"]) {
     assert.match(template, new RegExp(`data-action="${action}"`));
   }
   for (const field of ["name", "description", "partyLevel", "partySize", "threatTarget", "threatBudget"]) {
@@ -29,4 +29,22 @@ test("blueprint UI includes persistence actions and base encounter fields", () =
   }
   assert.match(appSource, /api\.blueprints\.save/);
   assert.match(appSource, /api\?\.blueprints\?\.delete/);
+});
+
+
+test("blueprint UI can auto-detect and refresh the PF2e player party", () => {
+  assert.match(template, /data-action="detectParty"/);
+  assert.match(template, /partyDetection\.averageLevelText/);
+  assert.match(appSource, /api\?\.party\?\.detect/);
+  assert.match(appSource, /detection\.partyLevel/);
+  assert.match(appSource, /detection\.size/);
+});
+
+test("editor sections flow vertically without grid row overlap", () => {
+  const css = fs.readFileSync(new URL("../styles/encounter-forge.css", import.meta.url), "utf8");
+  const editorBlocks = [...css.matchAll(/\.encounter-forge-editor\s*\{([\s\S]*?)\}/g)].map((match) => match[0]);
+  const layoutBlock = editorBlocks.find((block) => /display:\s*block/.test(block)) ?? "";
+  assert.match(layoutBlock, /display:\s*block/);
+  assert.match(layoutBlock, /overflow-y:\s*auto/);
+  assert.doesNotMatch(layoutBlock, /grid-template-rows/);
 });

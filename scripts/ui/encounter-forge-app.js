@@ -61,7 +61,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       saveBlueprint: EncounterForgeApp.saveBlueprint,
       duplicateBlueprint: EncounterForgeApp.duplicateBlueprint,
       deleteBlueprint: EncounterForgeApp.deleteBlueprint,
-      refreshBlueprints: EncounterForgeApp.refreshBlueprints
+      refreshBlueprints: EncounterForgeApp.refreshBlueprints,
+      detectParty: EncounterForgeApp.detectParty
     }
   };
 
@@ -77,6 +78,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     this.savedSnapshot = JSON.stringify(this.draft);
     this.initialized = false;
     this.allowCloseWithoutPrompt = false;
+    this.partyDetection = null;
   }
 
   get isDirty() {
@@ -98,6 +100,10 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const readyIntegrations = integrationRows.filter((entry) => entry?.ready).length;
 
     const draft = this.draft ?? createEncounterBlueprint({});
+    const partyDetection = this.partyDetection ?? api?.party?.detect?.() ?? null;
+    const averageLevelText = Number.isFinite(partyDetection?.averageLevel)
+      ? new Intl.NumberFormat(game.i18n?.lang ?? undefined, { maximumFractionDigits: 2 }).format(partyDetection.averageLevel)
+      : null;
     return {
       blueprints: this.blueprints.map((entry) => ({
         id: entry.id,
@@ -122,6 +128,12 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       isSaved: Boolean(this.selectedBlueprintId),
       readyIntegrations,
       totalIntegrations: integrationRows.length,
+      partyDetection: partyDetection ? {
+        ...partyDetection,
+        averageLevelText,
+        memberLevels: partyDetection.members?.map?.((member) => member.level).filter(Number.isFinite).join(", ") ?? "",
+        sourceLabel: localize(`PF2E_ENCOUNTER_FORGE.Party.Source.${partyDetection.source}`, partyDetection.source ?? "")
+      } : null,
       threatOptions: ["trivial", "low", "moderate", "severe", "extreme"].map((value) => ({
         value,
         label: localize(`PF2E_ENCOUNTER_FORGE.Threat.${value}`, value),
@@ -166,7 +178,15 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
 
   #resetDraft() {
     this.selectedBlueprintId = null;
-    this.draft = createEncounterBlueprint({ name: localize("PF2E_ENCOUNTER_FORGE.Editor.NewEncounter", "New Encounter") });
+    const detection = getApi()?.party?.detect?.() ?? null;
+    this.partyDetection = detection;
+    const party = detection?.available
+      ? { level: detection.partyLevel, size: detection.size }
+      : undefined;
+    this.draft = createEncounterBlueprint({
+      name: localize("PF2E_ENCOUNTER_FORGE.Editor.NewEncounter", "New Encounter"),
+      party
+    });
     this.savedSnapshot = JSON.stringify(this.draft);
   }
 
@@ -175,6 +195,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     if (!found) return false;
     this.selectedBlueprintId = found.id;
     this.draft = clone(found);
+    this.partyDetection = getApi()?.party?.detect?.() ?? null;
     this.savedSnapshot = JSON.stringify(this.draft);
     return true;
   }
@@ -220,6 +241,32 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
 
   async #renderFresh() {
     await this.render({ force: true });
+  }
+
+
+  static async detectParty() {
+    this.#syncDraftFromForm();
+    const detection = getApi()?.party?.detect?.() ?? null;
+    this.partyDetection = detection;
+    if (!detection?.available) {
+      ui.notifications.warn(localize(
+        "PF2E_ENCOUNTER_FORGE.Notifications.PartyNotDetected",
+        "No player characters could be detected."
+      ));
+      await this.#renderFresh();
+      return;
+    }
+
+    const next = clone(this.draft);
+    next.party ??= {};
+    next.party.size = detection.size;
+    next.party.level = detection.partyLevel;
+    this.draft = next;
+    ui.notifications.info(localize(
+      "PF2E_ENCOUNTER_FORGE.Notifications.PartyDetected",
+      "Party size and level were updated from the current player characters."
+    ));
+    await this.#renderFresh();
   }
 
   static async newBlueprint() {

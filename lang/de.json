@@ -52,5 +52,16 @@
   "PF2E_ENCOUNTER_FORGE.Dialogs.DiscardTitle": "Ungespeicherte Änderungen",
   "PF2E_ENCOUNTER_FORGE.Dialogs.DiscardPrompt": "Ungespeicherte Änderungen verwerfen?",
   "PF2E_ENCOUNTER_FORGE.Dialogs.DeleteTitle": "Begegnung löschen",
-  "PF2E_ENCOUNTER_FORGE.Dialogs.DeletePrompt": "Diese gespeicherte Begegnung wirklich löschen?"
+  "PF2E_ENCOUNTER_FORGE.Dialogs.DeletePrompt": "Diese gespeicherte Begegnung wirklich löschen?",
+  "PF2E_ENCOUNTER_FORGE.Controls.DetectParty": "Gruppe neu einlesen",
+  "PF2E_ENCOUNTER_FORGE.Notifications.PartyDetected": "Gruppengröße und Gruppenstufe wurden aus den aktuellen SC übernommen.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.PartyNotDetected": "Es konnten keine Spielercharaktere für die Gruppenermittlung gefunden werden.",
+  "PF2E_ENCOUNTER_FORGE.Party.Detected": "Automatisch erkannt",
+  "PF2E_ENCOUNTER_FORGE.Party.PCs": "SC",
+  "PF2E_ENCOUNTER_FORGE.Party.Average": "Durchschnittsstufe",
+  "PF2E_ENCOUNTER_FORGE.Party.NotDetected": "Keine aktive Spielergruppe erkannt. Gruppengröße und -stufe können weiterhin manuell gesetzt werden.",
+  "PF2E_ENCOUNTER_FORGE.Party.Source.activeParty": "aktive PF2e-Gruppe",
+  "PF2E_ENCOUNTER_FORGE.Party.Source.assignedUsers": "zugewiesene Spielercharaktere",
+  "PF2E_ENCOUNTER_FORGE.Party.Source.playerOwnedActors": "Spieler-Actors",
+  "PF2E_ENCOUNTER_FORGE.Party.Source.none": "keine Quelle"
 }

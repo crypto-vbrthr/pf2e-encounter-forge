@@ -2,7 +2,7 @@
   "id": "pf2e-encounter-forge",
   "title": "PF2E Encounter Forge",
   "description": "Builds and stores persistent PF2e encounter blueprints and provides the architectural foundation for deployment, orchestration, and GM-facing encounter direction.",
-  "version": "0.1.0-alpha.2",
+  "version": "0.1.0-alpha.3.1",
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -18,20 +18,56 @@
       }
     ],
     "recommends": [
-      { "id": "pf2e-creature-forge", "type": "module" },
-      { "id": "pf2e-npc-forge", "type": "module" },
-      { "id": "pf2e-critical-forge", "type": "module" },
-      { "id": "pf2e-aura-forge", "type": "module" },
-      { "id": "pf2e-affliction-forge", "type": "module" },
-      { "id": "pf2e-item-forge", "type": "module" },
-      { "id": "pf2e-loot-forge", "type": "module" },
-      { "id": "pf2e-weather-forge", "type": "module" }
+      {
+        "id": "pf2e-creature-forge",
+        "type": "module"
+      },
+      {
+        "id": "pf2e-npc-forge",
+        "type": "module"
+      },
+      {
+        "id": "pf2e-critical-forge",
+        "type": "module"
+      },
+      {
+        "id": "pf2e-aura-forge",
+        "type": "module"
+      },
+      {
+        "id": "pf2e-affliction-forge",
+        "type": "module"
+      },
+      {
+        "id": "pf2e-item-forge",
+        "type": "module"
+      },
+      {
+        "id": "pf2e-loot-forge",
+        "type": "module"
+      },
+      {
+        "id": "pf2e-weather-forge",
+        "type": "module"
+      }
     ]
   },
-  "esmodules": ["scripts/main.js"],
-  "styles": ["styles/encounter-forge.css"],
+  "esmodules": [
+    "scripts/main.js"
+  ],
+  "styles": [
+    "styles/encounter-forge.css"
+  ],
   "languages": [
-    { "lang": "de", "name": "Deutsch", "path": "lang/de.json" },
-    { "lang": "en", "name": "English", "path": "lang/en.json" }
+    {
+      "lang": "de",
+      "name": "Deutsch",
+      "path": "lang/de.json"
+    },
+    {
+      "lang": "en",
+      "name": "English",
+      "path": "lang/en.json"
+    }
   ]
 }

@@ -72,6 +72,26 @@
           <input type="number" name="partySize" min="1" max="12" value="{{draft.party.size}}" data-blueprint-field>
         </label>
 
+        <div class="encounter-forge-party-detection wide">
+          <div class="encounter-forge-party-detection-text">
+            <i class="fa-solid fa-people-group"></i>
+            {{#if partyDetection.available}}
+              <span>
+                {{localize "PF2E_ENCOUNTER_FORGE.Party.Detected"}}:
+                <strong>{{partyDetection.size}}</strong> {{localize "PF2E_ENCOUNTER_FORGE.Party.PCs"}},
+                {{localize "PF2E_ENCOUNTER_FORGE.Party.Average"}} <strong>{{partyDetection.averageLevelText}}</strong>
+                → {{localize "PF2E_ENCOUNTER_FORGE.Fields.PartyLevel"}} <strong>{{partyDetection.partyLevel}}</strong>
+                <small>({{partyDetection.sourceLabel}}{{#if partyDetection.sourceName}}: {{partyDetection.sourceName}}{{/if}})</small>
+              </span>
+            {{else}}
+              <span>{{localize "PF2E_ENCOUNTER_FORGE.Party.NotDetected"}}</span>
+            {{/if}}
+          </div>
+          <button type="button" data-action="detectParty" class="secondary">
+            <i class="fa-solid fa-rotate"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.DetectParty"}}
+          </button>
+        </div>
+
         <label>
           <span>{{localize "PF2E_ENCOUNTER_FORGE.Fields.Threat"}}</span>
           <select name="threatTarget" data-blueprint-field>
