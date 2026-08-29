@@ -6,6 +6,7 @@ import { EncounterDeploymentService } from "./deployment/index.js";
 import { EncounterRuntime } from "./runtime/index.js";
 import { createPublicApi } from "./api/public-api.js";
 import { initializeEncounterForgeUi } from "./ui/index.js";
+import { initializeEncounterDirectorUi } from "./director/index.js";
 
 let api = null;
 let runtime = null;
@@ -18,17 +19,23 @@ Hooks.once("init", () => {
   const blueprintRepository = createBlueprintRepository();
   const instanceRepository = createInstanceRepository();
   const deployment = new EncounterDeploymentService({ participantSources, instanceRepository });
-  runtime = new EncounterRuntime({ instanceRepository, integrations });
+  runtime = new EncounterRuntime({ instanceRepository, blueprintRepository, integrations });
   api = createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, deployment, runtime });
   initializeEncounterForgeUi();
+  initializeEncounterDirectorUi();
+  runtime.enableBootstrapHooks();
   Hooks.callAll("pf2eEncounterForgeReady", api);
 });
 
 Hooks.once("ready", async () => {
   if (!game.user?.isGM) return;
   console.log("PF2E Encounter Forge | Integration status", api?.integrations?.status?.());
-  // Foundation block deliberately does not auto-restore or mutate a running world yet.
-  // Runtime restoration will be enabled when concrete encounter hooks/actions are added.
+  try {
+    const restored = await runtime?.restore?.();
+    if (restored?.restored) console.info(`${MODULE_ID} | Restored Encounter Runtime for '${restored.instanceId}'.`);
+  } catch (error) {
+    console.error(`${MODULE_ID} | Encounter Runtime restore failed.`, error);
+  }
 });
 
 export function getEncounterForgeApi() { return api; }

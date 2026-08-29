@@ -12,6 +12,23 @@ function actorUuid(actor) {
   return null;
 }
 
+function actorLevel(actor) {
+  const value = actor?.system?.details?.level?.value ?? actor?.system?.details?.level ?? null;
+  if (value === null || value === undefined || value === "") return null;
+  const level = Number(value);
+  return Number.isInteger(level) ? level : null;
+}
+
+function stampParticipantDisplay(runtimeParticipant, actor, fallbackName = null) {
+  if (!runtimeParticipant) return;
+  runtimeParticipant.display = {
+    ...(runtimeParticipant.display ?? {}),
+    name: String(actor?.name ?? fallbackName ?? runtimeParticipant.display?.name ?? runtimeParticipant.id),
+    img: actor?.prototypeToken?.texture?.src ?? actor?.img ?? runtimeParticipant.display?.img ?? null,
+    level: actorLevel(actor) ?? runtimeParticipant.display?.level ?? null
+  };
+}
+
 async function resolveScene(sceneUuid) {
   if (!sceneUuid) return null;
   if (typeof globalThis.fromUuid === "function") {
@@ -147,6 +164,7 @@ export class EncounterDeploymentService {
               folderId: folder?.id ?? null
             });
             runtimeParticipant.actorUuid = actorUuid(actor);
+            stampParticipantDisplay(runtimeParticipant, actor, name);
           }
         }
       } else {
@@ -172,7 +190,10 @@ export class EncounterDeploymentService {
             folderId: folder?.id ?? null
           });
           const uuid = actorUuid(actor);
-          for (const runtimeParticipant of runtimeParticipants) runtimeParticipant.actorUuid = uuid;
+          for (const runtimeParticipant of runtimeParticipants) {
+            runtimeParticipant.actorUuid = uuid;
+            stampParticipantDisplay(runtimeParticipant, actor, template.name);
+          }
         }
       }
 

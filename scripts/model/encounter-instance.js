@@ -16,6 +16,11 @@ function expandParticipants(blueprint) {
         state: "pending",
         groupId: template.groupId ?? null,
         tacticsProfileId: template.tacticsProfileId ?? null,
+        display: {
+          name: String(template.name ?? template.id ?? "Encounter Participant"),
+          img: template.img ? String(template.img) : null,
+          level: template.level !== null && template.level !== undefined && template.level !== "" && Number.isInteger(Number(template.level)) ? Number(template.level) : null
+        },
         tokenDisplay: deepClone(template.tokenDisplay ?? {}),
         runtime: {}
       });
@@ -68,6 +73,8 @@ export function createEncounterInstance(blueprint, options = {}) {
     metadata: {
       createdAt: timestamp,
       modifiedAt: timestamp,
+      startedAt: null,
+      pausedAt: null,
       completedAt: null
     }
   };

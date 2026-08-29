@@ -1,0 +1,156 @@
+{{#if missing}}
+  <div class="encounter-director-missing">
+    <i class="fa-solid fa-clapperboard"></i>
+    <p>{{localize "PF2E_ENCOUNTER_FORGE.Director.NoInstance"}}</p>
+  </div>
+{{else}}
+  <div class="encounter-director-shell">
+    <header class="encounter-director-header">
+      <div>
+        <div class="encounter-forge-kicker">{{localize "PF2E_ENCOUNTER_FORGE.Director.Kicker"}}</div>
+        <h1>{{name}}</h1>
+        <div class="encounter-director-meta">
+          <span class="encounter-director-status" data-status="{{status}}">{{statusLabel}}</span>
+          {{#if sceneName}}<span><i class="fa-solid fa-map"></i> {{sceneName}}</span>{{/if}}
+          {{#if combatPrepared}}<span><i class="fa-solid fa-swords"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.CombatPrepared"}}</span>{{/if}}
+        </div>
+      </div>
+      <button type="button" data-action="refresh" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.Refresh"><i class="fa-solid fa-rotate"></i></button>
+    </header>
+
+    <div class="encounter-director-toolbar">
+      {{#if isPrepared}}
+        <button type="button" data-action="startEncounter" class="primary"><i class="fa-solid fa-play"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Start"}}</button>
+      {{/if}}
+      {{#if isActive}}
+        <button type="button" data-action="pauseEncounter"><i class="fa-solid fa-pause"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Pause"}}</button>
+      {{/if}}
+      {{#if isPaused}}
+        <button type="button" data-action="resumeEncounter" class="primary"><i class="fa-solid fa-play"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Resume"}}</button>
+      {{/if}}
+      {{#if canComplete}}
+        <button type="button" data-action="completeEncounter"><i class="fa-solid fa-flag-checkered"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Complete"}}</button>
+      {{/if}}
+      {{#if canReopen}}
+        <button type="button" data-action="reopenEncounter" class="primary"><i class="fa-solid fa-rotate-left"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Reopen"}}</button>
+      {{/if}}
+      {{#if hasScene}}
+        <button type="button" data-action="viewScene"><i class="fa-solid fa-map-location-dot"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.ViewScene"}}</button>
+      {{/if}}
+    </div>
+
+    <div class="encounter-director-body">
+      <section class="encounter-director-card encounter-director-overview">
+        <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Director.Round"}}</span><strong>{{round}}</strong></div>
+        <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Director.Turn"}}</span><strong>{{turn}}</strong></div>
+        <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Director.TriggersFired"}}</span><strong>{{firedTriggers}}</strong></div>
+        <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Director.Runtime"}}</span><strong>{{#if runtimeBound}}{{localize "PF2E_ENCOUNTER_FORGE.Director.Bound"}}{{else}}{{localize "PF2E_ENCOUNTER_FORGE.Director.NotBound"}}{{/if}}</strong></div>
+      </section>
+
+      {{#if hasPendingDecisions}}
+        <section class="encounter-director-card encounter-director-decisions">
+          <h2><i class="fa-solid fa-bell"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Decisions"}}</h2>
+          {{#each pendingDecisions}}
+            <article class="encounter-director-decision">
+              <strong>{{title}}</strong>
+              <p>{{message}}</p>
+              <div>
+                <button type="button" data-action="acceptDecision" data-decision-id="{{id}}" class="primary"><i class="fa-solid fa-check"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Accept"}}</button>
+                <button type="button" data-action="dismissDecision" data-decision-id="{{id}}"><i class="fa-solid fa-xmark"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Dismiss"}}</button>
+              </div>
+            </article>
+          {{/each}}
+        </section>
+      {{/if}}
+
+      <section class="encounter-director-card">
+        <h2>{{localize "PF2E_ENCOUNTER_FORGE.Director.Phase"}}</h2>
+        {{#if hasPhases}}
+          <div class="encounter-director-phase-list">
+            {{#each phases}}
+              <button type="button" data-action="setPhase" data-phase-id="{{id}}" class="{{#if current}}current{{/if}}">
+                {{#if current}}<i class="fa-solid fa-location-dot"></i>{{else}}<i class="fa-regular fa-circle"></i>{{/if}} {{label}}
+              </button>
+            {{/each}}
+          </div>
+        {{else}}
+          <p class="encounter-director-empty">{{localize "PF2E_ENCOUNTER_FORGE.Director.NoPhases"}}</p>
+        {{/if}}
+      </section>
+
+      <section class="encounter-director-card">
+        <h2>{{localize "PF2E_ENCOUNTER_FORGE.Director.Objectives"}}</h2>
+        {{#if hasObjectives}}
+          <div class="encounter-director-objective-list">
+            {{#each objectives}}
+              <div class="encounter-director-objective {{#if complete}}complete{{/if}}">
+                <div>
+                  <strong>{{label}}</strong>
+                  <small>{{stateLabel}}</small>
+                </div>
+                <div class="encounter-director-objective-progress">
+                  <button type="button" data-action="objectiveDown" data-objective-id="{{id}}" class="icon-only"><i class="fa-solid fa-minus"></i></button>
+                  <strong>{{progress}}{{#if hasTarget}} / {{target}}{{/if}}</strong>
+                  <button type="button" data-action="objectiveUp" data-objective-id="{{id}}" class="icon-only"><i class="fa-solid fa-plus"></i></button>
+                  {{#if complete}}
+                    <button type="button" data-action="objectiveReopen" data-objective-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.ReopenObjective"><i class="fa-solid fa-rotate-left"></i></button>
+                  {{else}}
+                    <button type="button" data-action="objectiveComplete" data-objective-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.CompleteObjective"><i class="fa-solid fa-check"></i></button>
+                  {{/if}}
+                </div>
+              </div>
+            {{/each}}
+          </div>
+        {{else}}
+          <p class="encounter-director-empty">{{localize "PF2E_ENCOUNTER_FORGE.Director.NoObjectives"}}</p>
+        {{/if}}
+      </section>
+
+      <section class="encounter-director-card">
+        <h2>{{localize "PF2E_ENCOUNTER_FORGE.Director.Participants"}}</h2>
+        <div class="encounter-director-participants">
+          {{#each participants}}
+            <article class="encounter-director-participant" data-state="{{state}}" data-health="{{healthBand}}">
+              <div class="encounter-director-participant-portrait">
+                {{#if img}}<img src="{{img}}" alt="">{{else}}<i class="fa-solid fa-user-shield"></i>{{/if}}
+              </div>
+              <div class="encounter-director-participant-main">
+                <div class="encounter-director-participant-title">
+                  <strong>{{name}}</strong>
+                  <span class="encounter-director-participant-status">{{stateLabel}}</span>
+                </div>
+                <div class="encounter-director-participant-meta">
+                  {{#if hasLevel}}<span><i class="fa-solid fa-signal"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Level"}} {{level}}</span>{{/if}}
+                  {{#if role}}<span><i class="fa-solid fa-chess-knight"></i> {{role}}</span>{{/if}}
+                  {{#if group}}<span><i class="fa-solid fa-people-group"></i> {{group}}</span>{{/if}}
+                </div>
+                <div class="encounter-director-participant-hp-row">
+                  <span>{{localize "PF2E_ENCOUNTER_FORGE.Director.HitPoints"}}</span>
+                  <strong>{{hpText}}</strong>
+                </div>
+                {{#if hasHp}}
+                  <div class="encounter-director-hp" role="meter" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{hpPercent}}">
+                    <span style="width: {{hpPercent}}%"></span>
+                  </div>
+                {{/if}}
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      </section>
+
+      <section class="encounter-director-card">
+        <h2>{{localize "PF2E_ENCOUNTER_FORGE.Director.LogTitle"}}</h2>
+        {{#if hasLogs}}
+          <div class="encounter-director-log">
+            {{#each logs}}
+              <div><time>{{time}}</time><span>{{message}}</span></div>
+            {{/each}}
+          </div>
+        {{else}}
+          <p class="encounter-director-empty">{{localize "PF2E_ENCOUNTER_FORGE.Director.NoLog"}}</p>
+        {{/if}}
+      </section>
+    </div>
+  </div>
+{{/if}}

@@ -164,8 +164,9 @@ test("Scene deployment UI exposes automatic/manual Token placement and optional 
   assert.match(deploymentDialogSource, /createCombat:/);
   assert.match(deploymentDialogSource, /includePlayerTokens:/);
   assert.match(deploymentDialogSource, /viewScene:/);
-  assert.match(appSource, /this\.minimize\?\.\(\)/);
-  assert.match(appSource, /this\.maximize\?\.\(\)/);
+  assert.match(appSource, /forgeElement\.hidden = true/);
+  assert.match(appSource, /forgeElement\.hidden = previousHidden/);
+  assert.match(appSource, /this\.bringToFront\?\.\(\)/);
   assert.match(appSource, /result\.tokens/);
   assert.match(appSource, /result\.combat/);
   assert.match(appSource, /!interactive && options\.viewScene/);
@@ -181,4 +182,43 @@ test("participant cards expose per-participant Token name and HP bar visibility 
   assert.match(appSource, /participant\.tokenDisplay\.displayName/);
   assert.match(appSource, /participant\.tokenDisplay\.displayBars/);
   assert.match(appSource, /position:\s*\{\s*width:\s*1280,\s*height:\s*800\s*\}/);
+});
+
+test("Encounter Director provides a separate GM live-control surface and Combat Tracker launcher", () => {
+  const directorUi = fs.readFileSync(new URL("../scripts/director/encounter-director-ui.js", import.meta.url), "utf8");
+  const directorApp = fs.readFileSync(new URL("../scripts/director/encounter-director-app.js", import.meta.url), "utf8");
+  const directorTemplate = fs.readFileSync(new URL("../templates/encounter-director-app.hbs", import.meta.url), "utf8");
+  assert.match(directorUi, /renderCombatTracker/);
+  assert.match(directorUi, /openEncounterDirector/);
+  assert.match(directorUi, /fa-clapperboard/);
+  for (const action of ["startEncounter", "pauseEncounter", "resumeEncounter", "completeEncounter", "reopenEncounter", "setPhase", "acceptDecision", "dismissDecision"]) {
+    assert.match(directorTemplate, new RegExp(`data-action="${action}"`));
+  }
+  assert.match(directorApp, /runtime\?\.inspect/);
+  assert.match(directorApp, /runtime\?\.resolveDecision/);
+  assert.match(apiSource, /openDirector:/);
+  assert.match(apiSource, /activate:/);
+  assert.match(apiSource, /adjustObjective:/);
+  assert.match(apiSource, /reopen:/);
+  assert.match(directorUi, /entry\.data\?\.status === "completed"/);
+});
+
+test("Encounter Forge itself offers a quick Director launcher", () => {
+  assert.match(template, /data-action="openDirector"/);
+  assert.match(appSource, /static async openDirector/);
+});
+
+
+test("Encounter Director participant cards prioritize readable Actor identity and live HP presentation", () => {
+  const directorApp = fs.readFileSync(new URL("../scripts/director/encounter-director-app.js", import.meta.url), "utf8");
+  const directorTemplate = fs.readFileSync(new URL("../templates/encounter-director-app.hbs", import.meta.url), "utf8");
+  const css = fs.readFileSync(new URL("../styles/encounter-forge.css", import.meta.url), "utf8");
+  assert.match(directorApp, /displayName/);
+  assert.match(directorApp, /healthBand/);
+  assert.match(directorApp, /width:\s*680,\s*height:\s*800/);
+  assert.match(directorTemplate, /encounter-director-participant-portrait/);
+  assert.match(directorTemplate, /encounter-director-participant-meta/);
+  assert.match(directorTemplate, /encounter-director-participant-hp-row/);
+  assert.match(directorTemplate, /role="meter"/);
+  assert.match(css, /data-health="critical"/);
 });

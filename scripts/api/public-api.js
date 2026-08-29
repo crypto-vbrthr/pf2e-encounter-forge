@@ -7,6 +7,7 @@ import {
 } from "../model/index.js";
 import { ActorFolderService } from "../deployment/folder-service.js";
 import { openEncounterForge } from "../ui/encounter-forge-ui.js";
+import { openEncounterDirector } from "../director/encounter-director-ui.js";
 import { detectCurrentParty } from "../engine/party-analyzer.js";
 import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } from "../engine/encounter-budget.js";
 import { isIntegrationEnabled, setIntegrationEnabled } from "../integrations/integration-settings.js";
@@ -80,12 +81,23 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
     }),
 
     ui: Object.freeze({
-      open: () => openEncounterForge()
+      open: () => openEncounterForge(),
+      openDirector: (instanceOrId = null) => openEncounterDirector(instanceOrId)
     }),
 
     runtime: Object.freeze({
       start: (instanceOrId = null, options = {}) => runtime.start(instanceOrId, options),
-      stop: () => runtime.stop(),
+      activate: (instanceOrId = null, options = {}) => runtime.activate(instanceOrId, options),
+      pause: (options = {}) => runtime.pause(options),
+      resume: (options = {}) => runtime.resume(options),
+      complete: (options = {}) => runtime.complete(options),
+      reopen: (options = {}) => runtime.reopen(options),
+      setPhase: (phaseId, options = {}) => runtime.setPhase(phaseId, options),
+      adjustObjective: (objectiveId, amount = 1, options = {}) => runtime.adjustObjective(objectiveId, amount, options),
+      setObjectiveState: (objectiveId, state, options = {}) => runtime.setObjectiveState(objectiveId, state, options),
+      resolveDecision: (decisionId, resolution, options = {}) => runtime.resolveDecision(decisionId, resolution, options),
+      inspect: (instanceOrId = null) => runtime.inspect(instanceOrId),
+      stop: (options = {}) => runtime.stop(options),
       restore: (options = {}) => runtime.restore(options),
       status: () => runtime.status(),
       on: (type, listener) => runtime.bus.on(type, listener),

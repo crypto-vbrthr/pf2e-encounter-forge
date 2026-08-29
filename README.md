@@ -1,148 +1,155 @@
 # PF2E Encounter Forge
 
-PF2e encounter planning and orchestration module in early alpha development.
+PF2e encounter planning, deployment, and live encounter-direction module in early alpha development.
 
-## 0.1.0-alpha.6.3 — Per-Participant Token Display
+## 0.1.0-alpha.7.2 — Reopen Encounter & Unobstructed Placement
 
-Encounter deployment now supports both automatic staging and direct interactive placement on the selected Scene. A saved Blueprint can create its World Actors, place one Token for every concrete runtime participant, optionally prepare a Foundry Combat, and persist all resulting document references in the Encounter Instance.
+This patch adds a safe lifecycle undo for accidentally completed encounters and keeps the canvas fully clear during interactive Token placement.
 
-The Encounter Runtime and Encounter Director remain intentionally inactive. This release prepares the stage; it does not yet run the performance.
+### Reopening a completed Encounter
 
-### Per-participant Token display
+A completed Encounter now exposes **Undo completion** in the Encounter Director. After GM confirmation, the same Encounter Instance returns to `active` without resetting its tactical history. Current phase, objective progress, already-fired triggers, participant states, decisions, logs, World Actors, Tokens, and prepared Combat remain intact. This is intentionally an undo of an accidental completion, not a fresh replay/reset of the Encounter.
 
-Each Encounter participant now has Token-display overrides for the Tokens created during deployment:
+The operation is also available through `game.modules.get("pf2e-encounter-forge").api.runtime.reopen()`.
 
-- **Token name visibility** can inherit the Actor prototype or use Foundry-style Never, Controlled, Owner Hover, Hover, Owner, or Always modes.
-- **HP bar visibility** offers the same modes. When explicitly overridden, Token Bar 1 is bound to PF2e `attributes.hp`.
+### Interactive placement window behavior
 
-These settings are Encounter-specific. They are persisted in the Blueprint, copied into concrete Encounter Instance participants, and applied only to the deployed Tokens. The source Actor and its prototype Token remain unchanged. This makes it possible, for example, to keep enemy names visible to the GM for battlefield overview while choosing whether players can see HP bars on a participant-by-participant basis.
+When manual Token placement starts, the deployment dialog is closed as before and the **entire Encounter Forge window is temporarily hidden**, including its title bar. This leaves the Scene canvas unobstructed for Foundry's native Token placement workflow. The Forge is restored and brought back to the front after placement finishes or is cancelled.
 
-### Deployment workflow
+## 0.1.0-alpha.7.1 — Director Participant Cards
 
-The Blueprint editor exposes **Deploy Encounter**. Deployment automatically saves the current Blueprint first, then opens a configuration dialog where the GM can choose:
+This patch improves the live Director participant overview while retaining the Runtime/Director MVP from alpha.7. The **Encounter Forge** remains the planning workshop, the **Encounter Director** is now the GM-facing live control desk, and the **Encounter Runtime** is the authoritative background orchestration layer that watches Foundry/PF2e state and persists encounter-specific state.
 
-- a target Scene, defaulting to the currently viewed/active Scene when available
-- an existing Actor folder or the Actor Directory root
-- whether to create a unique Encounter-specific Actor subfolder
-- whether World Actors are created once per opponent type or once per concrete participant
-- whether concrete opponents are placed as Tokens on the selected Scene
-- whether Tokens are staged automatically at the Scene center or placed manually one by one on the map
-- whether a Foundry Combat should be prepared
-- whether existing PC/character Tokens on the Scene should also be added to that Combat
-- whether the client should switch to the selected Scene after deployment
+### Encounter Director
 
-### Actor materialization
+The Director is a separate ApplicationV2 window and can be opened from:
 
-All supported participant sources converge on real World Actors during deployment:
+- the clapperboard button in Encounter Forge
+- the Combat Tracker when logged in as a GM
+- `game.modules.get("pf2e-encounter-forge").api.ui.openDirector()`
 
-- World/compendium Actor references are copied into the target Actor folder.
-- Creature Forge participant blueprints are materialized through Creature Forge's public `createActor()` API.
-- NPC Forge participants are materialized through NPC Forge's public document API.
+It prefers the Encounter attached to the current Combat, then the current Scene, then the currently bound Runtime Instance, and finally the newest prepared/active/paused Instance.
 
-Encounter Forge enforces the selected Actor destination after provider materialization so external Forge implementations do not need to own Encounter folder semantics.
+The Director currently shows:
 
-`per-type` creates one World Actor per opponent template. Its concrete Tokens are unlinked and receive independent Token Actor state.
+- Encounter status and Scene/Combat association
+- current round and turn known to the Runtime
+- current phase and manual phase switching
+- objectives with progress controls and completion/reopen actions
+- concrete participants as visual Actor cards with portrait, stable display name, level, role/group metadata, state badge, and a full live HP bar
+- pending GM decisions created by triggers
+- persistent Encounter log
+- number of already-fired triggers
 
-`per-participant` creates one World Actor for every concrete opponent. Its Token is linked to that individual Actor so persistent individual state can live on the World Actor.
+Lifecycle controls support **Start**, **Pause**, **Resume**, and **Complete**. Completion is persistent and stops trigger evaluation without destroying Actors, Tokens, Combat, or Encounter history.
 
-### Scene placement
+### Runtime activation and restoration
 
-When Token placement is enabled, Encounter Forge creates exactly one Token for every concrete runtime participant. **Manual placement is selected by default**; automatic staging remains available when a quick center formation is preferred. Two placement modes are available:
+A prepared Encounter stays inert until one of two things happens:
 
-- **Automatic staging** places the cast in a compact formation around the Scene center. Token size is considered when spacing the formation, and tactical groups remain together in stable participant order.
-- **Manual placement** opens the selected Scene and uses Foundry's native sequential Token placement workflow. A ghost Token follows the cursor; left-click confirms each opponent, the mouse wheel can rotate the preview, and Esc cancels the deployment transaction. A compact placement HUD identifies the current opponent and progress.
+1. the GM presses **Start Encounter** in the Director, or
+2. a Foundry Combat prepared by that Encounter actually starts.
 
-Manual placement minimizes the Encounter Forge window while the GM works on the map. The actual clicked Token coordinates and rotation are persisted in the Encounter Instance.
+Only the primary active GM is authoritative for Runtime mutations. On world ready, active and paused Encounter Instances are restored automatically. Merely prepared Instances are deliberately not auto-restored or started.
 
-Every generated Token receives Encounter Forge flags containing:
+If the Runtime is switched to another Encounter while one is active, the previous Instance is persisted as paused first rather than leaving multiple encounters marked active.
 
-- Encounter Instance ID and UUID
-- concrete runtime participant ID
-- participant template ID
-- tactical group ID
+### Runtime event monitoring
 
-The Instance stores every Token UUID and each runtime participant's exact Token UUID, so later Runtime services do not need to rediscover identities from names or Actor types.
+The Runtime now normalizes relevant Foundry document hooks into Encounter events. The MVP observes:
 
-### Optional Combat preparation
+- Combat round changes
+- Combat turn changes
+- Combatant defeated/restored state
+- Encounter Token changes
+- Encounter Token deletion
+- Encounter Actor changes
 
-Deployment can create a Foundry Combat for the selected Scene. Generated opponent Tokens are added as Combatants. If requested, character Tokens already present on that Scene are added as well.
+The Runtime stores encounter-specific consequences only. Native HP, conditions, inventory, spell resources, Token position, and PF2e rules remain owned by the normal Foundry/PF2e documents. The Director reads live HP from the concrete Token Actor when available.
 
-Combat preparation deliberately does **not**:
+### Trigger and GM-decision MVP
 
-- roll initiative
-- activate/start combat
-- start the Encounter Runtime
-- execute tactics or phases
+Blueprint triggers can already be evaluated when authored through data/API/add-on content. A trigger uses a normalized Runtime event and optional declarative conditions, for example:
 
-The Combat document and Scene receive back-references to the Encounter Instance after persistence.
+```js
+{
+  id: "round-four-awakening",
+  event: "combat.roundChanged",
+  conditions: [
+    { field: "round", operator: "gte", value: 4 }
+  ],
+  actions: ["enter-awakening"]
+}
+```
 
-### Prepared Encounter Instance
+The trigger fires once by default. Consequential actions are presented to the GM as a **Director decision** unless the trigger explicitly opts into automatic execution.
 
-The Instance now records:
+The first supported Runtime actions are:
 
-- saved Blueprint identity
-- Scene UUID/name
-- Actor destination folder
-- Actor materialization mode
-- materialized World Actor UUIDs
-- concrete runtime participant identities and Actor UUIDs
-- concrete Token UUIDs and automatic/manual starting positions (including rotation when available)
-- Token placement timestamp/mode
-- optional Combat UUID and preparation timestamp
-- whether existing PC Tokens were included in the prepared Combat
-- initial phase/objective state
+- `phase.transition`
+- `objective.progress`
+- `director.message`
 
-Native Actor/Token state such as HP, conditions, inventory, spell resources, and PF2e rule data remains owned by Foundry/PF2e documents rather than being duplicated into the Instance.
+The Blueprint editor does not yet provide authoring UI for phases, objectives, triggers, and actions. The Runtime/Director contracts are in place first so the next authoring block can target a stable execution model.
 
-### Transaction safety
+### Persistent Runtime state
 
-Deployment is treated as one world-mutation transaction. If Actor materialization, Token placement, Combat preparation, or Instance persistence fails, Encounter Forge rolls back documents created by that attempt where possible:
+The Encounter Instance continues to be the single source of truth for one concrete playthrough. Runtime additions include:
 
-- newly created Combat
-- newly created encounter Tokens
-- newly materialized World Actors
-- automatically created Actor subfolder
+- active/paused/completed status
+- `startedAt`, `pausedAt`, and `completedAt`
+- current phase
+- objective state/progress
+- participant encounter state
+- fired-trigger IDs
+- pending/resolved GM decisions
+- bounded persistent log
+- current Runtime round/turn snapshot
 
-A failed deployment should therefore not leave a half-built encounter scattered through the world.
+World reloads therefore do not erase the Director's memory.
 
-### Existing planning features
+### Existing planning and deployment features
 
 The module also includes:
 
 - automatic PF2e party detection
-- Actor Directory launcher for GMs
 - persistent JournalEntry-backed Encounter Blueprint library
-- participant composition from Actors, Creature Forge, and NPC Forge
+- participant composition from World/compendium Actors, Creature Forge, and NPC Forge
 - tactical groups and encounter roles
+- per-participant Token name and HP-bar display policy
 - live PF2e encounter XP budgeting
 - optional integration manager for supported Forge modules
-- Encounter Blueprint schema v1 and Encounter Instance schema v1
-- primary-GM authority handling and inert Encounter Runtime service skeleton
+- Actor materialization into a GM-selected Actor folder/subfolder
+- one Actor per opponent type or one Actor per concrete participant
+- automatic or manual interactive Scene Token placement
+- optional Foundry Combat preparation with existing PC Tokens
+- rollback-safe deployment transaction
 
-### Still intentionally inactive
+### Still intentionally deferred
 
-This build does **not** yet:
+This MVP does **not** yet provide:
 
-- start or restore the Encounter Runtime
-- run objectives, phases, triggers, or tactical instructions
-- provide authored deployment zones/Regions or tactical auto-positioning beyond center staging and manual placement
-- open the Encounter Director
+- Blueprint-editor UI for authoring phases, objectives, triggers, or tactical instructions
+- automatic tactical movement or AI-controlled opponent turns
+- Aura Forge, Affliction Forge, Effect Forge, Weather Forge, Loot Forge, or Item Forge Runtime actions
+- authored deployment Regions/zones
+- encounter outcome/reward orchestration
 
-### Public deployment API
+Those can now be layered onto the stable Director/Runtime boundary instead of being mixed into planning or deployment code.
+
+### Public Runtime API
 
 ```js
-game.modules.get("pf2e-encounter-forge").api.deployment.deploy(blueprint, {
-  blueprintUuid: "JournalEntry...",
-  sceneUuid: "Scene...",        // optional
-  actorFolderId: "...",         // optional, null = Actor root
-  createSubfolder: true,
-  subfolderName: blueprint.name,
-  actorMode: "per-type",         // or "per-participant"
-  placeTokens: true,
-  placementMode: "staging-center", // or "interactive"
-  createCombat: false,
-  includePlayerTokens: true
-});
+const ef = game.modules.get("pf2e-encounter-forge").api;
+
+await ef.runtime.activate(instanceId);
+await ef.runtime.pause();
+await ef.runtime.resume();
+await ef.runtime.setPhase("phase-2");
+await ef.runtime.adjustObjective("ritual", 1);
+await ef.runtime.resolveDecision(decisionId, "accept");
+const snapshot = await ef.runtime.inspect(instanceId);
+await ef.runtime.complete();
 ```
 
 ## Development

@@ -1,5 +1,53 @@
 # Changelog
 
+## 0.1.0-alpha.7.2 - Reopen Encounter & Unobstructed Placement
+
+### Added
+- Added a Director action to undo an accidental Encounter completion and resume the same Encounter Instance from its current state.
+- Reopening preserves phases, objective progress, fired triggers, participant state, logs, Actors, Tokens, and Combat state; only the final `completed` lifecycle state is reverted to `active`.
+- Added a persistent Runtime log entry when completion is undone and exposed `runtime.reopen()` through the public API.
+- The Director launcher can now fall back to the most recent completed Encounter when no prepared/active/paused Encounter is available, so an accidental completion can still be undone after closing the Director.
+
+### Changed
+- Manual Scene placement now temporarily hides the entire Encounter Forge window, including its title bar, instead of merely minimizing it.
+- The Encounter Forge is restored and brought back to the front after manual placement completes or is cancelled, while the deployment dialog continues to close during placement.
+- Updated the manual-placement help text to describe the unobstructed placement behavior.
+
+## 0.1.0-alpha.7.1 - Director Participant Cards
+
+### Added
+- Redesigned Encounter Director participant rows as visual Actor cards with portrait, readable name, level, role/group metadata, state badge, current/max HP, and a full-width health bar.
+- Added persistent participant display snapshots (name, image, level) to Encounter Instances so the Director retains useful identity information even when a concrete Actor/Token cannot be resolved temporarily.
+- Added a direct World Actor lookup fallback for Runtime participant inspection.
+- Duplicate participants from one Blueprint template are numbered in the Director when their concrete Token names are otherwise identical.
+
+### Changed
+- Enlarged the Encounter Director default window for a clearer live-control layout.
+- Deployment refreshes participant display snapshots from the materialized World Actor.
+- HP bars now use healthy/wounded/critical visual bands while the numeric PF2e HP values remain visible.
+
+## 0.1.0-alpha.7 - Encounter Runtime & Director MVP
+
+### Added
+- Added the first live **Encounter Director** ApplicationV2 control surface for GMs, separate from the planning Forge and deployment dialog.
+- Added Director launchers from the Encounter Forge and the Combat Tracker, with automatic preference for the current Combat/Scene Encounter Instance.
+- Added Encounter lifecycle controls for prepared → active, pause, resume, and completion.
+- Added automatic Runtime activation when a prepared Encounter's Foundry Combat actually starts.
+- Added authoritative-GM Runtime restoration on world ready for active or paused Encounter Instances. Prepared encounters remain inert until explicitly started or their prepared Combat begins.
+- Added live Runtime event normalization for Combat round/turn changes, Combatant defeated state, Token changes/deletion, and Actor changes.
+- Added persistent participant state updates for defeated/restored/removed participants and live Director HP snapshots from concrete Token Actors.
+- Added manual phase switching, objective progress/state controls, and persistent Encounter logging.
+- Added first declarative trigger evaluation. Triggers can react to normalized Runtime events and conditions, fire once by default, and create GM decisions instead of silently applying consequential actions.
+- Added Director decision cards with Apply/Dismiss handling; accepted trigger actions currently support phase transitions, objective progress, and Director log messages.
+- Added public Runtime API operations for activation, pause/resume/completion, phase changes, objective updates, decision resolution, and read-only Instance inspection.
+- Added regression coverage for Runtime lifecycle persistence, trigger/decision flow, objective completion, prepared-vs-active restoration semantics, EventService normalization, and Director UI contracts.
+
+### Changed
+- Replaced the inert Runtime service stubs with concrete Event, Trigger, Phase, Objective, Participant, Tactics, Action, and Persistence services while preserving the original service boundaries.
+- Switching the Runtime to a different Encounter automatically pauses a previously active Encounter instead of leaving multiple Instances marked active.
+- Starting an Encounter promotes ready/materialized participants to active state and captures the current prepared Combat round/turn when available.
+- Encounter Instance metadata now includes `startedAt` and `pausedAt` timestamps in addition to completion time.
+
 ## 0.1.0-alpha.6.3 - Per-Participant Token Display
 
 ### Added

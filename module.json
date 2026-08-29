@@ -1,8 +1,8 @@
 {
   "id": "pf2e-encounter-forge",
   "title": "PF2E Encounter Forge",
-  "description": "Builds persistent PF2e encounter blueprints, composes opponents from Actors and Forge modules, materializes prepared Encounter Instances with World Actors, automatic or interactive Scene Token placement, optional Combat setup, and the foundation for the GM-facing Encounter Director and runtime orchestration.",
-  "version": "0.1.0-alpha.6.3",
+  "description": "Builds persistent PF2e encounter blueprints, materializes opponents and Scene deployments, and provides a GM-facing Encounter Director backed by an authoritative persistent Runtime for phases, objectives, trigger decisions, participant state, and live encounter logging.",
+  "version": "0.1.0-alpha.7.2",
   "authors": [
     {
       "name": "crypto-vbrthr"

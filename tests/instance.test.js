@@ -46,3 +46,24 @@ test("Encounter Instance propagates per-participant Token display policy", () =>
   assert.ok(instance.participants.every((participant) => participant.tokenDisplay.displayBars === "OWNER_HOVER"));
   assert.ok(instance.participants.every((participant) => participant.tokenDisplay.hpBarAttribute === "attributes.hp"));
 });
+
+
+test("Encounter Instance keeps participant display identity for Director fallback", () => {
+  const blueprint = createEncounterBlueprint({
+    id: "display",
+    name: "Display",
+    participants: [{ id: "guard", name: "Rune Guard", img: "guard.webp", level: 7, source: { type: "document", uuid: "Actor.guard" }, quantity: 2 }]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "display-instance" });
+  assert.equal(instance.participants[0].display.name, "Rune Guard");
+  assert.equal(instance.participants[0].display.img, "guard.webp");
+  assert.equal(instance.participants[0].display.level, 7);
+  assert.equal(instance.participants[1].display.name, "Rune Guard");
+
+  const unknown = createEncounterInstance(createEncounterBlueprint({
+    id: "unknown-display",
+    name: "Unknown Display",
+    participants: [{ id: "mystery", name: "Mystery", level: null, source: { type: "document", uuid: "Actor.mystery" } }]
+  }));
+  assert.equal(unknown.participants[0].display.level, null);
+});

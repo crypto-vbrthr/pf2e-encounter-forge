@@ -117,7 +117,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       removeGroup: EncounterForgeApp.removeGroup,
       toggleIntegrations: EncounterForgeApp.toggleIntegrations,
       toggleIntegration: EncounterForgeApp.toggleIntegration,
-      deployEncounter: EncounterForgeApp.deployEncounter
+      deployEncounter: EncounterForgeApp.deployEncounter,
+      openDirector: EncounterForgeApp.openDirector
     }
   };
 
@@ -750,6 +751,11 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     }
   }
 
+
+  static async openDirector() {
+    await getApi()?.ui?.openDirector?.();
+  }
+
   static async deployEncounter() {
     const persisted = await this.#persistDraft({ notify: false });
     if (!persisted) return;
@@ -770,12 +776,18 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       blueprintUuid,
       onDeploy: async (options) => {
         const interactive = options.placeTokens && options.placementMode === "interactive";
-        let completed = false;
-        if (interactive) await this.minimize?.();
+        const forgeElement = interactive && this.element instanceof HTMLElement ? this.element : null;
+        const previousHidden = forgeElement?.hidden ?? false;
+        const previousAriaHidden = forgeElement?.getAttribute?.("aria-hidden") ?? null;
+        if (forgeElement) {
+          // Native Token placement needs the canvas completely unobstructed. Hide the
+          // full Forge window, including its title bar, for the duration of placement.
+          forgeElement.hidden = true;
+          forgeElement.setAttribute("aria-hidden", "true");
+        }
         try {
           const result = await api?.deployment?.deploy?.(persisted.blueprint, { ...options, blueprintUuid });
           if (!result) return false;
-          completed = true;
           const actorCount = result.actors?.length ?? 0;
           const tokenCount = result.tokens?.length ?? 0;
           const folderName = result.folder?.name ?? localize("PF2E_ENCOUNTER_FORGE.Deployment.ActorRoot", "Actor Directory root");
@@ -789,10 +801,12 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
           if (!interactive && options.viewScene && result.scene?.view) await result.scene.view();
           return result;
         } finally {
-          // Manual placement needs the map unobstructed. On success the Forge stays
-          // minimized so the GM can inspect the staged Scene; on cancellation/failure
-          // restore it immediately.
-          if (interactive && !completed) await this.maximize?.();
+          if (forgeElement) {
+            forgeElement.hidden = previousHidden;
+            if (previousAriaHidden === null) forgeElement.removeAttribute("aria-hidden");
+            else forgeElement.setAttribute("aria-hidden", previousAriaHidden);
+            this.bringToFront?.();
+          }
         }
       }
     }));

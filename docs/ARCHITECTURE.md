@@ -127,3 +127,89 @@ The future Encounter Director remains a separate surface again: Forge is the wor
 `SceneDeploymentService` owns the stable Encounter-to-Scene contract. For `placementMode: "interactive"` it delegates the canvas interaction to `InteractiveTokenPlacementService`, which uses Foundry VTT 14's public `TokenLayer.placeTokens()` workflow. The interactive service owns only Scene viewing, preview/placement interaction, and the temporary placement HUD. Encounter identity, persistence, Combat preparation, and rollback remain owned by the normal deployment pipeline.
 
 Pressing Esc produces a deployment cancellation error rather than a partially prepared Encounter Instance. The outer deployment transaction therefore retains a single rollback boundary across World Actor materialization, Token placement, Combat creation, and Instance persistence.
+
+## Encounter Runtime MVP
+
+The Runtime is no longer inert as of `0.1.0-alpha.7`. It binds to at most one Encounter Instance on the authoritative GM client and owns encounter-specific live orchestration state only.
+
+Concrete Runtime services are:
+
+- `EventService`: converts relevant Foundry document hooks into normalized Encounter events.
+- `TriggerService`: evaluates declarative Blueprint triggers while an Instance is active.
+- `PhaseService`: resolves and validates Blueprint phases against the Instance current phase.
+- `ObjectiveService`: exposes Blueprint objective definitions paired with Instance objective state.
+- `ParticipantService`: resolves concrete Token/Actor documents and produces live participant snapshots without duplicating native PF2e state.
+- `TacticsService`: resolves Encounter-owned tactics profile metadata; active tactical recommendation logic remains intentionally minimal.
+- `ActionService`: dispatches supported Encounter actions through stable handlers.
+- `RuntimePersistenceService`: serializes Runtime saves through the Instance repository.
+
+The Runtime remains authoritative-GM-only for mutations. A prepared Instance may be inspected by the Director without activation, but trigger processing occurs only while `instance.status === "active"`.
+
+### Runtime lifecycle
+
+Supported transitions are:
+
+```text
+prepared -> active <-> paused -> completed
+```
+
+A prepared Encounter can be activated explicitly by the Director or automatically when its prepared Foundry Combat starts. On world ready, only active or paused Instances are restored. Prepared Instances stay inert.
+
+Switching the single Runtime binding to a different Instance automatically persists a currently active Encounter as paused first.
+
+### Runtime event contract
+
+`EventService` emits normalized objects through the internal event bus. Initial event types include:
+
+- `combat.roundChanged`
+- `combat.turnChanged`
+- `participant.defeated`
+- `participant.restored`
+- `participant.hpChanged`
+- `participant.tokenUpdated`
+- `participant.actorUpdated`
+- `participant.tokenDeleted`
+
+Blueprint triggers listen to `encounter.event`, not raw Foundry hooks. This prevents trigger definitions from depending on Foundry callback signatures.
+
+### Trigger and decision boundary
+
+Triggers are data, never executable JavaScript stored in the Blueprint. The MVP supports an event name plus declarative conditions such as:
+
+```js
+{
+  id: "round-four",
+  event: "combat.roundChanged",
+  conditions: [{ field: "round", operator: "gte", value: 4 }],
+  actions: ["phase-two"]
+}
+```
+
+Triggers fire once by default and are recorded in `instance.triggeredEvents`. Consequential actions create a persistent pending GM decision unless a trigger explicitly opts into automatic execution.
+
+The first action types are deliberately small:
+
+- `phase.transition`
+- `objective.progress`
+- `director.message`
+
+Integrated Forge actions will be added through `ActionService` later rather than by embedding integration logic inside TriggerService or the Director.
+
+## Encounter Director MVP
+
+The Director is a separate GM-facing ApplicationV2 surface. It contains no encounter rules of its own. It consumes Runtime inspection snapshots and invokes public Runtime operations.
+
+The Director shows:
+
+- lifecycle state
+- Scene and prepared Combat association
+- Runtime round/turn snapshot
+- phase selection
+- objective progress/state
+- concrete participant state and live HP
+- pending trigger decisions
+- persistent Encounter log
+
+The Director subscribes to Runtime bus notifications and rerenders on relevant changes. It can be opened from Encounter Forge or the Combat Tracker. Selecting an Instance for viewing does not itself mutate that Instance; mutation starts only when the GM invokes a lifecycle/action control or the prepared Combat starts.
+
+This preserves the project vocabulary boundary: **Forge plans, Deployment materializes, Director communicates, Runtime executes, Instance remembers.**
