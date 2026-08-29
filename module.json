@@ -1,8 +1,13 @@
 {
   "id": "pf2e-encounter-forge",
   "title": "PF2E Encounter Forge",
-  "description": "Builds and stores persistent PF2e encounter blueprints and provides the architectural foundation for deployment, orchestration, and GM-facing encounter direction.",
-  "version": "0.1.0-alpha.3.1",
+  "description": "Builds persistent PF2e encounter blueprints, composes opponents from Actors and Forge modules, evaluates encounter budgets, and provides the foundation for deployment, runtime orchestration, and the GM-facing Encounter Director.",
+  "version": "0.1.0-alpha.4.4",
+  "authors": [
+    {
+      "name": "crypto-vbrthr"
+    }
+  ],
   "compatibility": {
     "minimum": "14",
     "verified": "14"
@@ -69,5 +74,8 @@
       "name": "English",
       "path": "lang/en.json"
     }
-  ]
+  ],
+  "license": "LICENSE",
+  "readme": "README.md",
+  "socket": false
 }

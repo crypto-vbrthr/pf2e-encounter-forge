@@ -32,7 +32,36 @@
     </div>
 
     <footer class="encounter-forge-library-footer">
-      <span><i class="fa-solid fa-plug"></i> {{readyIntegrations}} / {{totalIntegrations}} {{localize "PF2E_ENCOUNTER_FORGE.Library.IntegrationsReady"}}</span>
+      <button type="button" class="encounter-forge-integrations-toggle" data-action="toggleIntegrations">
+        <span><i class="fa-solid fa-plug"></i> {{readyIntegrations}} / {{totalIntegrations}} {{localize "PF2E_ENCOUNTER_FORGE.Library.IntegrationsReady"}}</span>
+        <i class="fa-solid {{#if integrationsExpanded}}fa-chevron-down{{else}}fa-chevron-up{{/if}}"></i>
+      </button>
+
+      {{#if integrationsExpanded}}
+        <section class="encounter-forge-integrations-panel">
+          <header>
+            <strong>{{localize "PF2E_ENCOUNTER_FORGE.Integrations.Title"}}</strong>
+            <small>{{localize "PF2E_ENCOUNTER_FORGE.Integrations.Hint"}}</small>
+          </header>
+          <div class="encounter-forge-integration-list">
+            {{#each integrationRows}}
+              <div class="encounter-forge-integration-row" data-state="{{state}}">
+                <div class="encounter-forge-integration-info">
+                  <strong>{{label}}</strong>
+                  <small>{{statusLabel}}{{#if versionText}} · {{versionText}}{{/if}}</small>
+                </div>
+                <button type="button" class="encounter-forge-integration-switch {{#if enabled}}enabled{{else}}disabled{{/if}}"
+                        data-action="toggleIntegration" data-integration-id="{{id}}"
+                        {{#unless canToggle}}disabled{{/unless}}
+                        data-tooltip="{{toggleLabel}}">
+                  <i class="fa-solid {{#if enabled}}fa-toggle-on{{else}}fa-toggle-off{{/if}}"></i>
+                </button>
+              </div>
+            {{/each}}
+          </div>
+          <p class="encounter-forge-integrations-note">{{localize "PF2E_ENCOUNTER_FORGE.Integrations.Note"}}</p>
+        </section>
+      {{/if}}
     </footer>
   </aside>
 
@@ -113,6 +142,140 @@
       </div>
     </section>
 
+    <section class="encounter-forge-card encounter-forge-participants-card">
+      <div class="encounter-forge-section-title encounter-forge-participants-heading">
+        <div>
+          <h2>{{localize "PF2E_ENCOUNTER_FORGE.Participants.Title"}}</h2>
+          <p>{{localize "PF2E_ENCOUNTER_FORGE.Participants.Hint"}}</p>
+        </div>
+        <div class="encounter-forge-participant-actions">
+          <button type="button" data-action="browseParticipant" class="secondary">
+            <i class="fa-solid fa-book-open"></i> {{localize "PF2E_ENCOUNTER_FORGE.Participants.BrowseActors"}}
+          </button>
+          <button type="button" data-action="addCreatureForgeParticipant" class="secondary" {{#unless creatureForgeReady}}disabled{{/unless}}>
+            <i class="fa-solid fa-dragon"></i> {{localize "PF2E_ENCOUNTER_FORGE.Participants.CreatureForge"}}
+          </button>
+          <button type="button" data-action="addNpcForgeParticipant" class="secondary" {{#unless npcForgeReady}}disabled{{/unless}}>
+            <i class="fa-solid fa-user-tie"></i> {{localize "PF2E_ENCOUNTER_FORGE.Participants.NpcForge"}}
+          </button>
+        </div>
+      </div>
+
+      <div class="encounter-forge-participant-drop" data-participant-drop>
+        <i class="fa-solid fa-arrow-down-to-bracket"></i>
+        <span>{{localize "PF2E_ENCOUNTER_FORGE.Participants.DropHint"}}</span>
+      </div>
+
+      <div class="encounter-forge-budget-summary" data-budget-summary data-status="{{budget.status}}">
+        <div>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Budget.Used"}}</span>
+          <strong><span data-budget-used>{{budget.usedXp}}</span> / <span data-budget-target>{{budget.targetXp}}</span> EP</strong>
+        </div>
+        <div>
+          <span data-budget-remaining-label>{{budget.remainingLabel}}</span>
+          <strong><span data-budget-remaining>{{budget.remainingAbs}}</span> EP</strong>
+        </div>
+        <div>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Budget.StatusLabel"}}</span>
+          <strong data-budget-status>{{budget.statusLabel}}</strong>
+        </div>
+        <div class="encounter-forge-budget-auto">
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Budget.AutomaticTarget"}}</span>
+          <strong><span data-budget-automatic>{{budget.automaticTarget}}</span> EP</strong>
+        </div>
+      </div>
+
+      <div class="encounter-forge-budget-warning" data-budget-warning {{#unless budget.unknownCount}}hidden{{/unless}}>
+        <i class="fa-solid fa-triangle-exclamation"></i>
+        {{localize "PF2E_ENCOUNTER_FORGE.Budget.UnknownHint"}}
+      </div>
+
+      {{#if hasParticipants}}
+        <div class="encounter-forge-participant-list">
+          {{#each participants}}
+            <article class="encounter-forge-participant" data-participant-id="{{id}}">
+              <div class="encounter-forge-participant-identity">
+                <div class="encounter-forge-participant-portrait">
+                  {{#if img}}<img src="{{img}}" alt="">{{else}}<i class="fa-solid fa-user-shield"></i>{{/if}}
+                </div>
+                <div class="encounter-forge-participant-name">
+                  <input type="text" value="{{name}}" data-participant-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}">
+                  <span class="encounter-forge-source-badge">{{sourceLabel}}</span>
+                </div>
+                <div class="encounter-forge-participant-row-actions">
+                  {{#if canEditSource}}
+                    <button type="button" data-action="editParticipant" data-participant-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Participants.EditSource">
+                      <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                  {{/if}}
+                  <button type="button" data-action="removeParticipant" data-participant-id="{{id}}" class="icon-only danger" data-tooltip="PF2E_ENCOUNTER_FORGE.Participants.Remove">
+                    <i class="fa-solid fa-trash"></i>
+                  </button>
+                </div>
+              </div>
+              <div class="encounter-forge-participant-fields">
+                <label>
+                  <span>{{localize "PF2E_ENCOUNTER_FORGE.Fields.Level"}}</span>
+                  <input type="number" min="-1" max="24" step="1" value="{{levelValue}}" placeholder="—" data-participant-field="level">
+                </label>
+                <label>
+                  <span>{{localize "PF2E_ENCOUNTER_FORGE.Participants.Quantity"}}</span>
+                  <input type="number" min="1" max="99" step="1" value="{{quantity}}" data-participant-field="quantity">
+                </label>
+                <label>
+                  <span>{{localize "PF2E_ENCOUNTER_FORGE.Participants.RoleLabel"}}</span>
+                  <select data-participant-field="role">
+                    {{#each roleOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+                  </select>
+                </label>
+                <label>
+                  <span>{{localize "PF2E_ENCOUNTER_FORGE.Participants.GroupLabel"}}</span>
+                  <select data-participant-field="groupId">
+                    {{#each groupOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}
+                  </select>
+                </label>
+                <div class="encounter-forge-participant-xp {{#unless budgetSupported}}unsupported{{/unless}}">
+                  <span>{{localize "PF2E_ENCOUNTER_FORGE.Budget.ParticipantXp"}}</span>
+                  <strong><span data-participant-xp="{{id}}">{{xpText}}</span> EP</strong>
+                  <small><span data-participant-xp-each="{{id}}">{{xpEachText}}</span> × <span data-participant-xp-quantity="{{id}}">{{quantity}}</span></small>
+                </div>
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      {{else}}
+        <div class="encounter-forge-participant-empty">
+          <i class="fa-solid fa-people-group"></i>
+          <p>{{localize "PF2E_ENCOUNTER_FORGE.Participants.Empty"}}</p>
+        </div>
+      {{/if}}
+
+      <div class="encounter-forge-groups">
+        <div class="encounter-forge-groups-header">
+          <div>
+            <h3>{{localize "PF2E_ENCOUNTER_FORGE.Participants.GroupsTitle"}}</h3>
+            <p>{{localize "PF2E_ENCOUNTER_FORGE.Participants.GroupsHint"}}</p>
+          </div>
+          <button type="button" data-action="addGroup" class="secondary">
+            <i class="fa-solid fa-plus"></i> {{localize "PF2E_ENCOUNTER_FORGE.Participants.AddGroup"}}
+          </button>
+        </div>
+        {{#if hasGroups}}
+          <div class="encounter-forge-group-list">
+            {{#each groups}}
+              <div class="encounter-forge-group-row" data-group-id="{{id}}">
+                <i class="fa-solid fa-object-group"></i>
+                <input type="text" value="{{name}}" data-group-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Participants.GroupLabel"}}">
+                <button type="button" data-action="removeGroup" data-group-id="{{id}}" class="icon-only danger" data-tooltip="PF2E_ENCOUNTER_FORGE.Participants.RemoveGroup">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            {{/each}}
+          </div>
+        {{/if}}
+      </div>
+    </section>
+
     <section class="encounter-forge-card encounter-forge-structure-card">
       <div class="encounter-forge-section-title">
         <div>
@@ -122,7 +285,7 @@
       </div>
 
       <div class="encounter-forge-stat-grid">
-        <div class="encounter-forge-stat"><strong>{{draft.participantCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Participants"}}</span></div>
+        <div class="encounter-forge-stat"><strong data-structure-participant-count>{{draft.participantCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Participants"}}</span></div>
         <div class="encounter-forge-stat"><strong>{{draft.groupCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Groups"}}</span></div>
         <div class="encounter-forge-stat"><strong>{{draft.objectiveCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Objectives"}}</span></div>
         <div class="encounter-forge-stat"><strong>{{draft.phaseCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Phases"}}</span></div>

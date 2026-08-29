@@ -7,6 +7,8 @@ function normalizeParticipant(participant = {}, index = 0) {
   return {
     id,
     name: String(participant.name ?? id),
+    img: participant.img ? String(participant.img) : null,
+    level: participant.level !== null && participant.level !== "" && Number.isInteger(Number(participant.level)) ? Number(participant.level) : null,
     source: deepClone(participant.source ?? { type: "document", uuid: null }),
     quantity: Math.max(1, Number.parseInt(participant.quantity ?? 1, 10) || 1),
     role: participant.role ? String(participant.role) : null,
@@ -34,7 +36,7 @@ export function createEncounterBlueprint(input = {}) {
     },
     threat: {
       target: String(input.threat?.target ?? "moderate"),
-      budget: Number.isFinite(Number(input.threat?.budget)) ? Number(input.threat.budget) : null
+      budget: input.threat?.budget !== null && input.threat?.budget !== "" && Number.isFinite(Number(input.threat?.budget)) ? Number(input.threat.budget) : null
     },
     participants: asArray(input.participants).map(normalizeParticipant),
     groups: asArray(input.groups).map((entry, index) => normalizeIdRecord(entry, `group-${index + 1}`)),
@@ -101,6 +103,9 @@ export function validateEncounterBlueprint(value) {
     }
     if (!Number.isInteger(participant.quantity) || participant.quantity < 1) {
       errors.push({ code: "PARTICIPANT_QUANTITY", path: `participants.${participant?.id ?? "?"}.quantity`, message: "Participant quantity must be a positive integer." });
+    }
+    if (participant.level !== null && (!Number.isInteger(participant.level) || participant.level < -1 || participant.level > 24)) {
+      errors.push({ code: "PARTICIPANT_LEVEL", path: `participants.${participant?.id ?? "?"}.level`, message: "Participant level must be an integer from -1 to 24 or null." });
     }
     if (participant.groupId && !groupIds.has(participant.groupId)) warnings.push({ code: "UNKNOWN_GROUP", path: `participants.${participant.id}.groupId`, message: `Unknown group '${participant.groupId}'.` });
     if (participant.tacticsProfileId && !tacticsIds.has(participant.tacticsProfileId)) warnings.push({ code: "UNKNOWN_TACTICS", path: `participants.${participant.id}.tacticsProfileId`, message: `Unknown tactics profile '${participant.tacticsProfileId}'.` });

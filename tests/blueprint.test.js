@@ -40,3 +40,30 @@ test("unknown group and action references are warnings rather than schema failur
   assert(report.warnings.some((entry) => entry.code === "UNKNOWN_GROUP"));
   assert(report.warnings.some((entry) => entry.code === "UNKNOWN_ACTION"));
 });
+
+
+test("participant composition preserves level zero and nullable levels", () => {
+  const zero = createEncounterBlueprint({ participants: [{ id: "p0", name: "Zero", level: 0, source: { type: "document", uuid: "Actor.zero" } }] });
+  assert.equal(zero.participants[0].level, 0);
+  const unknown = createEncounterBlueprint({ participants: [{ id: "p1", name: "Unknown", level: null, source: { type: "document", uuid: "Actor.unknown" } }] });
+  assert.equal(unknown.participants[0].level, null);
+  assert.equal(unknown.threat.budget, null);
+});
+
+test("participant round-trip preserves level, role, and tactical group", () => {
+  const original = createEncounterBlueprint({
+    groups: [{ id: "guards", name: "Guards" }],
+    participants: [{
+      id: "captain",
+      name: "Captain",
+      level: 11,
+      role: "leader",
+      groupId: "guards",
+      source: { type: "creatureForge", blueprint: { identity: { level: 11 } }, request: { identity: { level: 11 } } }
+    }]
+  });
+  const restored = createEncounterBlueprint(JSON.parse(JSON.stringify(original)));
+  assert.equal(restored.participants[0].level, 11);
+  assert.equal(restored.participants[0].role, "leader");
+  assert.equal(restored.participants[0].groupId, "guards");
+});

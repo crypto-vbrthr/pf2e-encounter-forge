@@ -8,6 +8,8 @@ import {
 import { ActorFolderService } from "../deployment/folder-service.js";
 import { openEncounterForge } from "../ui/encounter-forge-ui.js";
 import { detectCurrentParty } from "../engine/party-analyzer.js";
+import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } from "../engine/encounter-budget.js";
+import { isIntegrationEnabled, setIntegrationEnabled } from "../integrations/integration-settings.js";
 
 export function createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, runtime } = {}) {
   const api = Object.freeze({
@@ -42,6 +44,8 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       get: (id) => integrations.get(id),
       api: (id) => integrations.api(id),
       status: (id = null) => id ? integrations.status(id) : integrations.statusAll(),
+      isEnabled: (id) => isIntegrationEnabled(id),
+      setEnabled: (id, enabled) => setIntegrationEnabled(id, enabled),
       register: (descriptor, options = {}) => integrations.register(descriptor, options),
       unregister: (id) => integrations.unregister(id)
     }),
@@ -62,6 +66,12 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
 
     party: Object.freeze({
       detect: (options = {}) => detectCurrentParty(options)
+    }),
+
+    budget: Object.freeze({
+      analyze: (options = {}) => analyzeEncounterBudget(options),
+      targetForThreat: (threat, partySize = 4) => targetBudgetForThreat(threat, partySize),
+      xpForCreatureLevel: (creatureLevel, partyLevel) => xpForCreatureLevel(creatureLevel, partyLevel)
     }),
 
     ui: Object.freeze({

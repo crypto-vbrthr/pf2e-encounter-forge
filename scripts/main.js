@@ -1,5 +1,5 @@
 import { API_VERSION, MODULE_ID, MODULE_VERSION } from "./constants.js";
-import { IntegrationRegistry, registerCoreIntegrations } from "./integrations/index.js";
+import { IntegrationRegistry, registerCoreIntegrations, registerIntegrationSettings } from "./integrations/index.js";
 import { ParticipantSourceRegistry, registerCoreParticipantSources } from "./engine/index.js";
 import { createBlueprintRepository, createInstanceRepository } from "./persistence/index.js";
 import { EncounterRuntime } from "./runtime/index.js";
@@ -11,6 +11,7 @@ let runtime = null;
 
 Hooks.once("init", () => {
   console.log(`PF2E Encounter Forge | Initializing ${MODULE_VERSION} (API ${API_VERSION})`);
+  registerIntegrationSettings();
   const integrations = registerCoreIntegrations(new IntegrationRegistry());
   const participantSources = registerCoreParticipantSources(new ParticipantSourceRegistry(), integrations);
   const blueprintRepository = createBlueprintRepository();

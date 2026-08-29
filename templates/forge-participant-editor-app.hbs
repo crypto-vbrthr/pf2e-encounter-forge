@@ -1,0 +1,23 @@
+<div class="encounter-participant-forge-shell">
+  <header class="encounter-participant-forge-header">
+    <div>
+      <div class="encounter-forge-kicker">{{localize "PF2E_ENCOUNTER_FORGE.Participants.NewParticipant"}}</div>
+      <h2>{{title}}</h2>
+    </div>
+    <p>{{localize "PF2E_ENCOUNTER_FORGE.Participants.ForgeEditorHint"}}</p>
+  </header>
+  <div class="encounter-participant-forge-mount" data-forge-editor-mount></div>
+  <footer class="encounter-participant-forge-actions">
+    {{#if isNpc}}
+      <button type="button" data-action="generateParticipant" class="secondary">
+        <i class="fa-solid fa-dice"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Generate"}}
+      </button>
+    {{/if}}
+    <button type="button" data-action="cancelParticipant" class="secondary">
+      <i class="fa-solid fa-xmark"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Cancel"}}
+    </button>
+    <button type="button" data-action="commitParticipant" class="primary">
+      <i class="fa-solid fa-plus"></i> {{localize "PF2E_ENCOUNTER_FORGE.Participants.AddToEncounter"}}
+    </button>
+  </footer>
+</div>

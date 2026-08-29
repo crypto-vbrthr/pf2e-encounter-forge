@@ -1,5 +1,6 @@
 import { collectionContents } from "../utils/data.js";
 import { EncounterForgeError } from "../utils/errors.js";
+import { isIntegrationEnabled } from "./integration-settings.js";
 
 function moduleCollection(gameRef) {
   return gameRef?.modules ?? globalThis.game?.modules ?? null;
@@ -52,6 +53,7 @@ export class IntegrationRegistry {
   api(id) {
     const descriptor = this.get(id);
     if (!descriptor) return null;
+    if (!isIntegrationEnabled(descriptor.id, { gameRef: this.#gameRef ?? globalThis.game })) return null;
     const module = findModule(moduleCollection(this.#gameRef), descriptor.moduleId);
     return module?.active ? (module.api ?? null) : null;
   }
@@ -61,8 +63,10 @@ export class IntegrationRegistry {
     if (!descriptor) return { id: String(id), registered: false, installed: false, active: false, available: false, ready: false, capabilities: [] };
     const module = findModule(moduleCollection(this.#gameRef), descriptor.moduleId);
     const api = module?.active ? (module.api ?? null) : null;
+    const enabled = isIntegrationEnabled(descriptor.id, { gameRef: this.#gameRef ?? globalThis.game });
     let ready = false;
     try { ready = Boolean(module?.active && descriptor.ready(api, module)); } catch { ready = false; }
+    const usable = Boolean(enabled && ready);
     let details = null;
     if (descriptor.inspect && api) {
       try { details = descriptor.inspect(api, module) ?? null; } catch (error) { details = { error: error?.message ?? String(error) }; }
@@ -76,7 +80,9 @@ export class IntegrationRegistry {
       installed: Boolean(module),
       active: Boolean(module?.active),
       available: Boolean(api),
+      enabled,
       ready,
+      usable,
       moduleVersion: module?.version ?? null,
       apiVersion: api?.version ?? api?.apiVersion ?? null,
       capabilities: [...descriptor.capabilities],

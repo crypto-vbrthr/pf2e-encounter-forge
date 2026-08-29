@@ -1,0 +1,34 @@
+<div class="encounter-participant-browser-shell">
+  <header class="encounter-participant-browser-controls">
+    <label>
+      <span>{{localize "PF2E_ENCOUNTER_FORGE.Participants.Source"}}</span>
+      <select data-participant-browser-source>
+        {{#each sourceOptions}}
+          <option value="{{id}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+        {{/each}}
+      </select>
+    </label>
+    <label class="grow">
+      <span>{{localize "PF2E_ENCOUNTER_FORGE.Participants.Search"}}</span>
+      <input type="search" data-participant-browser-search placeholder="{{localize "PF2E_ENCOUNTER_FORGE.Participants.SearchPlaceholder"}}">
+    </label>
+  </header>
+
+  <div class="encounter-participant-browser-list">
+    {{#if loading}}
+      <div class="encounter-participant-browser-empty"><i class="fa-solid fa-spinner fa-spin"></i> {{localize "PF2E_ENCOUNTER_FORGE.Participants.Loading"}}</div>
+    {{else}}
+      {{#if empty}}
+        <div class="encounter-participant-browser-empty"><i class="fa-regular fa-folder-open"></i> {{localize "PF2E_ENCOUNTER_FORGE.Participants.NoActors"}}</div>
+      {{else}}
+        {{#each rows}}
+          <button type="button" class="encounter-participant-browser-row" data-actor-row data-search="{{search}}" data-action="selectActor" data-uuid="{{uuid}}">
+            <span class="portrait">{{#if img}}<img src="{{img}}" alt="">{{else}}<i class="fa-solid fa-user-shield"></i>{{/if}}</span>
+            <span class="body"><strong>{{name}}</strong><small>{{source}}</small></span>
+            <span class="level">{{localize "PF2E_ENCOUNTER_FORGE.Fields.Level"}} {{levelText}}</span>
+          </button>
+        {{/each}}
+      {{/if}}
+    {{/if}}
+  </div>
+</div>

@@ -28,3 +28,22 @@ test("integration registry distinguishes installed, active, available and ready"
   assert.equal(weather.available, false);
   assert.equal(weather.ready, false);
 });
+
+test("integration enable settings gate APIs without hiding technical readiness", async () => {
+  const values = new Map([["pf2e-encounter-forge:integration.creatureForge.enabled", false]]);
+  const gameRef = {
+    modules: modules([
+      { id: "pf2e-creature-forge", active: true, version: "1.0.1", api: { version: 1, createActor() {}, generateAsync() {} } }
+    ]),
+    settings: {
+      get(moduleId, key) { return values.get(`${moduleId}:${key}`); },
+      async set(moduleId, key, value) { values.set(`${moduleId}:${key}`, value); return value; }
+    }
+  };
+  const registry = registerCoreIntegrations(new IntegrationRegistry({ gameRef }));
+  const status = registry.status("creatureForge");
+  assert.equal(status.ready, true);
+  assert.equal(status.enabled, false);
+  assert.equal(status.usable, false);
+  assert.equal(registry.api("creatureForge"), null);
+});

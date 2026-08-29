@@ -6,6 +6,8 @@ const uiSource = fs.readFileSync(new URL("../scripts/ui/encounter-forge-ui.js", 
 const appSource = fs.readFileSync(new URL("../scripts/ui/encounter-forge-app.js", import.meta.url), "utf8");
 const template = fs.readFileSync(new URL("../templates/encounter-forge-app.hbs", import.meta.url), "utf8");
 const apiSource = fs.readFileSync(new URL("../scripts/api/public-api.js", import.meta.url), "utf8");
+const browserSource = fs.readFileSync(new URL("../scripts/ui/participant-browser-app.js", import.meta.url), "utf8");
+const forgeEditorSource = fs.readFileSync(new URL("../scripts/ui/forge-participant-editor-app.js", import.meta.url), "utf8");
 
 test("Encounter Forge installs a GM Actor Directory launcher with Foundry 14 fallbacks", () => {
   assert.match(uiSource, /renderActorDirectory/);
@@ -21,7 +23,7 @@ test("public API exposes the stable UI launcher", () => {
 });
 
 test("blueprint UI includes persistence actions and base encounter fields", () => {
-  for (const action of ["newBlueprint", "selectBlueprint", "saveBlueprint", "duplicateBlueprint", "deleteBlueprint", "refreshBlueprints", "detectParty"]) {
+  for (const action of ["newBlueprint", "selectBlueprint", "saveBlueprint", "duplicateBlueprint", "deleteBlueprint", "refreshBlueprints", "detectParty", "browseParticipant", "addCreatureForgeParticipant", "addNpcForgeParticipant", "removeParticipant", "addGroup", "removeGroup"]) {
     assert.match(template, new RegExp(`data-action="${action}"`));
   }
   for (const field of ["name", "description", "partyLevel", "partySize", "threatTarget", "threatBudget"]) {
@@ -47,4 +49,77 @@ test("editor sections flow vertically without grid row overlap", () => {
   assert.match(layoutBlock, /display:\s*block/);
   assert.match(layoutBlock, /overflow-y:\s*auto/);
   assert.doesNotMatch(layoutBlock, /grid-template-rows/);
+});
+
+
+test("participant composition UI exposes Actor, Creature Forge, NPC Forge, groups, and budget feedback", () => {
+  assert.match(template, /data-participant-drop/);
+  assert.match(template, /data-budget-used/);
+  assert.match(template, /data-budget-target/);
+  assert.match(template, /data-participant-field="quantity"/);
+  assert.match(template, /data-participant-field="role"/);
+  assert.match(template, /data-participant-field="groupId"/);
+  assert.match(appSource, /ParticipantBrowserApp/);
+  assert.match(appSource, /ForgeParticipantEditorApp/);
+  assert.match(appSource, /analyzeEncounterBudget/);
+});
+
+
+test("participant browser lazily reads world Actors and one Actor compendium index", () => {
+  assert.match(browserSource, /game\.actors/);
+  assert.match(browserSource, /pack\.getIndex/);
+  assert.match(browserSource, /system\.details\.level\.value/);
+  assert.match(browserSource, /Compendium\.\$\{pack\.collection\}\.Actor/);
+});
+
+test("Forge participant host consumes only public embedded editor contracts", () => {
+  assert.match(forgeEditorSource, /api\.ui\?\.creatureEditor\?\.create/);
+  assert.match(forgeEditorSource, /api\.ui\?\.createEditor/);
+  assert.match(forgeEditorSource, /actorCreation:\s*false/);
+  assert.match(forgeEditorSource, /createActor:\s*false/);
+  assert.match(forgeEditorSource, /actionBar:\s*"host"/);
+});
+
+test("integration management UI shows detected modules and can toggle their use", () => {
+  assert.match(template, /data-action="toggleIntegrations"/);
+  assert.match(template, /data-action="toggleIntegration"/);
+  assert.match(template, /integrationRows/);
+  assert.match(appSource, /api\.integrations\.setEnabled/);
+  assert.match(appSource, /entry\?\.usable/);
+});
+
+
+test("embedded Creature Forge uses the public full two-column layout and preserves a level fallback", () => {
+  assert.match(forgeEditorSource, /layout:\s*"full"/);
+  assert.match(forgeEditorSource, /mount\(container, \{ layout: "full"/);
+  assert.doesNotMatch(forgeEditorSource, /layout:\s*"compact"/);
+  assert.match(forgeEditorSource, /blueprint\.identity\?\.level \?\? request\.identity\?\.level/);
+});
+
+test("live XP UI exposes dynamic per-creature, quantity, warning, and support hooks", () => {
+  assert.match(template, /data-participant-xp-each=/);
+  assert.match(template, /data-participant-xp-quantity=/);
+  assert.match(template, /data-budget-warning/);
+  assert.match(appSource, /data-participant-xp-each/);
+  assert.match(appSource, /data-participant-xp-quantity/);
+  assert.match(appSource, /xpBox\?\.classList\?\.toggle/);
+  assert.match(appSource, /warning\.hidden = budget\.unknownCount === 0/);
+});
+
+test("participant form synchronization targets participant cards rather than action buttons", () => {
+  assert.equal(appSource.includes('querySelectorAll(".encounter-forge-participant[data-participant-id]")'), true);
+  assert.equal(appSource.includes('querySelectorAll("[data-participant-id]")'), false);
+  assert.equal(appSource.includes('querySelectorAll(".encounter-forge-group-row[data-group-id]")'), true);
+});
+
+
+test("in-place participant rerenders preserve the Encounter Forge scroll position", () => {
+  assert.match(appSource, /#captureScrollState\(\)/);
+  assert.match(appSource, /#restoreScrollState\(\)/);
+  assert.match(appSource, /pendingScrollState/);
+  assert.match(appSource, /editor\.scrollTop = state\.editorTop/);
+  assert.match(appSource, /async #renderFresh\(\{ preserveScroll = true \} = \{\}\)/);
+  assert.match(appSource, /next\.participants = .*filter/);
+  assert.match(appSource, /await this\.#renderFresh\(\);/);
+  assert.match(appSource, /#renderFresh\(\{ preserveScroll: false \}\)/);
 });

@@ -1,6 +1,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { FoundryJournalRepository } from "../scripts/persistence/foundry-journal-repository.js";
+import { createBlueprintRepository } from "../scripts/persistence/repositories.js";
+import { createEncounterBlueprint } from "../scripts/model/encounter-blueprint.js";
 
 function createFakeFoundry() {
   const folders = [];
@@ -56,4 +58,31 @@ test("Journal repository creates root/subfolder, saves, updates and deletes payl
   assert.equal(created.document.name, "Encounter renamed");
   assert.equal(await repo.delete("e1"), true);
   assert.equal(repo.get("e1"), null);
+});
+
+
+test("blueprint repository preserves participant level and derived-budget inputs", async () => {
+  const fake = createFakeFoundry();
+  const repo = createBlueprintRepository({ ...fake });
+  const blueprint = createEncounterBlueprint({
+    id: "persist-participant",
+    name: "Persistence Test",
+    party: { level: 11, size: 4 },
+    groups: [{ id: "line", name: "Line" }],
+    participants: [{
+      id: "npc-1",
+      name: "NPC",
+      level: 11,
+      role: "defender",
+      groupId: "line",
+      quantity: 2,
+      source: { type: "npcForge", npc: { build: { level: 11 } }, request: { level: 11 } }
+    }]
+  });
+  await repo.save(blueprint);
+  const restored = repo.get("persist-participant").data;
+  assert.equal(restored.participants[0].level, 11);
+  assert.equal(restored.participants[0].role, "defender");
+  assert.equal(restored.participants[0].groupId, "line");
+  assert.equal(restored.participants[0].quantity, 2);
 });

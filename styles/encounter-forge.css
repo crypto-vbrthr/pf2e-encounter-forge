@@ -115,10 +115,110 @@
 }
 
 .encounter-forge-library-footer {
-  padding: 0.55rem 0.75rem;
+  padding: 0;
   border-top: 1px solid var(--color-border-light-primary, rgba(0, 0, 0, 0.25));
   font-size: 0.78rem;
-  opacity: 0.72;
+}
+
+.encounter-forge-integrations-toggle {
+  width: 100%;
+  min-height: 2.35rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.45rem 0.7rem;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  text-align: left;
+  opacity: 0.8;
+}
+
+.encounter-forge-integrations-toggle:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.encounter-forge-integrations-panel {
+  padding: 0.55rem 0.65rem 0.65rem;
+  border-top: 1px solid var(--color-border-light-primary, rgba(0, 0, 0, 0.2));
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.encounter-forge-integrations-panel > header {
+  display: grid;
+  gap: 0.15rem;
+  margin-bottom: 0.5rem;
+}
+
+.encounter-forge-integrations-panel > header small,
+.encounter-forge-integrations-note,
+.encounter-forge-integration-info small {
+  opacity: 0.68;
+}
+
+.encounter-forge-integration-list {
+  display: grid;
+  gap: 0.3rem;
+  max-height: 19rem;
+  overflow-y: auto;
+  padding-right: 0.15rem;
+}
+
+.encounter-forge-integration-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.38rem 0.45rem;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.025);
+}
+
+.encounter-forge-integration-row[data-state="integrated"] {
+  border-left: 3px solid var(--color-border-highlight, rgba(130, 160, 100, 0.85));
+}
+
+.encounter-forge-integration-row[data-state="disabled"],
+.encounter-forge-integration-row[data-state="inactive"],
+.encounter-forge-integration-row[data-state="notReady"],
+.encounter-forge-integration-row[data-state="missing"] {
+  opacity: 0.7;
+}
+
+.encounter-forge-integration-info {
+  min-width: 0;
+  display: grid;
+  gap: 0.08rem;
+}
+
+.encounter-forge-integration-info strong,
+.encounter-forge-integration-info small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.encounter-forge-integration-switch {
+  width: 2.15rem;
+  min-width: 2.15rem;
+  height: 1.8rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 1.15rem;
+}
+
+.encounter-forge-integration-switch:disabled {
+  opacity: 0.35;
+}
+
+.encounter-forge-integrations-note {
+  margin: 0.5rem 0 0;
+  font-size: 0.72rem;
+  line-height: 1.3;
 }
 
 .encounter-forge-editor {
@@ -298,4 +398,437 @@
 .encounter-forge-party-detection button {
   flex: 0 0 auto;
   white-space: nowrap;
+}
+
+/* Participant composition -------------------------------------------------- */
+.encounter-forge-participants-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.encounter-forge-participant-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.4rem;
+}
+
+.encounter-forge-participant-actions button {
+  white-space: nowrap;
+}
+
+.encounter-forge-participant-drop {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 48px;
+  margin-top: 0.8rem;
+  padding: 0.65rem;
+  border: 1px dashed var(--color-border-light-secondary, rgba(255, 255, 255, 0.25));
+  border-radius: 5px;
+  opacity: 0.78;
+  transition: 120ms ease;
+}
+
+.encounter-forge-participant-drop.dragover {
+  opacity: 1;
+  border-color: var(--color-border-highlight, #c9a56a);
+  background: rgba(255, 255, 255, 0.08);
+  transform: translateY(-1px);
+}
+
+.encounter-forge-budget-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+
+.encounter-forge-budget-summary > div {
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--color-border-light-secondary, rgba(255, 255, 255, 0.14));
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.encounter-forge-budget-summary span {
+  font-size: 0.72rem;
+  opacity: 0.72;
+}
+
+.encounter-forge-budget-summary strong {
+  font-size: 0.95rem;
+}
+
+.encounter-forge-budget-summary[data-status="over"] {
+  border-left: 3px solid var(--color-level-error-border, #b44);
+}
+
+.encounter-forge-budget-summary[data-status="exact"] {
+  border-left: 3px solid var(--color-level-success-border, #5a8f57);
+}
+
+.encounter-forge-budget-summary[data-status="incomplete"] {
+  border-left: 3px solid var(--color-level-warning-border, #b98c3f);
+}
+
+.encounter-forge-budget-warning {
+  display: flex;
+  gap: 0.45rem;
+  align-items: flex-start;
+  margin-top: 0.55rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 4px;
+  background: rgba(160, 120, 40, 0.12);
+  font-size: 0.78rem;
+}
+
+.encounter-forge-participant-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 0.75rem;
+}
+
+.encounter-forge-participant {
+  border: 1px solid var(--color-border-light-secondary, rgba(255, 255, 255, 0.16));
+  border-radius: 5px;
+  background: rgba(0, 0, 0, 0.035);
+  overflow: hidden;
+}
+
+.encounter-forge-participant-identity {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.5rem 0.55rem;
+  border-bottom: 1px solid var(--color-border-light-secondary, rgba(255, 255, 255, 0.1));
+}
+
+.encounter-forge-participant-portrait {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.encounter-forge-participant-portrait img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+}
+
+.encounter-forge-participant-name {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+}
+
+.encounter-forge-participant-name input {
+  min-width: 0;
+  font-weight: 700;
+}
+
+.encounter-forge-source-badge {
+  flex: 0 0 auto;
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0.18rem 0.38rem;
+  border: 1px solid var(--color-border-light-secondary, rgba(255, 255, 255, 0.16));
+  border-radius: 999px;
+  font-size: 0.68rem;
+  opacity: 0.74;
+}
+
+.encounter-forge-participant-row-actions {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.encounter-forge-participant .icon-only,
+.encounter-forge-group-row .icon-only {
+  width: 2rem;
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0;
+}
+
+.encounter-forge-participant-fields {
+  display: grid;
+  grid-template-columns: 90px 90px minmax(130px, 1fr) minmax(130px, 1fr) 95px;
+  gap: 0.5rem;
+  align-items: end;
+  padding: 0.55rem;
+}
+
+.encounter-forge-participant-fields label {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.encounter-forge-participant-fields label > span,
+.encounter-forge-participant-xp > span {
+  font-size: 0.7rem;
+  opacity: 0.72;
+}
+
+.encounter-forge-participant-xp {
+  display: grid;
+  justify-items: end;
+  gap: 0.08rem;
+  padding-bottom: 0.2rem;
+}
+
+.encounter-forge-participant-xp small {
+  font-size: 0.66rem;
+  opacity: 0.58;
+}
+
+.encounter-forge-participant-xp.unsupported strong {
+  opacity: 0.55;
+}
+
+.encounter-forge-participant-empty {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 110px;
+  margin-top: 0.7rem;
+  text-align: center;
+  opacity: 0.62;
+}
+
+.encounter-forge-participant-empty i {
+  font-size: 1.45rem;
+}
+
+.encounter-forge-groups {
+  margin-top: 0.8rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-border-light-secondary, rgba(255, 255, 255, 0.12));
+}
+
+.encounter-forge-groups-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.encounter-forge-groups-header h3,
+.encounter-forge-groups-header p {
+  margin: 0;
+}
+
+.encounter-forge-groups-header p {
+  margin-top: 0.15rem;
+  font-size: 0.75rem;
+  opacity: 0.68;
+}
+
+.encounter-forge-group-list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.45rem;
+  margin-top: 0.55rem;
+}
+
+.encounter-forge-group-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.45rem;
+  border: 1px solid var(--color-border-light-secondary, rgba(255, 255, 255, 0.12));
+  border-radius: 4px;
+}
+
+/* Actor / compendium participant browser --------------------------------- */
+.pf2e-encounter-forge.encounter-participant-browser .window-content,
+.pf2e-encounter-forge.encounter-participant-forge-editor .window-content {
+  padding: 0;
+  overflow: hidden;
+}
+
+.encounter-participant-browser-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100%;
+  min-height: 0;
+}
+
+.encounter-participant-browser-controls {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.8fr) minmax(260px, 1.2fr);
+  gap: 0.65rem;
+  padding: 0.75rem;
+  border-bottom: 1px solid var(--color-border-light-primary, rgba(255, 255, 255, 0.14));
+}
+
+.encounter-participant-browser-controls label {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.encounter-participant-browser-controls label > span {
+  font-size: 0.72rem;
+  opacity: 0.72;
+}
+
+.encounter-participant-browser-list {
+  min-height: 0;
+  overflow: auto;
+  padding: 0.55rem;
+}
+
+.encounter-participant-browser-row {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.55rem;
+  margin-bottom: 0.35rem;
+  padding: 0.42rem 0.55rem;
+  text-align: left;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.encounter-participant-browser-row:hover {
+  border-color: var(--color-border-highlight, #c9a56a);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.encounter-participant-browser-row .portrait {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.15);
+}
+
+.encounter-participant-browser-row img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: 0;
+}
+
+.encounter-participant-browser-row .body {
+  display: grid;
+  min-width: 0;
+}
+
+.encounter-participant-browser-row .body small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.62;
+}
+
+.encounter-participant-browser-row .level {
+  opacity: 0.76;
+  font-size: 0.78rem;
+}
+
+.encounter-participant-browser-empty {
+  display: grid;
+  place-items: center;
+  align-content: center;
+  min-height: 220px;
+  gap: 0.5rem;
+  opacity: 0.65;
+}
+
+/* Embedded Forge participant host ---------------------------------------- */
+.encounter-participant-forge-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.encounter-participant-forge-header,
+.encounter-participant-forge-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.encounter-participant-forge-header {
+  border-bottom: 1px solid var(--color-border-light-primary, rgba(255, 255, 255, 0.14));
+}
+
+.encounter-participant-forge-header h2,
+.encounter-participant-forge-header p {
+  margin: 0;
+}
+
+.encounter-participant-forge-header p {
+  max-width: 52%;
+  font-size: 0.76rem;
+  opacity: 0.68;
+  text-align: right;
+}
+
+.encounter-participant-forge-mount {
+  min-height: 0;
+  overflow: hidden;
+  padding: 0.55rem;
+}
+
+/* Creature Forge owns its embedded editor layout. Encounter Forge requests the
+   public `full` layout so Concept and Creature remain side by side just like
+   the standalone Forge at normal desktop widths. */
+.encounter-participant-forge-mount.cf-editor-mount {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+}
+
+.encounter-participant-forge-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-border-light-primary, rgba(255, 255, 255, 0.14));
+  background: var(--background, rgba(30, 30, 30, 0.96));
+}
+
+@media (max-width: 980px) {
+  .encounter-forge-participants-heading,
+  .encounter-forge-groups-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .encounter-forge-participant-actions {
+    justify-content: flex-start;
+  }
+
+  .encounter-forge-budget-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .encounter-forge-participant-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .encounter-forge-participant-xp {
+    justify-items: start;
+  }
 }
