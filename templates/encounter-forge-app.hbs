@@ -1,0 +1,133 @@
+<div class="encounter-forge-shell">
+  <aside class="encounter-forge-library">
+    <header class="encounter-forge-library-header">
+      <div>
+        <h2>{{localize "PF2E_ENCOUNTER_FORGE.Library.Title"}}</h2>
+        <p>{{localize "PF2E_ENCOUNTER_FORGE.Library.Hint"}}</p>
+      </div>
+      <div class="encounter-forge-library-actions">
+        <button type="button" data-action="newBlueprint" data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.New">
+          <i class="fa-solid fa-plus"></i>
+        </button>
+        <button type="button" data-action="refreshBlueprints" data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.Refresh">
+          <i class="fa-solid fa-rotate"></i>
+        </button>
+      </div>
+    </header>
+
+    <div class="encounter-forge-blueprint-list">
+      {{#if hasBlueprints}}
+        {{#each blueprints}}
+          <button type="button" class="encounter-forge-blueprint-row {{#if selected}}selected{{/if}}" data-action="selectBlueprint" data-blueprint-id="{{id}}">
+            <span class="encounter-forge-blueprint-name">{{name}}</span>
+            <span class="encounter-forge-blueprint-meta">{{localize "PF2E_ENCOUNTER_FORGE.Library.PartyShort"}} {{partySize}} × {{partyLevel}} · {{threat}}</span>
+          </button>
+        {{/each}}
+      {{else}}
+        <div class="encounter-forge-empty-state">
+          <i class="fa-regular fa-folder-open"></i>
+          <p>{{localize "PF2E_ENCOUNTER_FORGE.Library.Empty"}}</p>
+        </div>
+      {{/if}}
+    </div>
+
+    <footer class="encounter-forge-library-footer">
+      <span><i class="fa-solid fa-plug"></i> {{readyIntegrations}} / {{totalIntegrations}} {{localize "PF2E_ENCOUNTER_FORGE.Library.IntegrationsReady"}}</span>
+    </footer>
+  </aside>
+
+  <main class="encounter-forge-editor">
+    <header class="encounter-forge-editor-header">
+      <div>
+        <div class="encounter-forge-kicker">{{localize "PF2E_ENCOUNTER_FORGE.Editor.Blueprint"}}</div>
+        <h1>{{draft.name}}</h1>
+      </div>
+      <div class="encounter-forge-save-state {{#if isDirty}}dirty{{else}}clean{{/if}}" data-dirty-indicator>
+        <i class="fa-solid {{#if isDirty}}fa-pen{{else}}fa-check{{/if}}"></i>
+        <span data-dirty-text>{{#if isDirty}}{{localize "PF2E_ENCOUNTER_FORGE.Editor.UnsavedChanges"}}{{else}}{{localize "PF2E_ENCOUNTER_FORGE.Editor.AllChangesSaved"}}{{/if}}</span>
+      </div>
+    </header>
+
+    <section class="encounter-forge-card">
+      <div class="encounter-forge-section-title">
+        <div>
+          <h2>{{localize "PF2E_ENCOUNTER_FORGE.Editor.Basics"}}</h2>
+          <p>{{localize "PF2E_ENCOUNTER_FORGE.Editor.BasicsHint"}}</p>
+        </div>
+      </div>
+
+      <div class="encounter-forge-form-grid">
+        <label class="wide">
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}</span>
+          <input type="text" name="name" value="{{draft.name}}" data-blueprint-field>
+        </label>
+
+        <label>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Fields.PartyLevel"}}</span>
+          <input type="number" name="partyLevel" min="1" max="20" value="{{draft.party.level}}" data-blueprint-field>
+        </label>
+
+        <label>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Fields.PartySize"}}</span>
+          <input type="number" name="partySize" min="1" max="12" value="{{draft.party.size}}" data-blueprint-field>
+        </label>
+
+        <label>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Fields.Threat"}}</span>
+          <select name="threatTarget" data-blueprint-field>
+            {{#each threatOptions}}
+              <option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>
+            {{/each}}
+          </select>
+        </label>
+
+        <label>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Fields.Budget"}}</span>
+          <input type="number" name="threatBudget" min="0" step="1" value="{{draft.threatBudget}}" placeholder="—" data-blueprint-field>
+        </label>
+
+        <label class="wide">
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Fields.Description"}}</span>
+          <textarea name="description" rows="5" data-blueprint-field>{{draft.description}}</textarea>
+        </label>
+      </div>
+    </section>
+
+    <section class="encounter-forge-card encounter-forge-structure-card">
+      <div class="encounter-forge-section-title">
+        <div>
+          <h2>{{localize "PF2E_ENCOUNTER_FORGE.Editor.Structure"}}</h2>
+          <p>{{localize "PF2E_ENCOUNTER_FORGE.Editor.StructureHint"}}</p>
+        </div>
+      </div>
+
+      <div class="encounter-forge-stat-grid">
+        <div class="encounter-forge-stat"><strong>{{draft.participantCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Participants"}}</span></div>
+        <div class="encounter-forge-stat"><strong>{{draft.groupCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Groups"}}</span></div>
+        <div class="encounter-forge-stat"><strong>{{draft.objectiveCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Objectives"}}</span></div>
+        <div class="encounter-forge-stat"><strong>{{draft.phaseCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Phases"}}</span></div>
+        <div class="encounter-forge-stat"><strong>{{draft.triggerCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Triggers"}}</span></div>
+        <div class="encounter-forge-stat"><strong>{{draft.actionCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Actions"}}</span></div>
+      </div>
+
+      <div class="encounter-forge-foundation-note">
+        <i class="fa-solid fa-compass-drafting"></i>
+        <span>{{localize "PF2E_ENCOUNTER_FORGE.Editor.FoundationNote"}}</span>
+      </div>
+    </section>
+
+    <footer class="encounter-forge-editor-actions">
+      <div>
+        <button type="button" data-action="duplicateBlueprint" class="secondary">
+          <i class="fa-regular fa-copy"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Duplicate"}}
+        </button>
+        <button type="button" data-action="deleteBlueprint" class="secondary danger" {{#unless isSaved}}disabled{{/unless}}>
+          <i class="fa-solid fa-trash"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Delete"}}
+        </button>
+      </div>
+      <button type="button" data-action="saveBlueprint" class="primary">
+        <i class="fa-solid fa-floppy-disk"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Save"}}
+      </button>
+    </footer>
+  </main>
+</div>

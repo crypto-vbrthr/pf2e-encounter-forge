@@ -1,0 +1,79 @@
+import {
+  API_VERSION, BLUEPRINT_SCHEMA_VERSION, INSTANCE_SCHEMA_VERSION, MODULE_ID, MODULE_VERSION
+} from "../constants.js";
+import {
+  assertEncounterBlueprint, assertEncounterInstance, createEncounterBlueprint, createEncounterInstance,
+  validateEncounterBlueprint, validateEncounterInstance
+} from "../model/index.js";
+import { ActorFolderService } from "../deployment/folder-service.js";
+import { openEncounterForge } from "../ui/encounter-forge-ui.js";
+
+export function createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, runtime } = {}) {
+  const api = Object.freeze({
+    version: API_VERSION,
+    moduleVersion: MODULE_VERSION,
+    schemaVersion: Object.freeze({ blueprint: BLUEPRINT_SCHEMA_VERSION, instance: INSTANCE_SCHEMA_VERSION }),
+
+    blueprints: Object.freeze({
+      create: (input = {}) => createEncounterBlueprint(input),
+      validate: (value) => validateEncounterBlueprint(value),
+      assert: (value) => assertEncounterBlueprint(value),
+      list: () => blueprintRepository.list(),
+      get: (idOrUuid) => blueprintRepository.get(idOrUuid),
+      save: (value, options = {}) => blueprintRepository.save(assertEncounterBlueprint(value), options),
+      delete: (idOrUuid) => blueprintRepository.delete(idOrUuid),
+      ensureFolder: () => blueprintRepository.ensureFolder()
+    }),
+
+    instances: Object.freeze({
+      create: (blueprint, options = {}) => createEncounterInstance(blueprint, options),
+      validate: (value) => validateEncounterInstance(value),
+      assert: (value) => assertEncounterInstance(value),
+      list: () => instanceRepository.list(),
+      get: (idOrUuid) => instanceRepository.get(idOrUuid),
+      save: (value, options = {}) => instanceRepository.save(assertEncounterInstance(value), options),
+      delete: (idOrUuid) => instanceRepository.delete(idOrUuid),
+      ensureFolder: () => instanceRepository.ensureFolder()
+    }),
+
+    integrations: Object.freeze({
+      list: () => integrations.list(),
+      get: (id) => integrations.get(id),
+      api: (id) => integrations.api(id),
+      status: (id = null) => id ? integrations.status(id) : integrations.statusAll(),
+      register: (descriptor, options = {}) => integrations.register(descriptor, options),
+      unregister: (id) => integrations.unregister(id)
+    }),
+
+    participantSources: Object.freeze({
+      list: () => participantSources.list(),
+      get: (type) => participantSources.get(type),
+      validate: (source) => participantSources.validate(source),
+      preview: (source, context = {}) => participantSources.preview(source, context),
+      materialize: (source, context = {}) => participantSources.materialize(source, context),
+      register: (type, handler, options = {}) => participantSources.register(type, handler, options),
+      unregister: (type) => participantSources.unregister(type)
+    }),
+
+    folders: Object.freeze({
+      actors: () => new ActorFolderService()
+    }),
+
+    ui: Object.freeze({
+      open: () => openEncounterForge()
+    }),
+
+    runtime: Object.freeze({
+      start: (instanceOrId = null, options = {}) => runtime.start(instanceOrId, options),
+      stop: () => runtime.stop(),
+      restore: (options = {}) => runtime.restore(options),
+      status: () => runtime.status(),
+      on: (type, listener) => runtime.bus.on(type, listener),
+      off: (type, listener) => runtime.bus.off(type, listener)
+    })
+  });
+
+  const module = globalThis.game?.modules?.get?.(MODULE_ID);
+  if (module) module.api = api;
+  return api;
+}
