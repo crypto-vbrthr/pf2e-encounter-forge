@@ -235,3 +235,22 @@ Initial authorable action types are `phase.transition`, `objective.progress`, an
 ### Flow event chaining
 
 Runtime-authored actions can emit normalized Encounter events that are consumed by the same TriggerService as Foundry/PF2e events. Objective progress emits `objective.progressChanged` and a one-time transition into the completed state emits `objective.completed`. Combat round advancement also emits `combat.roundEnded` before `combat.roundChanged` when a real round has completed. This lets Blueprints express chains such as round end → objective progress → objective target reached → phase transition without embedding JavaScript in the Blueprint.
+
+## Runtime integration actions
+
+Encounter Forge owns orchestration, not the external rules implementation. Integration actions therefore store provider-neutral encounter targeting plus a provider-owned definition/configuration snapshot, then delegate execution through the provider's public API.
+
+Current action contracts:
+
+- `effect.apply` → Critical/Effect Forge `api.effects.apply()`
+- `aura.setEnabled` → Aura Forge Actor-local definition assignment plus `api.instances.setEnabled()`
+- `affliction.apply` → Affliction Forge `api.engine.applyDefinition()`
+- `loot.createActor` → Loot Forge generation/result plus `api.createLootActorWithLoot()`
+
+Effect, Aura, and Affliction actions target a Blueprint participant entry, tactical group, or all Encounter participants. The Runtime resolves these to concrete Token Actors from the active Encounter Instance. Token Actors are preferred over shared World Actors so `per-type` deployments keep status/effects independent between unlinked Tokens.
+
+External providers retain ownership of their Runtime lifecycle. Encounter Forge does not advance Affliction stages, reconcile Aura presence, compile Effect Rule Elements, or generate loot internally.
+
+Provider failures are contained at the ActionService boundary and emitted as `action.failed`; successful executions emit `action.executed`. The Encounter Runtime turns those events into persistent Director log entries and continues processing the Encounter.
+
+Loot Actors created by Runtime actions are moved into the Encounter deployment Actor folder where available and their UUIDs are retained under `instance.runtimeVariables.integrationActions[actionId].lootActorUuids`.

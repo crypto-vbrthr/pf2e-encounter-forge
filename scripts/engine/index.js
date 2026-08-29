@@ -13,5 +13,6 @@ export {
   FLOW_CONDITION_FIELDS,
   FLOW_OPERATORS,
   FLOW_ACTION_TYPES,
+  FLOW_TARGET_MODES,
   analyzeEncounterFlow
 } from "./encounter-flow.js";

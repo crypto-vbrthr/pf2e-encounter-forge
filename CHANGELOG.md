@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.1.0-alpha.9 - Runtime Integration Actions
+
+### Added
+- Added authored Runtime actions for `effect.apply`, `aura.setEnabled`, `affliction.apply`, and `loot.createActor`.
+- Added participant, tactical-group, and all-participant target scopes for external Forge actions; concrete targets are resolved from the Encounter Instance at execution time, preferring Token Actors for unlinked Tokens.
+- Added a dedicated integration-action editor host using the public embedded editors from Effect Forge, Aura Forge, Affliction Forge, and Loot Forge.
+- Added Runtime delegation to the public APIs of the four external Forges without duplicating their Effect, Aura, Affliction, or loot-generation logic.
+- Added persistent Director log entries for successful and failed external actions. Integration failures are contained and reported instead of crashing the Encounter Runtime.
+- Loot actions can reuse a pre-generated embedded Loot Forge result or generate from the stored configuration at Runtime, create a Loot Actor, place it in the Encounter Actor folder, and remember the created Actor UUID in the Encounter Instance.
+
+### Changed
+- Flow validation now checks external-action target references and requires the appropriate stored Effect/Aura/Affliction definition before saving.
+- Action-type choices are gated by the Encounter Forge integration manager; already-authored actions remain readable if an integration later becomes unavailable.
+- Core integration capability reporting now marks Effect, Aura, Affliction, and Loot Forge as Runtime-action providers.
+
 ## 0.1.0-alpha.8.4 - Objective & Round-End Flow Triggers
 
 ### Added

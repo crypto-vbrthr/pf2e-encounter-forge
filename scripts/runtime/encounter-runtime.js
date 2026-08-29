@@ -78,6 +78,8 @@ export class EncounterRuntime {
       actions: new ActionService({
         bus: this.bus,
         integrations,
+        participants,
+        getInstance,
         handlers: {
           phaseTransition: (phaseId, context) => this.setPhase(phaseId, { reason: context?.reason ?? "action" }),
           objectiveProgress: (objectiveId, amount, context) => this.adjustObjective(objectiveId, amount, { reason: context?.reason ?? "action" }),
@@ -91,6 +93,19 @@ export class EncounterRuntime {
     this.bus.on("participant.restored", (event) => this.#setParticipantStateFromEvent(event, "ready"));
     this.bus.on("participant.tokenDeleted", (event) => this.#setParticipantStateFromEvent(event, "removed"));
     this.bus.on("combat.roundChanged", (event) => this.#onRoundChanged(event));
+    this.bus.on("action.executed", async (event) => {
+      if (!["effect.apply", "aura.setEnabled", "affliction.apply", "loot.createActor"].includes(event?.type)) return;
+      const action = event?.action ?? {};
+      const label = String(action.name ?? action.id ?? event?.type ?? "Action");
+      await this.addLog("action.executed", localize("PF2E_ENCOUNTER_FORGE.Director.Log.ActionExecuted", `Action executed: ${label}.`, { action: label }), { actionId: action.id ?? null, actionType: event?.type ?? null, result: event?.result ?? null });
+    });
+    this.bus.on("action.failed", async (event) => {
+      if (!["effect.apply", "aura.setEnabled", "affliction.apply", "loot.createActor"].includes(event?.type)) return;
+      const action = event?.action ?? {};
+      const label = String(action.name ?? action.id ?? event?.type ?? "Action");
+      const errorMessage = String(event?.error?.message ?? "");
+      await this.addLog("action.failed", localize("PF2E_ENCOUNTER_FORGE.Director.Log.ActionFailed", `Action failed: ${label}. ${errorMessage}`, { action: label, error: errorMessage }), { actionId: action.id ?? null, actionType: event?.type ?? null, error: event?.error ?? null });
+    });
     for (const type of ["participant.hpChanged", "participant.actorUpdated", "participant.tokenUpdated", "combat.turnChanged", "combat.roundEnded", "objective.progressChanged", "objective.completed"]) {
       this.bus.on(type, () => this.bus.emit("director.changed", { instanceId: this.activeInstanceId, reason: type }));
     }

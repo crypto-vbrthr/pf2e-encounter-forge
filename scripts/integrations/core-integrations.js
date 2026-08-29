@@ -11,17 +11,17 @@ const definitions = [
   },
   {
     id: "effectForge", moduleId: "pf2e-critical-forge", label: "Effect Forge",
-    capabilities: ["effects", "embeddedEditor"],
+    capabilities: ["effects", "runtimeActions", "embeddedEditor"],
     ready: (api) => Boolean(api?.effects) && Boolean(api?.ui?.effectEditor)
   },
   {
     id: "auraForge", moduleId: "pf2e-aura-forge", label: "Aura Forge",
-    capabilities: ["definitions", "instances", "runtime", "embeddedEditor"],
+    capabilities: ["definitions", "instances", "runtime", "runtimeActions", "embeddedEditor"],
     ready: (api) => typeof api?.instances?.assignDefinition === "function" && typeof api?.instances?.setEnabled === "function"
   },
   {
     id: "afflictionForge", moduleId: "pf2e-affliction-forge", label: "Affliction Forge",
-    capabilities: ["definitions", "instances", "runtime", "embeddedEditor"],
+    capabilities: ["definitions", "instances", "runtime", "runtimeActions", "embeddedEditor"],
     ready: (api) => typeof api?.engine?.applyDefinition === "function" && typeof api?.instances?.listForActor === "function"
   },
   {
@@ -31,8 +31,8 @@ const definitions = [
   },
   {
     id: "lootForge", moduleId: "pf2e-loot-forge", label: "Loot Forge",
-    capabilities: ["generate", "embeddedEditor", "addToActor"],
-    ready: (api) => typeof api?.generateLoot === "function" && typeof api?.createEmbeddedEditor === "function"
+    capabilities: ["generate", "embeddedEditor", "addToActor", "runtimeActions"],
+    ready: (api) => typeof api?.generateLoot === "function" && typeof api?.createEmbeddedEditor === "function" && typeof api?.createLootActorWithLoot === "function"
   },
   {
     id: "weatherForge", moduleId: "pf2e-weather-forge", label: "Weather Forge",

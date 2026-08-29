@@ -59,6 +59,32 @@ export class ParticipantService extends RuntimeService {
     return (instance.participants ?? []).filter((entry) => entry.actorUuid === uuid);
   }
 
+
+  async resolveActors(target = {}) {
+    const instance = this.getInstance();
+    if (!instance) return [];
+    const mode = String(target?.mode ?? "participant");
+    const id = String(target?.id ?? "").trim();
+    const rows = (instance.participants ?? []).filter((entry) => {
+      if (mode === "all") return true;
+      if (mode === "group") return Boolean(id) && String(entry.groupId ?? "") === id;
+      return Boolean(id) && (String(entry.id ?? "") === id || String(entry.templateId ?? "") === id);
+    });
+
+    const actors = [];
+    const seen = new Set();
+    for (const participant of rows) {
+      const token = await resolveUuid(participant.tokenUuid);
+      const actor = token?.actor ?? await resolveUuid(participant.actorUuid) ?? fallbackActor(participant.actorUuid);
+      if (!actor) continue;
+      const key = actor.uuid ?? participant.tokenUuid ?? participant.actorUuid ?? participant.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      actors.push(actor);
+    }
+    return actors;
+  }
+
   async snapshot(participant) {
     if (!participant) return null;
     const token = await resolveUuid(participant.tokenUuid);

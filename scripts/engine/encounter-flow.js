@@ -28,7 +28,8 @@ export const FLOW_CONDITION_FIELDS = Object.freeze([
 ]);
 
 export const FLOW_OPERATORS = Object.freeze(["eq", "neq", "gt", "gte", "lt", "lte", "includes"]);
-export const FLOW_ACTION_TYPES = Object.freeze(["phase.transition", "objective.progress", "director.message"]);
+export const FLOW_ACTION_TYPES = Object.freeze(["phase.transition", "objective.progress", "director.message", "effect.apply", "aura.setEnabled", "affliction.apply", "loot.createActor"]);
+export const FLOW_TARGET_MODES = Object.freeze(["participant", "group", "all"]);
 
 function idsOf(items = []) {
   return new Set(asArray(items).map((entry) => String(entry?.id ?? "").trim()).filter(Boolean));
@@ -77,6 +78,7 @@ export function analyzeEncounterFlow(blueprint = {}) {
   const objectiveIds = idsOf(objectives);
   const actionIds = idsOf(actions);
   const participantIds = idsOf(blueprint.participants);
+  const groupIds = idsOf(blueprint.groups);
   const actionById = new Map(actions.map((entry) => [entry.id, entry]));
 
   for (const action of actions) {
@@ -93,6 +95,16 @@ export function analyzeEncounterFlow(blueprint = {}) {
       const target = String(action.objectiveId ?? action.target ?? "").trim();
       if (!target || !objectiveIds.has(target)) errors.push({ code: "FLOW_OBJECTIVE_TARGET", path: `actions.${action.id}`, message: `Objective action '${action.id}' references unknown objective '${target || "?"}'.` });
     }
+    if (["effect.apply", "aura.setEnabled", "affliction.apply"].includes(type)) {
+      const mode = String(action.targetMode ?? action.target?.mode ?? "participant");
+      const target = String(action.targetId ?? action.target?.id ?? "").trim();
+      if (!FLOW_TARGET_MODES.includes(mode)) errors.push({ code: "FLOW_ACTION_TARGET_MODE", path: `actions.${action.id}`, message: `Action '${action.id}' uses unknown target mode '${mode}'.` });
+      if (mode === "participant" && (!target || !participantIds.has(target))) errors.push({ code: "FLOW_ACTION_PARTICIPANT_TARGET", path: `actions.${action.id}`, message: `Action '${action.id}' references unknown participant '${target || "?"}'.` });
+      if (mode === "group" && (!target || !groupIds.has(target))) errors.push({ code: "FLOW_ACTION_GROUP_TARGET", path: `actions.${action.id}`, message: `Action '${action.id}' references unknown group '${target || "?"}'.` });
+    }
+    if (type === "effect.apply" && !action.definition) errors.push({ code: "FLOW_EFFECT_DEFINITION", path: `actions.${action.id}`, message: `Effect action '${action.id}' has no Effect Definition.` });
+    if (type === "aura.setEnabled" && !action.definition && !action.definitionId) errors.push({ code: "FLOW_AURA_DEFINITION", path: `actions.${action.id}`, message: `Aura action '${action.id}' has no Aura Definition.` });
+    if (type === "affliction.apply" && !action.definition) errors.push({ code: "FLOW_AFFLICTION_DEFINITION", path: `actions.${action.id}`, message: `Affliction action '${action.id}' has no Affliction Definition.` });
   }
 
   for (const trigger of triggers) {

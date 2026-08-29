@@ -1743,3 +1743,74 @@
 .encounter-forge-example-banner span,
 .encounter-forge-example-placeholder-note span { font-size: 0.74rem; opacity: 0.78; line-height: 1.35; }
 .encounter-forge-example-placeholder-note { margin-top: 0.55rem; }
+
+/* Runtime integration actions ------------------------------------------- */
+.encounter-forge-integration-action-box {
+  display: grid;
+  gap: 0.55rem;
+  padding: 0.65rem;
+  border: 1px solid var(--color-border-light-primary, rgba(255,255,255,0.14));
+  border-radius: 5px;
+  background: rgba(255,255,255,0.025);
+}
+
+.encounter-forge-integration-action-config {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.65rem;
+}
+
+.encounter-forge-integration-action-config > div {
+  min-width: 0;
+  display: grid;
+  gap: 0.12rem;
+}
+
+.encounter-forge-integration-action-config small {
+  opacity: 0.68;
+  overflow-wrap: anywhere;
+}
+
+.encounter-forge-inline-checkbox {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.encounter-integration-action-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  height: 100%;
+  min-height: 0;
+}
+
+.encounter-integration-action-header,
+.encounter-integration-action-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.65rem 0.8rem;
+}
+
+.encounter-integration-action-header {
+  border-bottom: 1px solid var(--color-border-light-primary, rgba(255,255,255,0.14));
+}
+
+.encounter-integration-action-header h2,
+.encounter-integration-action-header p { margin: 0; }
+.encounter-integration-action-header p { opacity: 0.72; text-align: right; }
+
+.encounter-integration-action-mount {
+  min-height: 0;
+  overflow: auto;
+  padding: 0.55rem;
+}
+
+.encounter-integration-action-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--color-border-light-primary, rgba(255,255,255,0.14));
+  background: var(--background, rgba(30,30,30,0.96));
+}

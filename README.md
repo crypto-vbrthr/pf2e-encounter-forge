@@ -1,5 +1,22 @@
 # PF2E Encounter Forge
 
+## 0.1.0-alpha.9 — Runtime Integration Actions
+
+Encounter Flow actions can now pull real levers in the rest of the Forge Suite. An authored action can apply an Effect, enable or disable an Aura, apply an Affliction, or prepare Loot through the public APIs of the corresponding Forge modules. Encounter Forge remains the orchestrator: it stores when and where an action should happen, while the external Forge continues to own the actual rules/runtime implementation.
+
+External actions can target one participant entry, one tactical group, or every Encounter participant. At Runtime those Blueprint targets are resolved to the concrete Token Actors in the active Encounter Instance, which keeps unlinked Tokens independent.
+
+Each external action has a **Configure** button that opens the provider's embedded editor:
+
+- **Effect Forge** for `effect.apply`
+- **Aura Forge** for `aura.setEnabled`
+- **Affliction Forge** for `affliction.apply`
+- **Loot Forge** for `loot.createActor`
+
+Aura actions carry an enabled/disabled switch, so one action can turn an authored Aura on and a duplicated action can later turn the same definition off. Loot actions can store a generated/edited reward from the embedded Loot Forge or only its generation configuration; Runtime-created Loot Actors are moved into the Encounter's Actor folder and referenced from the Encounter Instance.
+
+If an integration is disabled or unavailable when a prepared action fires, the Runtime records the failure in the Director log and continues the Encounter instead of taking over or reimplementing the provider's behavior.
+
 ## 0.1.0-alpha.8.4 — Objective & Round-End Flow Triggers
 
 The Flow authoring layer can now express chained encounter logic such as “increase ritual progress at the end of every round, then enter the next phase when the objective target is reached.” Triggers can listen for round-end, objective-progress, and objective-completion events and can be scoped to a specific objective directly from the UI.
@@ -181,7 +198,7 @@ This MVP does **not** yet provide:
 
 - Blueprint-editor UI for authoring phases, objectives, triggers, or tactical instructions
 - automatic tactical movement or AI-controlled opponent turns
-- Aura Forge, Affliction Forge, Effect Forge, Weather Forge, Loot Forge, or Item Forge Runtime actions
+- Weather Forge or Item Forge Runtime actions (Effect, Aura, Affliction, and Loot actions are available in alpha.9)
 - authored deployment Regions/zones
 - encounter outcome/reward orchestration
 

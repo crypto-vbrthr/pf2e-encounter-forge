@@ -1,0 +1,18 @@
+<div class="encounter-integration-action-shell">
+  <header class="encounter-integration-action-header">
+    <div>
+      <div class="encounter-forge-kicker">{{localize "PF2E_ENCOUNTER_FORGE.Flow.IntegrationEditor.Kicker"}}</div>
+      <h2>{{actionName}}</h2>
+    </div>
+    <p>{{typeLabel}}</p>
+  </header>
+  <div class="encounter-integration-action-mount" data-integration-action-editor-mount></div>
+  <footer class="encounter-integration-action-actions">
+    <button type="button" data-action="cancelIntegrationAction" class="secondary">
+      <i class="fa-solid fa-xmark"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Cancel"}}
+    </button>
+    <button type="button" data-action="commitIntegrationAction" class="primary">
+      <i class="fa-solid fa-check"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.IntegrationEditor.UseDefinition"}}
+    </button>
+  </footer>
+</div>

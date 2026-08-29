@@ -440,7 +440,7 @@
                     <input type="text" value="{{name}}" data-flow-action-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}">
                     <button type="button" data-action="removeFlowAction" data-flow-action-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
                   </div>
-                  <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ActionTypeLabel"}}</span><select data-flow-action-field="type">{{#each typeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                  <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ActionTypeLabel"}}</span><select data-flow-action-field="type">{{#each typeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}} {{#if disabled}}disabled{{/if}}>{{label}}</option>{{/each}}</select></label>
                   {{#if isPhaseTransition}}
                     <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.TargetPhase"}}</span><select data-flow-action-field="phaseId">{{#each phaseOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
                   {{/if}}
@@ -452,6 +452,30 @@
                   {{/if}}
                   {{#if isDirectorMessage}}
                     <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Message"}}</span><textarea rows="2" data-flow-action-field="message">{{message}}</textarea></label>
+                  {{/if}}
+                  {{#if isIntegrationAction}}
+                    <div class="encounter-forge-integration-action-box">
+                      {{#unless isLootAction}}
+                        <div class="encounter-forge-flow-action-grid">
+                          <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.TargetModeLabel"}}</span><select data-flow-action-field="targetMode">{{#each targetModeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                          {{#if hasSpecificTarget}}
+                            <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.TargetLabel"}}</span><select data-flow-action-field="targetId">{{#each targetOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                          {{/if}}
+                        </div>
+                      {{/unless}}
+                      {{#if isAuraAction}}
+                        <label class="encounter-forge-inline-checkbox"><input type="checkbox" data-flow-action-field="enabled" {{#if auraEnabledChecked}}checked{{/if}}> {{localize "PF2E_ENCOUNTER_FORGE.Flow.AuraEnabled"}}</label>
+                      {{/if}}
+                      <div class="encounter-forge-integration-action-config">
+                        <div>
+                          <strong>{{localize "PF2E_ENCOUNTER_FORGE.Flow.IntegrationConfiguration"}}</strong>
+                          <small>{{#if integrationConfigured}}{{localize "PF2E_ENCOUNTER_FORGE.Flow.IntegrationConfigured"}}{{else}}{{localize "PF2E_ENCOUNTER_FORGE.Flow.IntegrationNotConfigured"}}{{/if}} · {{integrationStatusLabel}}</small>
+                        </div>
+                        <button type="button" data-action="configureFlowAction" data-flow-action-id="{{id}}" class="secondary" {{#unless integrationUsable}}disabled{{/unless}}>
+                          <i class="fa-solid fa-sliders"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.ConfigureIntegration"}}
+                        </button>
+                      </div>
+                    </div>
                   {{/if}}
                 </article>
               {{/each}}

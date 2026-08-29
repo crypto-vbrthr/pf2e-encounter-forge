@@ -12,6 +12,7 @@ import { randomId } from "../utils/data.js";
 import { ParticipantBrowserApp } from "./participant-browser-app.js";
 import { ForgeParticipantEditorApp } from "./forge-participant-editor-app.js";
 import { EncounterDeploymentDialogApp } from "./deployment-dialog-app.js";
+import { IntegrationActionEditorApp } from "./integration-action-editor-app.js";
 import {
   createExampleEncounterBlueprint,
   isExampleEncounterBlueprint,
@@ -40,6 +41,16 @@ async function confirmDialog(titleKey, promptKey) {
   return globalThis.confirm?.(localize(promptKey, "Discard unsaved changes?")) ?? false;
 }
 
+
+
+const INTEGRATION_ACTIONS = Object.freeze({
+  "effect.apply": { integrationId: "effectForge", icon: "fa-wand-magic-sparkles" },
+  "aura.setEnabled": { integrationId: "auraForge", icon: "fa-circle-nodes" },
+  "affliction.apply": { integrationId: "afflictionForge", icon: "fa-virus" },
+  "loot.createActor": { integrationId: "lootForge", icon: "fa-treasure-chest" }
+});
+
+function integrationActionDescriptor(type) { return INTEGRATION_ACTIONS[String(type ?? "")] ?? null; }
 
 const ENCOUNTER_ROLES = Object.freeze([
   "leader",
@@ -137,6 +148,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       removeObjective: EncounterForgeApp.removeObjective,
       addFlowAction: EncounterForgeApp.addFlowAction,
       removeFlowAction: EncounterForgeApp.removeFlowAction,
+      configureFlowAction: EncounterForgeApp.configureFlowAction,
       addTrigger: EncounterForgeApp.addTrigger,
       removeTrigger: EncounterForgeApp.removeTrigger,
       addTriggerCondition: EncounterForgeApp.addTriggerCondition,
@@ -260,18 +272,42 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const phaseChoices = (draft.phases ?? []).map((phase) => ({ value: phase.id, label: phase.name || phase.id }));
     const objectiveChoices = (draft.objectives ?? []).map((objective) => ({ value: objective.id, label: objective.name || objective.id }));
     const participantChoices = (draft.participants ?? []).map((participant) => ({ value: participant.id, label: participant.name || participant.id }));
+    const groupChoices = (draft.groups ?? []).map((group) => ({ value: group.id, label: group.name || group.id }));
     const flowActions = (draft.actions ?? []).map((action) => {
       const type = String(action.type ?? action.kind ?? "director.message");
+      const integration = integrationActionDescriptor(type);
+      const integrationState = integration ? api?.integrations?.status?.(integration.integrationId) : null;
+      const targetMode = String(action.targetMode ?? "participant");
+      const targetOptions = targetMode === "group" ? groupChoices : participantChoices;
+      const integrationConfigured = type === "loot.createActor"
+        ? Boolean(action.loot?.config || action.loot?.loot || action.loot?.result)
+        : Boolean(action.definition || action.definitionId);
       return {
         ...action,
         type,
         isPhaseTransition: type === "phase.transition",
         isObjectiveProgress: type === "objective.progress",
         isDirectorMessage: type === "director.message",
+        isIntegrationAction: Boolean(integration),
+        isAuraAction: type === "aura.setEnabled",
+        isLootAction: type === "loot.createActor",
+        integrationUsable: Boolean(integrationState?.usable),
+        integrationConfigured,
+        hasSpecificTarget: targetMode !== "all",
+        targetMode,
+        integrationStatusLabel: integrationState ? localize(`PF2E_ENCOUNTER_FORGE.Integrations.Status.${integrationState.usable ? "integrated" : (integrationState.ready ? "disabled" : integrationState.active ? "notReady" : integrationState.installed ? "inactive" : "missing")}`, integrationState.usable ? "Integrated" : "Unavailable") : "",
         amountValue: Number.isFinite(Number(action.amount)) ? Number(action.amount) : 1,
-        typeOptions: FLOW_ACTION_TYPES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ActionType.${value}`, value), selected: type === value })),
+        auraEnabledChecked: action.enabled !== false,
+        typeOptions: FLOW_ACTION_TYPES.map((value) => {
+          const descriptor = integrationActionDescriptor(value);
+          const status = descriptor ? api?.integrations?.status?.(descriptor.integrationId) : null;
+          const available = !descriptor || Boolean(status?.usable) || value === type;
+          return { value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ActionType.${value}`, value), selected: type === value, disabled: !available };
+        }),
         phaseOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectPhase", "Select phase"), selected: !action.phaseId }, ...phaseChoices.map((entry) => ({ ...entry, selected: action.phaseId === entry.value }))],
-        objectiveOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectObjective", "Select objective"), selected: !action.objectiveId }, ...objectiveChoices.map((entry) => ({ ...entry, selected: action.objectiveId === entry.value }))]
+        objectiveOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectObjective", "Select objective"), selected: !action.objectiveId }, ...objectiveChoices.map((entry) => ({ ...entry, selected: action.objectiveId === entry.value }))],
+        targetModeOptions: ["participant", "group", "all"].map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.TargetMode.${value}`, value), selected: targetMode === value })),
+        targetOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectTarget", "Select target"), selected: !action.targetId }, ...targetOptions.map((entry) => ({ ...entry, selected: action.targetId === entry.value }))]
       };
     });
     const triggers = (draft.triggers ?? []).map((trigger) => ({
@@ -386,7 +422,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         await this.#renderFresh();
       });
     }
-    for (const control of root.querySelectorAll('[data-flow-action-field="phaseId"], [data-flow-action-field="objectiveId"], [data-trigger-field="event"], [data-trigger-field="activePhaseId"], [data-trigger-field="participantId"], [data-trigger-field="objectiveId"], [data-trigger-condition-field], [data-trigger-action]')) {
+    for (const control of root.querySelectorAll('[data-flow-action-field="phaseId"], [data-flow-action-field="objectiveId"], [data-flow-action-field="targetMode"], [data-flow-action-field="targetId"], [data-flow-action-field="enabled"], [data-trigger-field="event"], [data-trigger-field="activePhaseId"], [data-trigger-field="participantId"], [data-trigger-field="objectiveId"], [data-trigger-condition-field], [data-trigger-action]')) {
       control.addEventListener("change", async () => {
         this.#syncDraftFromForm();
         await this.#renderFresh();
@@ -549,6 +585,10 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       action.objectiveId = String(read("objectiveId") ?? "").trim() || null;
       action.amount = asInteger(read("amount"), Number(action.amount ?? 1), { min: -999, max: 999 });
       action.message = String(read("message") ?? action.message ?? "");
+      action.targetMode = String(read("targetMode") ?? action.targetMode ?? "participant");
+      action.targetId = action.targetMode === "all" ? null : (String(read("targetId") ?? action.targetId ?? "").trim() || null);
+      const enabledControl = row.querySelector('[data-flow-action-field="enabled"]');
+      if (enabledControl) action.enabled = Boolean(enabledControl.checked);
     }
 
     const triggerById = new Map((next.triggers ?? []).map((trigger) => [trigger.id, trigger]));
@@ -611,6 +651,16 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     refreshOptions('[data-flow-action-field="objectiveId"], [data-trigger-field="objectiveId"]', objectives);
     refreshOptions('[data-trigger-field="participantId"]', participants);
     refreshOptions('[data-participant-field="groupId"]', groups);
+    for (const row of root.querySelectorAll('.encounter-forge-flow-action-row[data-flow-action-id]')) {
+      const mode = row.querySelector('[data-flow-action-field="targetMode"]')?.value;
+      const labels = mode === "group" ? groups : participants;
+      const select = row.querySelector('[data-flow-action-field="targetId"]');
+      if (!select) continue;
+      for (const option of select.options ?? []) {
+        const label = labels.get(String(option.value ?? ""));
+        if (label) option.textContent = label;
+      }
+    }
 
     for (const label of root.querySelectorAll("[data-trigger-action-label]")) {
       const text = actions.get(String(label.dataset.triggerActionLabel ?? ""));
@@ -780,6 +830,30 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
   #trackChild(app) {
     if (app) this.childApps.add(app);
     return app;
+  }
+
+  async #openIntegrationActionEditor(action) {
+    const descriptor = integrationActionDescriptor(action?.type);
+    if (!descriptor) return;
+    const status = getApi()?.integrations?.status?.(descriptor.integrationId);
+    if (!status?.usable) {
+      ui.notifications.warn(localize("PF2E_ENCOUNTER_FORGE.Notifications.IntegrationActionUnavailable", "The required integration is not available or enabled."));
+      return;
+    }
+    const app = this.#trackChild(new IntegrationActionEditorApp({
+      action,
+      partyLevel: this.draft?.party?.level ?? 1,
+      partySize: this.draft?.party?.size ?? 4,
+      onCommit: async (payload) => {
+        this.#syncDraftFromForm();
+        const next = clone(this.draft);
+        const target = next.actions?.find?.((entry) => entry.id === action.id);
+        if (target) Object.assign(target, clone(payload));
+        this.draft = next;
+        await this.#renderFresh();
+      }
+    }));
+    await app.render({ force: true });
   }
 
   async #openForgeParticipantEditor(kind, participant = null) {
@@ -966,6 +1040,14 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     });
     this.draft = next;
     await this.#renderFresh();
+  }
+
+  static async configureFlowAction(_event, target) {
+    this.#syncDraftFromForm();
+    const id = String(target?.dataset?.flowActionId ?? "").trim();
+    const action = this.draft?.actions?.find?.((entry) => entry.id === id);
+    if (!action) return;
+    await this.#openIntegrationActionEditor(action);
   }
 
   static async removeFlowAction(_event, target) {

@@ -287,3 +287,23 @@ test("Flow authoring exposes round-end and objective trigger selectors", () => {
   assert.match(flowSource, /"objective\.progressChanged"/);
   assert.match(flowSource, /"objective\.completed"/);
 });
+
+test("Flow authoring exposes external Forge runtime actions with target scopes and embedded configuration", () => {
+  const integrationEditor = fs.readFileSync(new URL("../scripts/ui/integration-action-editor-app.js", import.meta.url), "utf8");
+  const integrationTemplate = fs.readFileSync(new URL("../templates/integration-action-editor-app.hbs", import.meta.url), "utf8");
+  const actionService = fs.readFileSync(new URL("../scripts/runtime/action-service.js", import.meta.url), "utf8");
+  const flowSource = fs.readFileSync(new URL("../scripts/engine/encounter-flow.js", import.meta.url), "utf8");
+  assert.match(template, /data-action="configureFlowAction"/);
+  assert.match(template, /data-flow-action-field="targetMode"/);
+  assert.match(template, /data-flow-action-field="targetId"/);
+  assert.match(template, /data-flow-action-field="enabled"/);
+  for (const type of ["effect.apply", "aura.setEnabled", "affliction.apply", "loot.createActor"]) {
+    assert.match(flowSource, new RegExp(type.replace(".", "\\.")));
+    assert.match(actionService, new RegExp(type.replace(".", "\\.")));
+  }
+  assert.match(integrationEditor, /effectEditor\?\.create/);
+  assert.match(integrationEditor, /auraEditor\?\.create/);
+  assert.match(integrationEditor, /afflictionEditor\?\.create/);
+  assert.match(integrationEditor, /createEmbeddedEditor/);
+  assert.match(integrationTemplate, /data-integration-action-editor-mount/);
+});
