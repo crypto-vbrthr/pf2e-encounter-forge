@@ -282,6 +282,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       eventOptions: FLOW_EVENT_TYPES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.Event.${value}`, value), selected: String(trigger.event ?? "") === value })),
       activePhaseOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.AnyPhase", "Any phase"), selected: !trigger.activePhaseId }, ...phaseChoices.map((entry) => ({ ...entry, selected: trigger.activePhaseId === entry.value }))],
       participantOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.AnyParticipant", "Any participant"), selected: !trigger.participantId }, ...participantChoices.map((entry) => ({ ...entry, selected: trigger.participantId === entry.value }))],
+      objectiveOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.AnyObjective", "Any objective"), selected: !trigger.objectiveId }, ...objectiveChoices.map((entry) => ({ ...entry, selected: trigger.objectiveId === entry.value }))],
       conditions: (trigger.conditions ?? []).map((condition, conditionIndex) => ({
         ...condition,
         conditionIndex,
@@ -385,7 +386,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         await this.#renderFresh();
       });
     }
-    for (const control of root.querySelectorAll('[data-flow-action-field="phaseId"], [data-flow-action-field="objectiveId"], [data-trigger-field="event"], [data-trigger-field="activePhaseId"], [data-trigger-field="participantId"], [data-trigger-condition-field], [data-trigger-action]')) {
+    for (const control of root.querySelectorAll('[data-flow-action-field="phaseId"], [data-flow-action-field="objectiveId"], [data-trigger-field="event"], [data-trigger-field="activePhaseId"], [data-trigger-field="participantId"], [data-trigger-field="objectiveId"], [data-trigger-condition-field], [data-trigger-action]')) {
       control.addEventListener("change", async () => {
         this.#syncDraftFromForm();
         await this.#renderFresh();
@@ -551,7 +552,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     }
 
     const triggerById = new Map((next.triggers ?? []).map((trigger) => [trigger.id, trigger]));
-    const numericConditionFields = new Set(["round", "turn", "hpValue", "hpMax", "hpPercent"]);
+    const numericConditionFields = new Set(["round", "turn", "hpValue", "hpMax", "hpPercent", "progress", "previousProgress", "target"]);
     for (const row of root.querySelectorAll(".encounter-forge-trigger-row[data-trigger-id]")) {
       const trigger = triggerById.get(row.dataset.triggerId);
       if (!trigger) continue;
@@ -561,6 +562,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       trigger.event = String(read("event") ?? trigger.event ?? "combat.roundChanged");
       trigger.activePhaseId = String(read("activePhaseId") ?? "").trim() || null;
       trigger.participantId = String(read("participantId") ?? "").trim() || null;
+      trigger.objectiveId = String(read("objectiveId") ?? "").trim() || null;
       trigger.enabled = Boolean(field("enabled")?.checked);
       trigger.once = Boolean(field("once")?.checked);
       trigger.confirm = Boolean(field("confirm")?.checked);
@@ -606,7 +608,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     };
 
     refreshOptions('[data-flow-action-field="phaseId"], [data-trigger-field="activePhaseId"]', phases);
-    refreshOptions('[data-flow-action-field="objectiveId"]', objectives);
+    refreshOptions('[data-flow-action-field="objectiveId"], [data-trigger-field="objectiveId"]', objectives);
     refreshOptions('[data-trigger-field="participantId"]', participants);
     refreshOptions('[data-participant-field="groupId"]', groups);
 
@@ -991,6 +993,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       event: "combat.roundChanged",
       activePhaseId: null,
       participantId: null,
+      objectiveId: null,
       enabled: true,
       once: true,
       confirm: true,
@@ -1019,7 +1022,12 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const trigger = next.triggers?.find?.((entry) => entry.id === id);
     if (!trigger) return;
     trigger.conditions ??= [];
-    trigger.conditions.push({ field: trigger.event === "participant.hpChanged" ? "hpPercent" : "round", operator: "gte", value: trigger.event === "participant.hpChanged" ? 50 : 1 });
+    const defaults = trigger.event === "participant.hpChanged"
+      ? { field: "hpPercent", operator: "lte", value: 50 }
+      : trigger.event === "objective.progressChanged"
+        ? { field: "progress", operator: "gte", value: 1 }
+        : { field: "round", operator: "gte", value: 1 };
+    trigger.conditions.push(defaults);
     this.draft = next;
     await this.#renderFresh();
   }

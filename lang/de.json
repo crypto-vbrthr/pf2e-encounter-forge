@@ -389,5 +389,17 @@
   "PF2E_ENCOUNTER_FORGE.Example.Trigger.LeaderDefeated": "Runenwächter besiegt",
   "PF2E_ENCOUNTER_FORGE.Notifications.ExampleCreated": "Beispielbegegnung wurde erstellt.",
   "PF2E_ENCOUNTER_FORGE.Notifications.ExampleCreateFailed": "Die Beispielbegegnung konnte nicht erstellt werden.",
-  "PF2E_ENCOUNTER_FORGE.Notifications.ExampleNeedsParticipants": "Ersetze die Beispiel-Platzhalter durch echte Encounter-Teilnehmer, bevor du die Begegnung einsetzt."
+  "PF2E_ENCOUNTER_FORGE.Notifications.ExampleNeedsParticipants": "Ersetze die Beispiel-Platzhalter durch echte Encounter-Teilnehmer, bevor du die Begegnung einsetzt.",
+  "PF2E_ENCOUNTER_FORGE.Flow.AnyObjective": "Jedes Ziel",
+  "PF2E_ENCOUNTER_FORGE.Flow.Event.combat.roundEnded": "Runde beendet",
+  "PF2E_ENCOUNTER_FORGE.Flow.Event.objective.progressChanged": "Zielfortschritt geändert",
+  "PF2E_ENCOUNTER_FORGE.Flow.Event.objective.completed": "Zielwert erreicht",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.objectiveId": "Ziel-ID",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.progress": "Zielfortschritt",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.previousProgress": "Vorheriger Zielfortschritt",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.target": "Zielwert",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.objectiveState": "Zielstatus",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.previousObjectiveState": "Vorheriger Zielstatus",
+  "PF2E_ENCOUNTER_FORGE.Flow.Validation.FLOW_TRIGGER_OBJECTIVE": "Ein Trigger verweist auf ein fehlendes Ziel.",
+  "PF2E_ENCOUNTER_FORGE.Example.Trigger.RitualComplete": "Ritualdruck erreicht 3"
 }

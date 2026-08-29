@@ -2,7 +2,7 @@ import { MODULE_ID } from "../constants.js";
 import { createEncounterBlueprint } from "../model/encounter-blueprint.js";
 
 export const EXAMPLE_ENCOUNTER_ID = "unstable-rune-altar";
-export const EXAMPLE_ENCOUNTER_VERSION = 1;
+export const EXAMPLE_ENCOUNTER_VERSION = 2;
 export const EXAMPLE_SEEDED_SETTING = "examples.initialSeedDone";
 
 function localize(key, fallback = key) {
@@ -200,15 +200,29 @@ export function createExampleEncounterBlueprint({ partyLevel = 5, partySize = 4 
       {
         id: "example-trigger-round-pressure",
         name: localize("PF2E_ENCOUNTER_FORGE.Example.Trigger.RoundPressure", "Each round: ritual pressure"),
-        event: "combat.roundChanged",
+        event: "combat.roundEnded",
         activePhaseId: "example-phase-defense",
         participantId: null,
         enabled: true,
         once: false,
         confirm: false,
         automatic: true,
-        conditions: [{ field: "round", operator: "gte", value: 1 }],
+        conditions: [],
         actions: ["example-action-ritual-progress"]
+      },
+      {
+        id: "example-trigger-ritual-complete",
+        name: localize("PF2E_ENCOUNTER_FORGE.Example.Trigger.RitualComplete", "Ritual pressure reaches 3"),
+        event: "objective.completed",
+        activePhaseId: "example-phase-defense",
+        participantId: null,
+        objectiveId: "example-objective-ritual",
+        enabled: true,
+        once: true,
+        confirm: true,
+        automatic: false,
+        conditions: [],
+        actions: ["example-action-awakening-message", "example-action-to-awakening"]
       },
       {
         id: "example-trigger-half-hp",

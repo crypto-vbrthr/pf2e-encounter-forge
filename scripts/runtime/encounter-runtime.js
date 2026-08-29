@@ -91,7 +91,7 @@ export class EncounterRuntime {
     this.bus.on("participant.restored", (event) => this.#setParticipantStateFromEvent(event, "ready"));
     this.bus.on("participant.tokenDeleted", (event) => this.#setParticipantStateFromEvent(event, "removed"));
     this.bus.on("combat.roundChanged", (event) => this.#onRoundChanged(event));
-    for (const type of ["participant.hpChanged", "participant.actorUpdated", "participant.tokenUpdated", "combat.turnChanged"]) {
+    for (const type of ["participant.hpChanged", "participant.actorUpdated", "participant.tokenUpdated", "combat.turnChanged", "combat.roundEnded", "objective.progressChanged", "objective.completed"]) {
       this.bus.on(type, () => this.bus.emit("director.changed", { instanceId: this.activeInstanceId, reason: type }));
     }
   }
@@ -276,11 +276,34 @@ export class EncounterRuntime {
     const id = String(objectiveId ?? "").trim();
     const state = this.instance.objectives?.[id];
     if (!state) throw new EncounterForgeError(`Unknown Encounter objective '${id}'.`, { code: "RUNTIME_OBJECTIVE_UNKNOWN" });
-    state.progress = Math.max(0, Number(state.progress ?? 0) + Number(amount ?? 0));
+    const previousProgress = Number(state.progress ?? 0);
+    const previousObjectiveState = String(state.state ?? "active");
+    state.progress = Math.max(0, previousProgress + Number(amount ?? 0));
     if (Number.isFinite(Number(state.target)) && state.progress >= Number(state.target)) state.state = "completed";
     else if (state.state === "completed" && state.progress < Number(state.target)) state.state = "active";
     await this.addLog("objective.progress", localize("PF2E_ENCOUNTER_FORGE.Director.Log.ObjectiveProgress", `Objective ${id}: ${state.progress}.`, { objective: id, progress: state.progress }), { objectiveId: id, progress: state.progress, target: state.target, reason });
     await this.#persist({ reason: "objective" });
+
+    const event = {
+      type: "objective.progressChanged",
+      instanceId: this.instance.id,
+      at: nowIso(),
+      objectiveId: id,
+      progress: Number(state.progress ?? 0),
+      previousProgress,
+      target: Number.isFinite(Number(state.target)) ? Number(state.target) : null,
+      objectiveState: String(state.state ?? "active"),
+      previousObjectiveState,
+      reason
+    };
+    await this.bus.emit("encounter.event", event);
+    await this.bus.emit(event.type, event);
+
+    if (previousObjectiveState !== "completed" && state.state === "completed") {
+      const completedEvent = { ...event, type: "objective.completed", at: nowIso() };
+      await this.bus.emit("encounter.event", completedEvent);
+      await this.bus.emit(completedEvent.type, completedEvent);
+    }
     return deepClone(state);
   }
 

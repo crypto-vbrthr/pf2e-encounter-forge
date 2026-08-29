@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0-alpha.8.4 - Objective & Round-End Flow Triggers
+
+### Added
+- Added a first-class `combat.roundEnded` Runtime event so recurring end-of-round mechanics can be authored without treating the start of round 1 as a completed round.
+- Added `objective.progressChanged` and `objective.completed` Runtime events emitted whenever Encounter objective progress changes and when its configured target is reached.
+- Added an Objective selector to Trigger authoring, allowing a trigger to react to one specific objective without entering internal IDs by hand.
+- Added objective condition fields for progress, previous progress, target, and objective state.
+- Updated the onboarding example so ritual pressure advances at each round end and reaching its target can transition the Encounter into the next phase.
+
+### Changed
+- Objective progress actions can now cascade into additional authored triggers in the same Runtime flow.
+- Flow validation now detects triggers that reference missing objectives.
+
 ## 0.1.0-alpha.8.3 - Encounter Library Row Polish
 
 ### Added

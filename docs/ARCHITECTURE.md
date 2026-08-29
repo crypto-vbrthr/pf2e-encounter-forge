@@ -231,3 +231,7 @@ Initial authorable action types are `phase.transition`, `objective.progress`, an
 `TriggerService` supports `activePhaseId` as an Encounter-owned scope filter in addition to participant and condition filters. Consequential actions still default to a persistent GM decision unless the trigger explicitly opts into automatic execution.
 
 `analyzeEncounterFlow()` provides authoring-time structural analysis. Dead references are hard validation errors. Unreachable phases and scoped phase cycles are warnings because they can be intentional in hand-directed encounters. The public `api.flow` surface exposes this contract for add-ons.
+
+### Flow event chaining
+
+Runtime-authored actions can emit normalized Encounter events that are consumed by the same TriggerService as Foundry/PF2e events. Objective progress emits `objective.progressChanged` and a one-time transition into the completed state emits `objective.completed`. Combat round advancement also emits `combat.roundEnded` before `combat.roundChanged` when a real round has completed. This lets Blueprints express chains such as round end → objective progress → objective target reached → phase transition without embedding JavaScript in the Blueprint.

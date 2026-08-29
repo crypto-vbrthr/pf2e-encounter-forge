@@ -1,12 +1,15 @@
 import { asArray } from "../utils/data.js";
 
 export const FLOW_EVENT_TYPES = Object.freeze([
+  "combat.roundEnded",
   "combat.roundChanged",
   "combat.turnChanged",
   "participant.hpChanged",
   "participant.defeated",
   "participant.restored",
-  "participant.tokenDeleted"
+  "participant.tokenDeleted",
+  "objective.progressChanged",
+  "objective.completed"
 ]);
 
 export const FLOW_CONDITION_FIELDS = Object.freeze([
@@ -15,7 +18,13 @@ export const FLOW_CONDITION_FIELDS = Object.freeze([
   "participantId",
   "hpValue",
   "hpMax",
-  "hpPercent"
+  "hpPercent",
+  "objectiveId",
+  "progress",
+  "previousProgress",
+  "target",
+  "objectiveState",
+  "previousObjectiveState"
 ]);
 
 export const FLOW_OPERATORS = Object.freeze(["eq", "neq", "gt", "gte", "lt", "lte", "includes"]);
@@ -91,6 +100,7 @@ export function analyzeEncounterFlow(blueprint = {}) {
     if (!event || !FLOW_EVENT_TYPES.includes(event)) warnings.push({ code: "FLOW_EVENT_UNKNOWN", path: `triggers.${trigger.id}.event`, message: `Trigger '${trigger.id}' uses unknown event '${event || "?"}'.` });
     if (trigger.activePhaseId && !phaseIds.has(trigger.activePhaseId)) errors.push({ code: "FLOW_TRIGGER_PHASE", path: `triggers.${trigger.id}.activePhaseId`, message: `Trigger '${trigger.id}' references unknown active phase '${trigger.activePhaseId}'.` });
     if (trigger.participantId && !participantIds.has(trigger.participantId)) errors.push({ code: "FLOW_TRIGGER_PARTICIPANT", path: `triggers.${trigger.id}.participantId`, message: `Trigger '${trigger.id}' references unknown participant '${trigger.participantId}'.` });
+    if (trigger.objectiveId && !objectiveIds.has(trigger.objectiveId)) errors.push({ code: "FLOW_TRIGGER_OBJECTIVE", path: `triggers.${trigger.id}.objectiveId`, message: `Trigger '${trigger.id}' references unknown objective '${trigger.objectiveId}'.` });
     for (const actionId of refsOf(trigger)) {
       if (!actionIds.has(actionId)) errors.push({ code: "FLOW_TRIGGER_ACTION", path: `triggers.${trigger.id}`, message: `Trigger '${trigger.id}' references unknown action '${actionId}'.` });
     }

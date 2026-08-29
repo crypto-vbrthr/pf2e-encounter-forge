@@ -481,6 +481,7 @@
                     <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.EventLabel"}}</span><select data-trigger-field="event">{{#each eventOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
                     <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ActivePhase"}}</span><select data-trigger-field="activePhaseId">{{#each activePhaseOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
                     <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Participant"}}</span><select data-trigger-field="participantId">{{#each participantOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                    <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Objective"}}</span><select data-trigger-field="objectiveId">{{#each objectiveOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
                   </div>
                   <div class="encounter-forge-trigger-flags">
                     <label><input type="checkbox" data-trigger-field="enabled" {{#if enabledChecked}}checked{{/if}}> {{localize "PF2E_ENCOUNTER_FORGE.Flow.Enabled"}}</label>

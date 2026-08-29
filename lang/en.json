@@ -389,5 +389,17 @@
   "PF2E_ENCOUNTER_FORGE.Example.Trigger.LeaderDefeated": "Rune warden defeated",
   "PF2E_ENCOUNTER_FORGE.Notifications.ExampleCreated": "Example encounter created.",
   "PF2E_ENCOUNTER_FORGE.Notifications.ExampleCreateFailed": "The example encounter could not be created.",
-  "PF2E_ENCOUNTER_FORGE.Notifications.ExampleNeedsParticipants": "Replace the example placeholders with real Encounter participants before deployment."
+  "PF2E_ENCOUNTER_FORGE.Notifications.ExampleNeedsParticipants": "Replace the example placeholders with real Encounter participants before deployment.",
+  "PF2E_ENCOUNTER_FORGE.Flow.AnyObjective": "Any objective",
+  "PF2E_ENCOUNTER_FORGE.Flow.Event.combat.roundEnded": "Round ended",
+  "PF2E_ENCOUNTER_FORGE.Flow.Event.objective.progressChanged": "Objective progress changed",
+  "PF2E_ENCOUNTER_FORGE.Flow.Event.objective.completed": "Objective target reached",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.objectiveId": "Objective ID",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.progress": "Objective progress",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.previousProgress": "Previous objective progress",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.target": "Objective target",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.objectiveState": "Objective state",
+  "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.previousObjectiveState": "Previous objective state",
+  "PF2E_ENCOUNTER_FORGE.Flow.Validation.FLOW_TRIGGER_OBJECTIVE": "A trigger references a missing objective.",
+  "PF2E_ENCOUNTER_FORGE.Example.Trigger.RitualComplete": "Ritual pressure reaches 3"
 }

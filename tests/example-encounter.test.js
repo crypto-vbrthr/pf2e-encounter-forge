@@ -22,7 +22,7 @@ test("onboarding example is a valid, exact moderate-budget Blueprint", () => {
   assert.equal(blueprint.participants.every((entry) => entry.source.type === "example"), true);
   assert.equal(blueprint.phases.length, 3);
   assert.equal(blueprint.objectives.length, 2);
-  assert.equal(blueprint.triggers.length, 3);
+  assert.equal(blueprint.triggers.length, 4);
   assert.equal(blueprint.actions.length, 5);
   assert.equal(analyzeEncounterFlow(blueprint).valid, true);
 });

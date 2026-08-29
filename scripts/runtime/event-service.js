@@ -70,7 +70,16 @@ export class EventService extends RuntimeService {
     this.#register("updateCombat", async (combat, changed = {}) => {
       if (!this.#matchesCombat(combat)) return;
       if (Object.prototype.hasOwnProperty.call(changed, "round")) {
-        await this.#emit("combat.roundChanged", { combatUuid: uuidOf(combat, "Combat"), round: Number(combat.round ?? changed.round ?? 0), turn: Number(combat.turn ?? 0) });
+        const currentRound = Number(combat.round ?? changed.round ?? 0);
+        if (currentRound > 1) {
+          await this.#emit("combat.roundEnded", {
+            combatUuid: uuidOf(combat, "Combat"),
+            round: currentRound - 1,
+            nextRound: currentRound,
+            turn: Number(combat.turn ?? 0)
+          });
+        }
+        await this.#emit("combat.roundChanged", { combatUuid: uuidOf(combat, "Combat"), round: currentRound, turn: Number(combat.turn ?? 0) });
       }
       if (Object.prototype.hasOwnProperty.call(changed, "turn")) {
         await this.#emit("combat.turnChanged", { combatUuid: uuidOf(combat, "Combat"), round: Number(combat.round ?? 0), turn: Number(combat.turn ?? changed.turn ?? 0) });

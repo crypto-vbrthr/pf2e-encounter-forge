@@ -104,3 +104,61 @@ test("HP change events expose current HP and percentage for authored conditions"
   assert.equal(event.hpMax, 100);
   assert.equal(event.hpPercent, 45);
 });
+
+test("round-end events are emitted only after a completed combat round", async () => {
+  const callbacks = new Map();
+  const hooksRef = { on(name, fn) { callbacks.set(name, fn); return name; }, off() {} };
+  const bus = new EncounterEventBus();
+  const instance = { id: "i", deployment: { combatUuid: "Combat.c" }, participants: [] };
+  const events = [];
+  bus.on("encounter.event", (event) => events.push(event));
+  const service = new EventService({ bus, getInstance: () => instance, participants: {}, hooksRef });
+  await service.start();
+
+  await callbacks.get("updateCombat")({ id: "c", uuid: "Combat.c", round: 1, turn: 0 }, { round: 1 });
+  assert.equal(events.some((event) => event.type === "combat.roundEnded"), false);
+
+  events.length = 0;
+  await callbacks.get("updateCombat")({ id: "c", uuid: "Combat.c", round: 2, turn: 0 }, { round: 2 });
+  assert.deepEqual(events.map((event) => event.type), ["combat.roundEnded", "combat.roundChanged"]);
+  assert.equal(events[0].round, 1);
+  assert.equal(events[0].nextRound, 2);
+});
+
+test("objective completion can cascade into a phase transition trigger", async () => {
+  const blueprint = createEncounterBlueprint({
+    phases: [{ id: "ritual", name: "Ritual" }, { id: "aftermath", name: "Aftermath" }],
+    objectives: [{ id: "ritual-progress", name: "Ritual progress", target: 3 }],
+    actions: [
+      { id: "advance", type: "objective.progress", objectiveId: "ritual-progress", amount: 1 },
+      { id: "advance-phase", type: "phase.transition", phaseId: "aftermath" }
+    ],
+    triggers: [
+      { id: "each-round", event: "combat.roundEnded", activePhaseId: "ritual", once: false, confirm: false, automatic: true, actions: ["advance"] },
+      { id: "ritual-complete", event: "objective.completed", activePhaseId: "ritual", objectiveId: "ritual-progress", once: true, confirm: false, automatic: true, actions: ["advance-phase"] }
+    ]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "i", blueprintUuid: "JournalEntry.blueprint" });
+  const repos = repositories(blueprint, instance);
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef, hooksRef: null });
+  await runtime.activate("i");
+
+  for (let round = 1; round <= 3; round += 1) {
+    await runtime.bus.emit("encounter.event", { type: "combat.roundEnded", instanceId: "i", round });
+  }
+
+  const stored = repos.read();
+  assert.equal(stored.objectives["ritual-progress"].progress, 3);
+  assert.equal(stored.objectives["ritual-progress"].state, "completed");
+  assert.equal(stored.currentPhaseId, "aftermath");
+  assert(stored.triggeredEvents.includes("ritual-complete"));
+});
+
+test("flow analysis rejects trigger references to missing objectives", () => {
+  const blueprint = createEncounterBlueprint({
+    objectives: [{ id: "real", name: "Real", target: 1 }],
+    triggers: [{ id: "bad-objective-trigger", event: "objective.completed", objectiveId: "missing", actions: [] }]
+  });
+  const flow = analyzeEncounterFlow(blueprint);
+  assert(flow.errors.some((entry) => entry.code === "FLOW_TRIGGER_OBJECTIVE"));
+});

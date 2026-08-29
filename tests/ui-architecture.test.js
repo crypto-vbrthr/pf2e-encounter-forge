@@ -278,3 +278,12 @@ test("saved Encounter rows are left-aligned cards with direct delete controls", 
   assert.match(css, /grid-template-columns:\s*minmax\(0, 1fr\) 2rem/);
   assert.match(appSource, /target\?\.dataset\?\.blueprintId \|\| this\.selectedBlueprintId/);
 });
+
+
+test("Flow authoring exposes round-end and objective trigger selectors", () => {
+  const flowSource = fs.readFileSync(new URL("../scripts/engine/encounter-flow.js", import.meta.url), "utf8");
+  assert.match(template, /data-trigger-field="objectiveId"/);
+  assert.match(flowSource, /"combat\.roundEnded"/);
+  assert.match(flowSource, /"objective\.progressChanged"/);
+  assert.match(flowSource, /"objective\.completed"/);
+});

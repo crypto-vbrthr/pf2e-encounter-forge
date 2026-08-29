@@ -1,5 +1,11 @@
 # PF2E Encounter Forge
 
+## 0.1.0-alpha.8.4 — Objective & Round-End Flow Triggers
+
+The Flow authoring layer can now express chained encounter logic such as “increase ritual progress at the end of every round, then enter the next phase when the objective target is reached.” Triggers can listen for round-end, objective-progress, and objective-completion events and can be scoped to a specific objective directly from the UI.
+
+The bundled Rune Altar example demonstrates this pattern.
+
 ## 0.1.0-alpha.8.3 — Encounter Library Row Polish
 
 Saved Encounters in the left library now use a dedicated card layout with clearly separated, left-aligned name and party/threat metadata. Each row also has its own trash control, so an Encounter can be deleted directly from the library without first hunting for the editor-footer action. Deletion still uses the existing confirmation dialog.

@@ -26,6 +26,7 @@ function matchesEvent(trigger, event) {
 function matchesConditions(trigger, event, instance = null) {
   if (trigger?.activePhaseId && trigger.activePhaseId !== instance?.currentPhaseId) return false;
   if (trigger?.participantId && trigger.participantId !== event.participantId) return false;
+  if (trigger?.objectiveId && trigger.objectiveId !== event.objectiveId) return false;
   if (Number.isFinite(Number(trigger?.round)) && Number(event.round) < Number(trigger.round)) return false;
   const conditions = Array.isArray(trigger?.conditions) ? trigger.conditions : [];
   return conditions.every((condition) => compare(getPath(event, condition.field ?? condition.path), String(condition.operator ?? "eq"), condition.value));
