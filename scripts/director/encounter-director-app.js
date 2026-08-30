@@ -1,4 +1,5 @@
 import { MODULE_ID } from "../constants.js";
+import { hpChangeDetected } from "../utils/change-paths.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -74,14 +75,20 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
     this.instanceId = instanceId;
     this.snapshot = null;
     this.unsubscribers = [];
+    this.documentHooks = [];
     this.renderTimer = null;
     this.pendingScrollTop = null;
+    this.observationTimer = null;
+    this.observationGeneration = 0;
+    this.lastObservationFingerprint = null;
   }
 
   async initialize(instanceId = null) {
     if (instanceId) this.instanceId = instanceId;
     await this.#refreshSnapshot();
     this.#subscribeRuntime();
+    this.#subscribeDocuments();
+    this.#startPassiveObservation();
     return this;
   }
 
@@ -94,6 +101,7 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
     const api = getApi();
     this.snapshot = this.instanceId ? await api?.runtime?.inspect?.(this.instanceId) : null;
     if (this.snapshot?.instance?.id) this.instanceId = this.snapshot.instance.id;
+    this.lastObservationFingerprint = this.#observationFingerprint(this.snapshot);
     return this.snapshot;
   }
 
@@ -109,6 +117,112 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       api.runtime.on(type, listener);
       this.unsubscribers.push(() => api.runtime.off(type, listener));
     }
+  }
+
+  #tokenUuid(token) {
+    return token?.uuid ?? (token?.parent?.id && token?.id ? `Scene.${token.parent.id}.Token.${token.id}` : null);
+  }
+
+  #isParticipantToken(token) {
+    const instance = this.snapshot?.instance;
+    if (!instance || !token) return false;
+    const flag = token.flags?.[MODULE_ID]?.participant ?? {};
+    if (flag.instanceId && flag.instanceId === instance.id) return true;
+    const uuid = this.#tokenUuid(token);
+    return (instance.participants ?? []).some((entry) =>
+      (flag.participantId && entry.id === flag.participantId) ||
+      (uuid && entry.tokenUuid === uuid)
+    );
+  }
+
+  #isParticipantActor(actor) {
+    const instance = this.snapshot?.instance;
+    if (!instance || !actor) return false;
+    const token = actor.token?.document ?? actor.token ?? (actor.parent?.documentName === "Token" ? actor.parent : null);
+    if (token && this.#isParticipantToken(token)) return true;
+    const uuid = actor.uuid ?? (actor.id ? `Actor.${actor.id}` : null);
+    return Boolean(uuid) && (instance.participants ?? []).some((entry) => entry.actorUuid === uuid);
+  }
+
+  #hpChanged(changed) {
+    return hpChangeDetected(changed);
+  }
+
+  #observationFingerprint(snapshot = this.snapshot) {
+    if (!snapshot?.instance) return "missing";
+    const participants = [...(snapshot.participants ?? [])]
+      .sort((a, b) => String(a.id).localeCompare(String(b.id)))
+      .map((entry) => [
+        entry.id,
+        entry.state,
+        entry.hp?.value,
+        entry.hp?.max,
+        entry.hp?.percent,
+        entry.tokenAvailable,
+        entry.actorAvailable
+      ]);
+    return JSON.stringify([snapshot.instance.id, snapshot.instance.status, participants]);
+  }
+
+  #startPassiveObservation() {
+    clearTimeout(this.observationTimer);
+    const generation = ++this.observationGeneration;
+    this.lastObservationFingerprint = this.#observationFingerprint();
+
+    const tick = async () => {
+      if (generation !== this.observationGeneration) return;
+      try {
+        const api = getApi();
+        const next = this.instanceId ? await api?.runtime?.inspect?.(this.instanceId) : null;
+        const fingerprint = this.#observationFingerprint(next);
+        if (fingerprint !== this.lastObservationFingerprint) {
+          this.snapshot = next;
+          this.lastObservationFingerprint = fingerprint;
+          if (this.element) {
+            this.pendingScrollTop = this.element?.querySelector?.(".encounter-director-body")?.scrollTop ?? null;
+            await this.render({ force: true });
+          }
+        }
+      } catch (error) {
+        console.debug(`${MODULE_ID} | Passive Director observation tick failed.`, error);
+      } finally {
+        if (generation === this.observationGeneration) this.observationTimer = setTimeout(tick, 400);
+      }
+    };
+
+    this.observationTimer = setTimeout(tick, 400);
+  }
+
+  #registerDocumentHook(name, listener) {
+    const hooks = globalThis.Hooks;
+    if (!hooks?.on) return;
+    const id = hooks.on(name, listener);
+    this.documentHooks.push({ name, id, listener });
+  }
+
+  #subscribeDocuments() {
+    const hooks = globalThis.Hooks;
+    for (const { name, id, listener } of this.documentHooks.splice(0)) {
+      try { hooks?.off?.(name, id ?? listener); } catch {}
+    }
+    if (!hooks?.on) return;
+
+    // The Director is also useful while an Encounter is only prepared. In that state
+    // Encounter Runtime intentionally has not started its EventService yet, so listen
+    // passively for document changes that affect the currently displayed participants.
+    this.#registerDocumentHook("updateActor", (actor, changed = {}) => {
+      if (!this.#isParticipantActor(actor) || !this.#hpChanged(changed)) return;
+      this.#scheduleRender();
+    });
+    this.#registerDocumentHook("updateToken", (token, changed = {}) => {
+      if (!this.#isParticipantToken(token) || !this.#hpChanged(changed)) return;
+      this.#scheduleRender();
+    });
+    this.#registerDocumentHook("updateCombatant", (combatant, changed = {}) => {
+      if (!Object.prototype.hasOwnProperty.call(changed, "defeated")) return;
+      const token = combatant?.token ?? combatant?.parent?.scene?.tokens?.get?.(combatant?.tokenId) ?? null;
+      if (token && this.#isParticipantToken(token)) this.#scheduleRender();
+    });
   }
 
   #scheduleRender() {
@@ -231,12 +345,20 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       const body = this.element?.querySelector?.(".encounter-director-body");
       if (body) body.scrollTop = this.pendingScrollTop;
       this.pendingScrollTop = null;
+    this.observationTimer = null;
+    this.observationGeneration = 0;
+    this.lastObservationFingerprint = null;
     }
   }
 
   async close(options = {}) {
     clearTimeout(this.renderTimer);
+    clearTimeout(this.observationTimer);
+    this.observationGeneration += 1;
     for (const unsubscribe of this.unsubscribers.splice(0)) { try { unsubscribe?.(); } catch {} }
+    for (const { name, id, listener } of this.documentHooks.splice(0)) {
+      try { globalThis.Hooks?.off?.(name, id ?? listener); } catch {}
+    }
     return super.close(options);
   }
 

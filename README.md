@@ -1,6 +1,11 @@
 # PF2E Encounter Forge
 
-## 0.1.0-alpha.9 — Runtime Integration Actions
+## 0.1.0-alpha.9.2 — Prepared Director Live Updates
+
+
+The Encounter Director now stays live before combat starts as well. Prepared Encounters do not start the Encounter Runtime merely because the Director is open, but the Director passively listens for HP changes on its participant Actors/Tokens and refreshes its snapshot immediately. This keeps the architectural boundary intact: passive observation updates the GM display, while triggers and orchestration remain dormant until the Encounter Runtime is actually activated.
+
+### Runtime Integration Actions
 
 Encounter Flow actions can now pull real levers in the rest of the Forge Suite. An authored action can apply an Effect, enable or disable an Aura, apply an Affliction, or prepare Loot through the public APIs of the corresponding Forge modules. Encounter Forge remains the orchestrator: it stores when and where an action should happen, while the external Forge continues to own the actual rules/runtime implementation.
 
@@ -229,3 +234,8 @@ npm run check
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+
+### Director live observation
+
+While the Encounter Director is open it observes participant document hooks and also uses a lightweight passive snapshot fallback. This keeps HP and participant availability live even for prepared Encounters without activating Runtime trigger processing.

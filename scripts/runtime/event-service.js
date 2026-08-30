@@ -1,5 +1,6 @@
 import { MODULE_ID } from "../constants.js";
 import { RuntimeService } from "./base-service.js";
+import { hpChangeDetected } from "../utils/change-paths.js";
 
 function uuidOf(document, fallback = null) {
   if (document?.uuid) return document.uuid;
@@ -18,11 +19,6 @@ function hpSnapshot(actor) {
     hpMax: max,
     hpPercent: Math.max(0, Math.min(100, Math.round((value / max) * 100)))
   };
-}
-
-function hasPathLike(change, needles) {
-  const text = JSON.stringify(change ?? {}).toLowerCase();
-  return needles.some((needle) => text.includes(String(needle).toLowerCase()));
 }
 
 export class EventService extends RuntimeService {
@@ -101,7 +97,7 @@ export class EventService extends RuntimeService {
     this.#register("updateToken", async (token, changed = {}) => {
       const participant = this.participants?.findByTokenDocument?.(token);
       if (!participant) return;
-      const hpChanged = hasPathLike(changed, ["attributes.hp", "system.attributes.hp", "delta"]);
+      const hpChanged = hpChangeDetected(changed);
       await this.#emit(hpChanged ? "participant.hpChanged" : "participant.tokenUpdated", {
         participantId: participant.id,
         tokenUuid: uuidOf(token),
@@ -113,7 +109,7 @@ export class EventService extends RuntimeService {
     this.#register("updateActor", async (actor, changed = {}) => {
       const participants = this.participants?.findByActor?.(actor) ?? [];
       if (!participants.length) return;
-      const hpChanged = hasPathLike(changed, ["attributes.hp", "system.attributes.hp"]);
+      const hpChanged = hpChangeDetected(changed);
       for (const participant of participants) {
         await this.#emit(hpChanged ? "participant.hpChanged" : "participant.actorUpdated", {
           participantId: participant.id,

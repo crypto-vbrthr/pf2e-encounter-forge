@@ -307,3 +307,24 @@ test("Flow authoring exposes external Forge runtime actions with target scopes a
   assert.match(integrationEditor, /createEmbeddedEditor/);
   assert.match(integrationTemplate, /data-integration-action-editor-mount/);
 });
+
+
+test("Encounter Director passively refreshes participant HP while an Encounter is still prepared", () => {
+  const directorApp = fs.readFileSync(new URL("../scripts/director/encounter-director-app.js", import.meta.url), "utf8");
+  assert.match(directorApp, /#subscribeDocuments\(\)/);
+  assert.match(directorApp, /#registerDocumentHook\("updateActor"/);
+  assert.match(directorApp, /#registerDocumentHook\("updateToken"/);
+  assert.match(directorApp, /#isParticipantActor/);
+  assert.match(directorApp, /#isParticipantToken/);
+  assert.match(directorApp, /#hpChanged/);
+  assert.match(directorApp, /this\.#scheduleRender\(\)/);
+  assert.doesNotMatch(directorApp, /#subscribeDocuments[\s\S]{0,1200}runtime\?\.start/);
+});
+
+test("Encounter Director has a passive snapshot fallback for prepared-Encounter live participant refresh", () => {
+  const directorApp = fs.readFileSync(new URL("../scripts/director/encounter-director-app.js", import.meta.url), "utf8");
+  assert.match(directorApp, /#startPassiveObservation\(\)/);
+  assert.match(directorApp, /setTimeout\(tick, 400\)/);
+  assert.match(directorApp, /runtime\?\.inspect/);
+  assert.match(directorApp, /lastObservationFingerprint/);
+});

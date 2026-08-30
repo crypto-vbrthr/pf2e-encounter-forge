@@ -55,6 +55,17 @@ export class ParticipantService extends RuntimeService {
   findByActor(actor) {
     const instance = this.getInstance();
     if (!instance || !actor) return [];
+
+    // Unlinked Scene Tokens use synthetic Actors whose UUID does not equal the
+    // materialized World Actor UUID stored on the Encounter participant. Resolve
+    // those updates through the owning Token first so HP and other live changes
+    // remain participant-specific.
+    const token = actor.token?.document ?? actor.token ?? (actor.parent?.documentName === "Token" ? actor.parent : null);
+    if (token) {
+      const participant = this.findByTokenDocument(token);
+      if (participant) return [participant];
+    }
+
     const uuid = actor.uuid ?? (actor.id ? `Actor.${actor.id}` : null);
     return (instance.participants ?? []).filter((entry) => entry.actorUuid === uuid);
   }

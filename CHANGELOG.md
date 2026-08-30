@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.1.0-alpha.9.2 - Director Live HP Observation Hardening
+
+### Fixed
+- Fixed HP-change detection for Foundry/PF2e update hooks that provide nested change objects instead of flattened dotted keys.
+- Added synthetic Token Actor matching so unlinked Encounter Tokens are resolved back to their concrete Encounter participant during live updates.
+- Added a lightweight 400 ms passive Director observation fallback while the Director is open. It compares live participant snapshots and refreshes only when visible participant state actually changes, so prepared Encounters stay live even when a system update bypasses the expected document hook shape.
+- The passive observer remains display-only and does not start Encounter Runtime, evaluate triggers, advance phases, or execute actions.
+
+
+## 0.1.0-alpha.9.1 - Prepared Director Live Updates
+
+### Fixed
+- Encounter Director now refreshes participant HP live even while an Encounter Instance is still `prepared` and the Encounter Runtime has not been started yet.
+- Added passive Director-side Foundry document observers for relevant participant Actor/Token HP changes and defeated-state changes; these observers only refresh the UI and do not execute Encounter triggers or mutate Runtime state.
+- Passive observers are cleaned up when the Director closes, while active Runtime-driven `director.changed` updates remain the primary path once the Encounter is running.
+
 ## 0.1.0-alpha.9 - Runtime Integration Actions
 
 ### Added

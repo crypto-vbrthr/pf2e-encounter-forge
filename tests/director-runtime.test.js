@@ -151,3 +151,16 @@ test("EventService normalizes relevant Combat and Combatant hooks into Encounter
   assert.ok(events.some((event) => event.type === "participant.defeated" && event.participantId === "guard"));
   await service.stop();
 });
+
+test("ParticipantService resolves synthetic unlinked Token Actors through their owning Encounter Token", async () => {
+  const { ParticipantService } = await import("../scripts/runtime/participant-service.js");
+  const token = {
+    id: "t1",
+    uuid: "Scene.s1.Token.t1",
+    flags: { "pf2e-encounter-forge": { participant: { instanceId: "i", participantId: "guard-1" } } }
+  };
+  const instance = { id: "i", participants: [{ id: "guard-1", tokenUuid: "Scene.s1.Token.t1", actorUuid: "Actor.a1" }] };
+  const service = new ParticipantService({ getInstance: () => instance });
+  const syntheticActor = { id: "a1", uuid: "Scene.s1.Token.t1.Actor.a1", token };
+  assert.deepEqual(service.findByActor(syntheticActor).map((entry) => entry.id), ["guard-1"]);
+});
