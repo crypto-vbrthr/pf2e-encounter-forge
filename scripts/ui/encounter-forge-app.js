@@ -141,15 +141,19 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       addGroup: EncounterForgeApp.addGroup,
       removeGroup: EncounterForgeApp.removeGroup,
       addPhase: EncounterForgeApp.addPhase,
+      duplicatePhase: EncounterForgeApp.duplicatePhase,
       removePhase: EncounterForgeApp.removePhase,
       movePhaseUp: EncounterForgeApp.movePhaseUp,
       movePhaseDown: EncounterForgeApp.movePhaseDown,
       addObjective: EncounterForgeApp.addObjective,
+      duplicateObjective: EncounterForgeApp.duplicateObjective,
       removeObjective: EncounterForgeApp.removeObjective,
       addFlowAction: EncounterForgeApp.addFlowAction,
+      duplicateFlowAction: EncounterForgeApp.duplicateFlowAction,
       removeFlowAction: EncounterForgeApp.removeFlowAction,
       configureFlowAction: EncounterForgeApp.configureFlowAction,
       addTrigger: EncounterForgeApp.addTrigger,
+      duplicateTrigger: EncounterForgeApp.duplicateTrigger,
       removeTrigger: EncounterForgeApp.removeTrigger,
       addTriggerCondition: EncounterForgeApp.addTriggerCondition,
       removeTriggerCondition: EncounterForgeApp.removeTriggerCondition,
@@ -964,6 +968,20 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     await this.#renderFresh();
   }
 
+  static async duplicatePhase(_event, target) {
+    this.#syncDraftFromForm();
+    const id = String(target?.dataset?.phaseId ?? "").trim();
+    const next = clone(this.draft);
+    const index = (next.phases ?? []).findIndex((entry) => entry.id === id);
+    if (index < 0) return;
+    const source = clone(next.phases[index]);
+    source.id = randomId("phase");
+    source.name = `${source.name || localize("PF2E_ENCOUNTER_FORGE.Flow.Phase", "Phase")} (${localize("PF2E_ENCOUNTER_FORGE.Flow.Copy", "Copy")})`;
+    next.phases.splice(index + 1, 0, source);
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
   static async removePhase(_event, target) {
     this.#syncDraftFromForm();
     const id = target?.dataset?.phaseId;
@@ -1013,6 +1031,20 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     await this.#renderFresh();
   }
 
+  static async duplicateObjective(_event, target) {
+    this.#syncDraftFromForm();
+    const id = String(target?.dataset?.objectiveId ?? "").trim();
+    const next = clone(this.draft);
+    const index = (next.objectives ?? []).findIndex((entry) => entry.id === id);
+    if (index < 0) return;
+    const source = clone(next.objectives[index]);
+    source.id = randomId("objective");
+    source.name = `${source.name || localize("PF2E_ENCOUNTER_FORGE.Flow.Objective", "Objective")} (${localize("PF2E_ENCOUNTER_FORGE.Flow.Copy", "Copy")})`;
+    next.objectives.splice(index + 1, 0, source);
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
   static async removeObjective(_event, target) {
     this.#syncDraftFromForm();
     const id = target?.dataset?.objectiveId;
@@ -1038,6 +1070,20 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       phaseId: null,
       objectiveId: null
     });
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async duplicateFlowAction(_event, target) {
+    this.#syncDraftFromForm();
+    const id = String(target?.dataset?.flowActionId ?? "").trim();
+    const next = clone(this.draft);
+    const index = (next.actions ?? []).findIndex((entry) => entry.id === id);
+    if (index < 0) return;
+    const source = clone(next.actions[index]);
+    source.id = randomId("action");
+    source.name = `${source.name || localize("PF2E_ENCOUNTER_FORGE.Flow.Action", "Action")} (${localize("PF2E_ENCOUNTER_FORGE.Flow.Copy", "Copy")})`;
+    next.actions.splice(index + 1, 0, source);
     this.draft = next;
     await this.#renderFresh();
   }
@@ -1083,6 +1129,22 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       conditions: [],
       actions: []
     });
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async duplicateTrigger(_event, target) {
+    this.#syncDraftFromForm();
+    const id = String(target?.dataset?.triggerId ?? "").trim();
+    const next = clone(this.draft);
+    const index = (next.triggers ?? []).findIndex((entry) => entry.id === id);
+    if (index < 0) return;
+    const source = clone(next.triggers[index]);
+    source.id = randomId("trigger");
+    source.name = `${source.name || localize("PF2E_ENCOUNTER_FORGE.Flow.Trigger", "Trigger")} (${localize("PF2E_ENCOUNTER_FORGE.Flow.Copy", "Copy")})`;
+    // Duplicate triggers start disabled so a copied trigger cannot accidentally fire alongside its source.
+    source.enabled = false;
+    next.triggers.splice(index + 1, 0, source);
     this.draft = next;
     await this.#renderFresh();
   }

@@ -1837,3 +1837,36 @@
 .pf2e-encounter-forge-chat-decision .encounter-director-chat-hint { font-size: 0.82rem; }
 .pf2e-encounter-forge-chat-decision .encounter-director-chat-hint { opacity: 0.75; }
 .pf2e-encounter-forge-chat-decision button { justify-self: start; }
+
+/* Director manual action controls */
+.encounter-director-section-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.55rem;
+}
+.encounter-director-section-heading h2 { margin-bottom: 0.12rem; }
+.encounter-director-section-heading p { margin: 0; opacity: 0.68; font-size: 0.78rem; }
+.encounter-director-action-list { display: grid; gap: 0.42rem; }
+.encounter-director-action-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.65rem;
+  align-items: center;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid color-mix(in srgb, var(--color-border-light-primary, #80726a) 42%, transparent);
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-bg-option, #211d23) 78%, transparent);
+}
+.encounter-director-action-main { min-width: 0; display: grid; gap: 0.08rem; }
+.encounter-director-action-main > strong,
+.encounter-director-action-main > small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.encounter-director-action-main > small { opacity: 0.7; }
+.encounter-director-action-warning { color: var(--color-level-warning, #c5a25b); opacity: 1 !important; }
+.encounter-director-action-row button { min-width: 7.2rem; }
+
+@media (max-width: 620px) {
+  .encounter-director-action-row { grid-template-columns: 1fr; }
+  .encounter-director-action-row button { width: 100%; }
+}

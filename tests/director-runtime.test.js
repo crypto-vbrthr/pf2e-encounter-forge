@@ -426,3 +426,15 @@ test("Director message action is persisted in the Director log and whispered to 
   assert.match(messages[0].content, /The altar begins to crack\./);
   assert.match(messages[0].content, /data-pf2e-encounter-forge-open-director/);
 });
+
+test("Director can manually execute an authored Runtime action through the shared ActionService", async () => {
+  const { runtime, repos } = runtimeFixture();
+  await runtime.activate("instance");
+  assert.equal(repos.read().currentPhaseId, "opening");
+
+  const result = await runtime.executeAction("phase-two", { reason: "director-manual" });
+  assert.equal(result.handled, true);
+  const stored = repos.read();
+  assert.equal(stored.currentPhaseId, "awakening");
+  assert.ok(stored.log.some((entry) => entry.type === "action.manual" && entry.data.actionId === "phase-two"));
+});

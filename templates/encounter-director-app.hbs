@@ -63,6 +63,34 @@
         </section>
       {{/if}}
 
+      <section class="encounter-director-card encounter-director-actions">
+        <div class="encounter-director-section-heading">
+          <div>
+            <h2><i class="fa-solid fa-bolt"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.PreparedActions"}}</h2>
+            <p>{{localize "PF2E_ENCOUNTER_FORGE.Director.PreparedActionsHint"}}</p>
+          </div>
+        </div>
+        {{#if hasActions}}
+          <div class="encounter-director-action-list">
+            {{#each actions}}
+              <article class="encounter-director-action-row">
+                <div class="encounter-director-action-main">
+                  <strong>{{name}}</strong>
+                  <small>{{typeLabel}}{{#if summary}} · {{summary}}{{/if}}</small>
+                  {{#if integrationStatusLabel}}<small class="encounter-director-action-warning"><i class="fa-solid fa-triangle-exclamation"></i> {{integrationStatusLabel}}</small>{{/if}}
+                </div>
+                <button type="button" data-action="runAction" data-action-id="{{id}}" class="secondary" {{#unless runnable}}disabled{{/unless}}>
+                  <i class="fa-solid fa-play"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.RunAction"}}
+                </button>
+              </article>
+            {{/each}}
+          </div>
+          {{#unless canRunActions}}<p class="encounter-director-empty">{{localize "PF2E_ENCOUNTER_FORGE.Director.ActionsRequireRunning"}}</p>{{/unless}}
+        {{else}}
+          <p class="encounter-director-empty">{{localize "PF2E_ENCOUNTER_FORGE.Director.NoActions"}}</p>
+        {{/if}}
+      </section>
+
       <section class="encounter-director-card">
         <h2>{{localize "PF2E_ENCOUNTER_FORGE.Director.Phase"}}</h2>
         {{#if hasPhases}}

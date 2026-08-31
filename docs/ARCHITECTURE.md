@@ -254,3 +254,9 @@ External providers retain ownership of their Runtime lifecycle. Encounter Forge 
 Provider failures are contained at the ActionService boundary and emitted as `action.failed`; successful executions emit `action.executed`. The Encounter Runtime turns those events into persistent Director log entries and continues processing the Encounter.
 
 Loot Actors created by Runtime actions are moved into the Encounter deployment Actor folder where available and their UUIDs are retained under `instance.runtimeVariables.integrationActions[actionId].lootActorUuids`.
+
+## Director manual actions
+
+The Encounter Director may invoke authored Blueprint actions manually while an Encounter Instance is `active` or `paused`. This does not create a second execution path: Director calls `EncounterRuntime.executeAction()`, which delegates to the same `ActionService` used by Trigger and GM-decision execution. Integration ownership therefore remains unchanged.
+
+Manual execution is a runtime operation, not a Blueprint mutation. It is logged persistently on the Instance and never rewrites the authored action definition.

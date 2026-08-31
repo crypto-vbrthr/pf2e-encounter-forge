@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.1.0-alpha.10 - Director Manual Actions & Flow Authoring Comfort
+
+### Added
+- Added a **Prepared Actions** panel to Encounter Director. While an Encounter is active or paused, the GM can execute any authored action directly without waiting for its Trigger.
+- Manual Director execution uses the same Encounter Runtime `ActionService` path as triggered actions, so phase changes, objective progress, Director messages, Effects, Auras, Afflictions, and Loot keep their normal ownership and integration boundaries.
+- Added `api.runtime.executeAction(actionOrId, options)` for add-ons and external Director surfaces.
+- Manual action execution is persisted in the Encounter log and emits the normal Director refresh path.
+- Added duplicate controls for phases, objectives, actions, and triggers in Flow authoring. Duplicated triggers start disabled to avoid accidentally running both the source and its copy.
+
+### Changed
+- Director action rows show action type, a short target/result summary, and whether a required external Forge integration is currently unavailable.
+- Prepared actions are intentionally disabled before Encounter start and after completion; the Director remains a control desk for the running or paused Encounter rather than a pre-start mutation surface.
+
 ## 0.1.0-alpha.9.7 - Runtime Event Deduplication & Director Messages
 
 ### Fixed

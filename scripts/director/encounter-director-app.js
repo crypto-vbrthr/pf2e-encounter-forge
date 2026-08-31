@@ -38,6 +38,25 @@ function logTime(value) {
   catch { return String(value); }
 }
 
+function integrationForActionType(type) {
+  return ({
+    "effect.apply": "effectForge",
+    "aura.setEnabled": "auraForge",
+    "affliction.apply": "afflictionForge",
+    "loot.createActor": "lootForge"
+  })[String(type ?? "")] ?? null;
+}
+
+function actionTypeLabel(type) {
+  const key = `PF2E_ENCOUNTER_FORGE.Flow.ActionType.${String(type ?? "")}`;
+  return localize(key, String(type ?? ""));
+}
+
+function truncate(value, max = 90) {
+  const text = String(value ?? "").trim();
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text;
+}
+
 export class EncounterDirectorApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "pf2e-encounter-forge-director",
@@ -62,6 +81,7 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       objectiveReopen: EncounterDirectorApp.objectiveReopen,
       acceptDecision: EncounterDirectorApp.acceptDecision,
       dismissDecision: EncounterDirectorApp.dismissDecision,
+      runAction: EncounterDirectorApp.runAction,
       viewScene: EncounterDirectorApp.viewScene
     }
   };
@@ -332,6 +352,42 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
         stateLabel: localize(`PF2E_ENCOUNTER_FORGE.Director.ParticipantState.${runtimeParticipant?.state ?? participant.state}`, runtimeParticipant?.state ?? participant.state ?? "unknown")
       };
     });
+    const phaseNames = new Map((blueprint?.phases ?? []).map((entry) => [entry.id, phaseLabel(entry)]));
+    const objectiveNames = new Map((blueprint?.objectives ?? []).map((entry) => [entry.id, objectiveLabel(entry)]));
+    const participantNames = new Map((blueprint?.participants ?? []).map((entry) => [entry.id, entry.name ?? entry.label ?? entry.id]));
+    const actionRows = (blueprint?.actions ?? []).map((action) => {
+      const type = String(action.type ?? action.kind ?? "");
+      const integrationId = integrationForActionType(type);
+      const integrationStatus = integrationId ? getApi()?.integrations?.status?.(integrationId) : null;
+      let summary = "";
+      if (type === "phase.transition") summary = phaseNames.get(action.phaseId ?? action.targetPhaseId ?? action.target) ?? "";
+      else if (type === "objective.progress") {
+        const objective = objectiveNames.get(action.objectiveId ?? action.target) ?? "";
+        const amount = Number(action.amount ?? 1);
+        summary = `${objective}${objective ? " · " : ""}${amount >= 0 ? "+" : ""}${amount}`;
+      } else if (type === "director.message" || type === "chat.note") summary = truncate(action.message ?? action.text ?? action.label ?? "");
+      else if (["effect.apply", "aura.setEnabled", "affliction.apply"].includes(type)) {
+        const mode = String(action.targetMode ?? action.target?.mode ?? "participant");
+        const id = String(action.targetId ?? action.target?.id ?? "");
+        if (mode === "all") summary = localize("PF2E_ENCOUNTER_FORGE.Director.ActionTargetAll", "All participants");
+        else if (mode === "group") summary = groups.get(id) ?? id;
+        else summary = participantNames.get(id) ?? id;
+        if (type === "aura.setEnabled") summary = `${summary}${summary ? " · " : ""}${action.enabled !== false ? localize("PF2E_ENCOUNTER_FORGE.Director.AuraEnable", "enable") : localize("PF2E_ENCOUNTER_FORGE.Director.AuraDisable", "disable")}`;
+      } else if (type === "loot.createActor") summary = String(action.lootActorName ?? action.loot?.config?.newLootActorName ?? "").trim();
+      const integrationReady = !integrationId || Boolean(integrationStatus?.usable);
+      return {
+        id: action.id,
+        name: String(action.name ?? action.label ?? action.id ?? type),
+        type,
+        typeLabel: actionTypeLabel(type),
+        summary,
+        integrationId,
+        integrationReady,
+        integrationStatusLabel: integrationId && !integrationReady ? localize("PF2E_ENCOUNTER_FORGE.Director.ActionIntegrationUnavailable", "Integration unavailable") : "",
+        runnable: ["active", "paused"].includes(instance.status) && integrationReady
+      };
+    });
+
     const pendingDecisions = (instance.decisions ?? []).filter((entry) => entry.status === "pending").map((entry) => ({
       ...clone(entry),
       title: entry.title || localize("PF2E_ENCOUNTER_FORGE.Director.Decision.Title", "Encounter decision")
@@ -365,6 +421,9 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       hasObjectives: objectives.length > 0,
       participants: participantRows,
       hasParticipants: participantRows.length > 0,
+      actions: actionRows,
+      hasActions: actionRows.length > 0,
+      canRunActions: ["active", "paused"].includes(status),
       pendingDecisions,
       hasPendingDecisions: pendingDecisions.length > 0,
       logs,
@@ -493,6 +552,21 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
     if (!id) return;
     await this.#ensureBound();
     await getApi()?.runtime?.resolveDecision?.(id, "dismiss");
+    await this.#refreshAndRender(true);
+  }
+
+  static async runAction(_event, target) {
+    const id = String(target?.dataset?.actionId ?? "").trim();
+    if (!id) return;
+    await this.#ensureBound();
+    try {
+      const result = await getApi()?.runtime?.executeAction?.(id, { reason: "director-manual" });
+      if (result?.handled) ui.notifications.info(localize("PF2E_ENCOUNTER_FORGE.Notifications.ActionExecuted", "Encounter action executed."));
+      else ui.notifications.warn(localize("PF2E_ENCOUNTER_FORGE.Notifications.ActionNotExecuted", "Encounter action could not be executed."));
+    } catch (error) {
+      console.error(`${MODULE_ID} | Manual Director action failed.`, error);
+      ui.notifications.error(error?.message ?? localize("PF2E_ENCOUNTER_FORGE.Notifications.ActionNotExecuted", "Encounter action could not be executed."));
+    }
     await this.#refreshAndRender(true);
   }
 

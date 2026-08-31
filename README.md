@@ -1,5 +1,13 @@
 # PF2E Encounter Forge
 
+## 0.1.0-alpha.10 — Director Manual Actions & Flow Authoring Comfort
+
+Encounter Director now exposes the Blueprint's **Prepared Actions** as a live GM control surface. During an active or paused Encounter, the GM can run an authored phase change, objective adjustment, Director message, Effect, Aura, Affliction, or Loot action directly without waiting for a Trigger. Manual execution deliberately uses the same Runtime action pipeline as automatic/confirmed Trigger execution, so external Forges remain responsible for their own rules and documents.
+
+The Director shows each action's type and a compact target/configuration summary. Actions that require a disabled or unavailable integration are visible but cannot be run until that integration is usable. Manual executions are recorded in the persistent Encounter log. The same capability is available to add-ons through `api.runtime.executeAction(...)`.
+
+Flow authoring also gains one-click **Duplicate** controls for phases, objectives, actions, and triggers. This is especially useful for paired Aura on/off actions, repeated phase structures, and similar Trigger variants. A duplicated Trigger starts disabled as a safety measure, so it can be adjusted before it is allowed to fire beside the original.
+
 ## 0.1.0-alpha.9.7 — Runtime Event Deduplication & Director Messages
 
 Foundry v14 can report one Combat transition through several hooks in very quick succession. Encounter Runtime now reserves round and turn observations before awaiting downstream listeners, so those overlapping hook paths collapse into one logical Runtime event. This prevents a single Combat start/round change from advancing an objective multiple times or creating duplicate GM decisions. One-shot triggers also have their own in-flight guard as a second safety layer.

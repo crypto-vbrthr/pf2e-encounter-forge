@@ -113,6 +113,7 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       adjustObjective: (objectiveId, amount = 1, options = {}) => runtime.adjustObjective(objectiveId, amount, options),
       setObjectiveState: (objectiveId, state, options = {}) => runtime.setObjectiveState(objectiveId, state, options),
       resolveDecision: (decisionId, resolution, options = {}) => runtime.resolveDecision(decisionId, resolution, options),
+      executeAction: (actionOrId, options = {}) => runtime.executeAction(actionOrId, options),
       inspect: (instanceOrId = null) => runtime.inspect(instanceOrId),
       stop: (options = {}) => runtime.stop(options),
       restore: (options = {}) => runtime.restore(options),

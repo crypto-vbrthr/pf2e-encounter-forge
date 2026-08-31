@@ -347,3 +347,24 @@ test("completed Director state yields to a newly prepared redeployment and new t
   assert.match(directorUi, /\["active", "paused", "prepared"\]\.includes\(runtimeStatus\.instanceStatus\)/);
   assert.match(appSource, /event:\s*"combat\.roundEnded"/);
 });
+
+test("Encounter Director exposes prepared actions as manual GM controls", () => {
+  const directorTemplate = fs.readFileSync(new URL("../templates/encounter-director-app.hbs", import.meta.url), "utf8");
+  const directorApp = fs.readFileSync(new URL("../scripts/director/encounter-director-app.js", import.meta.url), "utf8");
+  const runtimeSource = fs.readFileSync(new URL("../scripts/runtime/encounter-runtime.js", import.meta.url), "utf8");
+  const apiSource = fs.readFileSync(new URL("../scripts/api/public-api.js", import.meta.url), "utf8");
+  assert.match(directorTemplate, /PF2E_ENCOUNTER_FORGE\.Director\.PreparedActions/);
+  assert.match(directorTemplate, /data-action="runAction" data-action-id="\{\{id\}\}"/);
+  assert.match(directorApp, /static async runAction/);
+  assert.match(runtimeSource, /async executeAction\(actionOrId/);
+  assert.match(apiSource, /executeAction:\s*\(actionOrId/);
+});
+
+test("Flow authoring can duplicate phases, objectives, actions, and safe-disabled triggers", () => {
+  for (const action of ["duplicatePhase", "duplicateObjective", "duplicateFlowAction", "duplicateTrigger"]) {
+    assert.match(template, new RegExp(`data-action="${action}"`));
+    assert.match(appSource, new RegExp(`static async ${action}`));
+  }
+  assert.match(appSource, /source\.enabled = false/);
+  assert.match(template, /PF2E_ENCOUNTER_FORGE\.Flow\.Duplicate/);
+});

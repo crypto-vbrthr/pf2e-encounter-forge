@@ -525,6 +525,31 @@ export class EncounterRuntime {
     return { triggerId: trigger.id, automatic: true };
   }
 
+  async executeAction(actionOrId, { force = false, reason = "manual-director" } = {}) {
+    this.#assertAuthority(force);
+    if (!this.instance) throw new EncounterForgeError("No Encounter Instance is bound to the Runtime.", { code: "RUNTIME_NO_INSTANCE" });
+    if (!["active", "paused"].includes(this.instance.status)) {
+      throw new EncounterForgeError("Encounter actions can only be executed while the Encounter is active or paused.", { code: "RUNTIME_ACTION_INACTIVE" });
+    }
+    const action = typeof actionOrId === "string"
+      ? (this.blueprint?.actions ?? []).find((entry) => entry.id === actionOrId)
+      : actionOrId;
+    if (!action) throw new EncounterForgeError(`Unknown Encounter action '${actionOrId}'.`, { code: "RUNTIME_ACTION_UNKNOWN" });
+
+    const label = String(action.name ?? action.label ?? action.id ?? action.type ?? "Action");
+    const result = await this.services.actions.execute(action, { reason, manual: true, instanceId: this.instance.id });
+    if (result?.handled) {
+      await this.addLog(
+        "action.manual",
+        localize("PF2E_ENCOUNTER_FORGE.Director.Log.ActionManual", `GM manually executed action: ${label}.`, { action: label }),
+        { actionId: action.id ?? null, actionType: action.type ?? action.kind ?? null, reason, result: deepClone(result) }
+      );
+      await this.#persist({ reason: "manual-action" });
+      await this.bus.emit("director.changed", { instanceId: this.instance.id, reason: "manual-action" });
+    }
+    return result;
+  }
+
   async resolveDecision(decisionId, resolution, { force = false } = {}) {
     this.#assertAuthority(force);
     if (!this.instance) throw new EncounterForgeError("No Encounter Instance is bound to the Runtime.", { code: "RUNTIME_NO_INSTANCE" });

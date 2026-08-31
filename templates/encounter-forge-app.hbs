@@ -382,6 +382,7 @@
                     <div class="encounter-forge-flow-row-actions">
                       <button type="button" data-action="movePhaseUp" data-phase-id="{{id}}" class="icon-only" {{#unless canMoveUp}}disabled{{/unless}}><i class="fa-solid fa-arrow-up"></i></button>
                       <button type="button" data-action="movePhaseDown" data-phase-id="{{id}}" class="icon-only" {{#unless canMoveDown}}disabled{{/unless}}><i class="fa-solid fa-arrow-down"></i></button>
+                      <button type="button" data-action="duplicatePhase" data-phase-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Flow.Duplicate"><i class="fa-regular fa-copy"></i></button>
                       <button type="button" data-action="removePhase" data-phase-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
                     </div>
                   </div>
@@ -408,7 +409,10 @@
                 <article class="encounter-forge-objective-row" data-objective-id="{{id}}">
                   <div class="encounter-forge-flow-row-head">
                     <input type="text" value="{{name}}" data-objective-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}">
-                    <button type="button" data-action="removeObjective" data-objective-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                    <div class="encounter-forge-flow-row-actions">
+                      <button type="button" data-action="duplicateObjective" data-objective-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Flow.Duplicate"><i class="fa-regular fa-copy"></i></button>
+                      <button type="button" data-action="removeObjective" data-objective-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                   </div>
                   <div class="encounter-forge-objective-fields">
                     <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Target"}}</span><input type="number" min="1" max="999" step="1" value="{{targetValue}}" data-objective-field="target"></label>
@@ -438,7 +442,10 @@
                 <article class="encounter-forge-flow-action-row" data-flow-action-id="{{id}}" data-flow-action-type="{{type}}">
                   <div class="encounter-forge-flow-row-head">
                     <input type="text" value="{{name}}" data-flow-action-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}">
-                    <button type="button" data-action="removeFlowAction" data-flow-action-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                    <div class="encounter-forge-flow-row-actions">
+                      <button type="button" data-action="duplicateFlowAction" data-flow-action-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Flow.Duplicate"><i class="fa-regular fa-copy"></i></button>
+                      <button type="button" data-action="removeFlowAction" data-flow-action-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                   </div>
                   <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ActionTypeLabel"}}</span><select data-flow-action-field="type">{{#each typeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}} {{#if disabled}}disabled{{/if}}>{{label}}</option>{{/each}}</select></label>
                   {{#if isPhaseTransition}}
@@ -499,7 +506,10 @@
                 <article class="encounter-forge-trigger-row" data-trigger-id="{{id}}">
                   <div class="encounter-forge-flow-row-head">
                     <input type="text" value="{{name}}" data-trigger-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}">
-                    <button type="button" data-action="removeTrigger" data-trigger-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                    <div class="encounter-forge-flow-row-actions">
+                      <button type="button" data-action="duplicateTrigger" data-trigger-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Flow.Duplicate"><i class="fa-regular fa-copy"></i></button>
+                      <button type="button" data-action="removeTrigger" data-trigger-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                    </div>
                   </div>
                   <div class="encounter-forge-trigger-grid">
                     <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.EventLabel"}}</span><select data-trigger-field="event">{{#each eventOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>

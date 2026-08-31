@@ -429,5 +429,19 @@
   "PF2E_ENCOUNTER_FORGE.Director.ChatDecision.Hint": "A trigger is waiting for your decision. Open Encounter Director to apply or dismiss its prepared actions.",
   "PF2E_ENCOUNTER_FORGE.Director.ChatDecision.Actions": "Prepared actions",
   "PF2E_ENCOUNTER_FORGE.Director.ChatDecision.OpenDirector": "Open Director",
-  "PF2E_ENCOUNTER_FORGE.Director.ChatMessage.Title": "Encounter Director"
+  "PF2E_ENCOUNTER_FORGE.Director.ChatMessage.Title": "Encounter Director",
+  "PF2E_ENCOUNTER_FORGE.Director.PreparedActions": "Prepared Actions",
+  "PF2E_ENCOUNTER_FORGE.Director.PreparedActionsHint": "Run prepared Encounter actions directly when needed without waiting for a trigger.",
+  "PF2E_ENCOUNTER_FORGE.Director.RunAction": "Run",
+  "PF2E_ENCOUNTER_FORGE.Director.NoActions": "No actions have been authored for this Encounter.",
+  "PF2E_ENCOUNTER_FORGE.Director.ActionsRequireRunning": "Manual actions become available while the Encounter is active or paused.",
+  "PF2E_ENCOUNTER_FORGE.Director.ActionTargetAll": "All participants",
+  "PF2E_ENCOUNTER_FORGE.Director.AuraEnable": "enable",
+  "PF2E_ENCOUNTER_FORGE.Director.AuraDisable": "disable",
+  "PF2E_ENCOUNTER_FORGE.Director.ActionIntegrationUnavailable": "Integration unavailable or not enabled",
+  "PF2E_ENCOUNTER_FORGE.Director.Log.ActionManual": "GM manually executed action: {action}.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.ActionExecuted": "Encounter action executed.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.ActionNotExecuted": "Encounter action could not be executed.",
+  "PF2E_ENCOUNTER_FORGE.Flow.Duplicate": "Duplicate",
+  "PF2E_ENCOUNTER_FORGE.Flow.Copy": "Copy"
 }
