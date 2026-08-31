@@ -41,6 +41,7 @@ export class TriggerService extends RuntimeService {
     this.enabled = enabled;
     this.onTrigger = onTrigger;
     this.unsubscribe = null;
+    this.inFlight = new Set();
   }
 
   async start() {
@@ -53,6 +54,7 @@ export class TriggerService extends RuntimeService {
   async stop() {
     try { this.unsubscribe?.(); } catch {}
     this.unsubscribe = null;
+    this.inFlight.clear();
     return super.stop();
   }
 
@@ -66,10 +68,15 @@ export class TriggerService extends RuntimeService {
     for (const trigger of blueprint.triggers ?? []) {
       if (trigger?.enabled === false) continue;
       const once = trigger?.once !== false;
-      if (once && fired.has(trigger.id)) continue;
+      if (once && (fired.has(trigger.id) || this.inFlight.has(trigger.id))) continue;
       if (!matchesEvent(trigger, event) || !matchesConditions(trigger, event, instance)) continue;
       matches.push(trigger);
-      await this.onTrigger?.(trigger, event);
+      if (once) this.inFlight.add(trigger.id);
+      try {
+        await this.onTrigger?.(trigger, event);
+      } finally {
+        if (once) this.inFlight.delete(trigger.id);
+      }
     }
     return matches;
   }

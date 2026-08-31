@@ -1814,3 +1814,26 @@
   border-top: 1px solid var(--color-border-light-primary, rgba(255,255,255,0.14));
   background: var(--background, rgba(30,30,30,0.96));
 }
+
+/* GM decision Chat notice ------------------------------------------------ */
+.pf2e-encounter-forge-chat-decision {
+  display: grid;
+  gap: 0.45rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgba(201, 165, 106, 0.55);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background: rgba(201, 165, 106, 0.09);
+}
+.pf2e-encounter-forge-chat-decision h3,
+.pf2e-encounter-forge-chat-decision p { margin: 0; }
+.pf2e-encounter-forge-chat-decision h3 {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.95rem;
+}
+.pf2e-encounter-forge-chat-decision .encounter-director-chat-actions,
+.pf2e-encounter-forge-chat-decision .encounter-director-chat-hint { font-size: 0.82rem; }
+.pf2e-encounter-forge-chat-decision .encounter-director-chat-hint { opacity: 0.75; }
+.pf2e-encounter-forge-chat-decision button { justify-self: start; }

@@ -338,7 +338,7 @@
   "PF2E_ENCOUNTER_FORGE.Flow.ActionType.phase.transition": "Phase wechseln",
   "PF2E_ENCOUNTER_FORGE.Flow.ActionType.objective.progress": "Zielfortschritt ändern",
   "PF2E_ENCOUNTER_FORGE.Flow.ActionType.director.message": "Director-Meldung",
-  "PF2E_ENCOUNTER_FORGE.Flow.Event.combat.roundChanged": "Kampfrunde geändert",
+  "PF2E_ENCOUNTER_FORGE.Flow.Event.combat.roundChanged": "Neue Kampfrunde begonnen",
   "PF2E_ENCOUNTER_FORGE.Flow.Event.combat.turnChanged": "Kampfzug geändert",
   "PF2E_ENCOUNTER_FORGE.Flow.Event.participant.hpChanged": "TP eines Teilnehmers geändert",
   "PF2E_ENCOUNTER_FORGE.Flow.Event.participant.defeated": "Teilnehmer besiegt",
@@ -391,7 +391,7 @@
   "PF2E_ENCOUNTER_FORGE.Notifications.ExampleCreateFailed": "Die Beispielbegegnung konnte nicht erstellt werden.",
   "PF2E_ENCOUNTER_FORGE.Notifications.ExampleNeedsParticipants": "Ersetze die Beispiel-Platzhalter durch echte Encounter-Teilnehmer, bevor du die Begegnung einsetzt.",
   "PF2E_ENCOUNTER_FORGE.Flow.AnyObjective": "Jedes Ziel",
-  "PF2E_ENCOUNTER_FORGE.Flow.Event.combat.roundEnded": "Runde beendet",
+  "PF2E_ENCOUNTER_FORGE.Flow.Event.combat.roundEnded": "Kampfrunde beendet",
   "PF2E_ENCOUNTER_FORGE.Flow.Event.objective.progressChanged": "Zielfortschritt geändert",
   "PF2E_ENCOUNTER_FORGE.Flow.Event.objective.completed": "Zielwert erreicht",
   "PF2E_ENCOUNTER_FORGE.Flow.ConditionField.objectiveId": "Ziel-ID",
@@ -424,5 +424,10 @@
   "PF2E_ENCOUNTER_FORGE.Notifications.IntegrationActionInvalid": "Die Aktion der externen Forge ist unvollständig oder ungültig.",
   "PF2E_ENCOUNTER_FORGE.Notifications.IntegrationActionUnavailable": "Die benötigte externe Forge ist nicht verfügbar, deaktiviert oder noch nicht bereit.",
   "PF2E_ENCOUNTER_FORGE.Director.Log.ActionExecuted": "Aktion ausgeführt: {action}.",
-  "PF2E_ENCOUNTER_FORGE.Director.Log.ActionFailed": "Aktion fehlgeschlagen: {action}. {error}"
+  "PF2E_ENCOUNTER_FORGE.Director.Log.ActionFailed": "Aktion fehlgeschlagen: {action}. {error}",
+  "PF2E_ENCOUNTER_FORGE.Director.ChatDecision.Title": "Encounter Director: Entscheidung erforderlich",
+  "PF2E_ENCOUNTER_FORGE.Director.ChatDecision.Hint": "Ein Trigger wartet auf deine Entscheidung. Öffne den Encounter Director, um die vorbereiteten Aktionen anzuwenden oder zu verwerfen.",
+  "PF2E_ENCOUNTER_FORGE.Director.ChatDecision.Actions": "Vorbereitete Aktionen",
+  "PF2E_ENCOUNTER_FORGE.Director.ChatDecision.OpenDirector": "Director öffnen",
+  "PF2E_ENCOUNTER_FORGE.Director.ChatMessage.Title": "Encounter Director"
 }

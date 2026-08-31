@@ -73,9 +73,13 @@ export class ActionService extends RuntimeService {
     for (const actor of targets) {
       let instance = api.instances?.list?.(actor)?.find?.((entry) => String(entry?.definitionId ?? "") === definitionId) ?? null;
       if (enabled) {
-        if (!definition) throw new Error("Enabling an Aura requires the stored Aura Definition.");
-        instance = await api.instances.assignDefinition(actor, definition, { enabled: true });
-        if (instance?.id) await api.instances.setEnabled(actor, instance.id, true);
+        if (instance?.id) {
+          await api.instances.setEnabled(actor, instance.id, true);
+        } else {
+          if (!definition) throw new Error("Enabling an Aura requires the stored Aura Definition.");
+          instance = await api.instances.assignDefinition(actor, definition, { enabled: true });
+          if (instance?.id) await api.instances.setEnabled(actor, instance.id, true);
+        }
       } else if (instance?.id) {
         await api.instances.setEnabled(actor, instance.id, false);
       }

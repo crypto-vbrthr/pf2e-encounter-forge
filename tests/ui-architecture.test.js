@@ -328,3 +328,22 @@ test("Encounter Director has a passive snapshot fallback for prepared-Encounter 
   assert.match(directorApp, /runtime\?\.inspect/);
   assert.match(directorApp, /lastObservationFingerprint/);
 });
+
+test("GM decision flow surfaces a Chat notice with a Director launcher", () => {
+  const runtimeSource = fs.readFileSync(new URL("../scripts/runtime/encounter-runtime.js", import.meta.url), "utf8");
+  const directorUi = fs.readFileSync(new URL("../scripts/director/encounter-director-ui.js", import.meta.url), "utf8");
+  assert.match(runtimeSource, /#notifyDecisionInChat/);
+  assert.match(runtimeSource, /data-pf2e-encounter-forge-open-director/);
+  assert.match(runtimeSource, /whisper:\s*gmIds/);
+  assert.match(directorUi, /renderChatMessage/);
+  assert.match(directorUi, /data-pf2e-encounter-forge-open-director/);
+});
+
+test("completed Director state yields to a newly prepared redeployment and new triggers default to round end", () => {
+  const directorApp = fs.readFileSync(new URL("../scripts/director/encounter-director-app.js", import.meta.url), "utf8");
+  const directorUi = fs.readFileSync(new URL("../scripts/director/encounter-director-ui.js", import.meta.url), "utf8");
+  assert.match(directorApp, /#preparedSuccessorId/);
+  assert.match(directorApp, /candidate\.status !== "prepared"/);
+  assert.match(directorUi, /\["active", "paused", "prepared"\]\.includes\(runtimeStatus\.instanceStatus\)/);
+  assert.match(appSource, /event:\s*"combat\.roundEnded"/);
+});

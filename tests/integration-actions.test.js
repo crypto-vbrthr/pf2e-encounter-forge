@@ -36,10 +36,12 @@ test("runtime integration action delegates Effect Forge definitions to resolved 
 test("runtime integration action assigns and toggles Actor-local Aura Forge definitions", async () => {
   const states = new Map();
   const setCalls = [];
+  const assignCalls = [];
   const api = {
     instances: {
       list: (actor) => states.get(actor.uuid) ? [states.get(actor.uuid)] : [],
       async assignDefinition(actor, definition) {
+        assignCalls.push({ actor: actor.uuid, definitionId: definition.id });
         const instance = { id: `aura-${actor.uuid}`, definitionId: definition.id, enabled: true };
         states.set(actor.uuid, instance);
         return instance;
@@ -52,6 +54,9 @@ test("runtime integration action assigns and toggles Actor-local Aura Forge defi
   const enabled = await service.execute({ id: "on", type: "aura.setEnabled", definition, targetMode: "all", enabled: true });
   assert.equal(enabled.handled, true);
   assert.equal(setCalls.filter((entry) => entry.enabled).length, 2);
+  assert.equal(assignCalls.length, 2);
+  await service.execute({ id: "on-again", type: "aura.setEnabled", definition, targetMode: "all", enabled: true });
+  assert.equal(assignCalls.length, 2, "existing Aura instances should only be re-enabled, not assigned a second time");
   const disabled = await service.execute({ id: "off", type: "aura.setEnabled", definition, targetMode: "all", enabled: false });
   assert.equal(disabled.handled, true);
   assert.equal(setCalls.filter((entry) => !entry.enabled).length, 2);

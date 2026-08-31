@@ -1,13 +1,14 @@
 import { MODULE_ID } from "../constants.js";
+import { collectionContents } from "../utils/data.js";
 import { RuntimeService } from "./base-service.js";
 import { hpChangeDetected } from "../utils/change-paths.js";
+import { combatSceneContext, sceneId } from "../utils/combat-context.js";
 
 function uuidOf(document, fallback = null) {
   if (document?.uuid) return document.uuid;
   if (fallback && document?.id) return `${fallback}.${document.id}`;
   return null;
 }
-
 
 function hpSnapshot(actor) {
   const hp = actor?.system?.attributes?.hp ?? actor?.system?.attributes?.hitPoints ?? null;
@@ -22,22 +23,93 @@ function hpSnapshot(actor) {
 }
 
 export class EventService extends RuntimeService {
-  constructor({ bus = null, getInstance = () => null, participants = null, hooksRef = globalThis.Hooks } = {}) {
+  constructor({ bus = null, getInstance = () => null, participants = null, hooksRef = globalThis.Hooks, gameRef = globalThis.game } = {}) {
     super("events");
     this.bus = bus;
     this.getInstance = getInstance;
     this.participants = participants;
     this.hooksRef = hooksRef;
+    this.gameRef = gameRef;
     this.hooks = [];
+    this.lastRounds = new Map();
+    this.lastTurns = new Map();
+  }
+
+  combatDiagnostic(combat) {
+    const instance = this.getInstance();
+    const combatUuid = uuidOf(combat, "Combat");
+    const flagged = combat?.flags?.[MODULE_ID]?.encounter ?? {};
+    const encounterSceneId = sceneId(instance?.deployment?.sceneUuid);
+    const receivedContext = combatSceneContext(combat, { instance, gameRef: this.gameRef });
+    const receivedSceneId = receivedContext.sceneId;
+    const current = this.gameRef?.combat ?? null;
+    const currentMatches = !current || current === combat || current?.id === combat?.id;
+
+    let matches = false;
+    let reason = "no-instance-or-combat";
+    if (instance && combat) {
+      if (instance.deployment?.combatUuid && combatUuid === instance.deployment.combatUuid) {
+        matches = true;
+        reason = "deployment-combat-uuid";
+      } else if (flagged.instanceId === instance.id) {
+        matches = true;
+        reason = "combat-instance-id-flag";
+      } else {
+        const instanceUuid = instance.documentUuid ?? null;
+        if (instanceUuid && flagged.instanceUuid === instanceUuid) {
+          matches = true;
+          reason = "combat-instance-uuid-flag";
+        } else {
+          const sameScene = Boolean(encounterSceneId && receivedSceneId === encounterSceneId);
+          if (!sameScene) reason = "scene-mismatch";
+          else if (!currentMatches) reason = "not-current-combat";
+          else {
+            matches = true;
+            reason = "current-combat-on-encounter-scene";
+          }
+        }
+      }
+    }
+
+    return {
+      matches,
+      reason,
+      instanceId: instance?.id ?? null,
+      instanceStatus: instance?.status ?? null,
+      expectedCombatUuid: instance?.deployment?.combatUuid ?? null,
+      expectedSceneId: encounterSceneId,
+      receivedCombatUuid: combatUuid,
+      receivedCombatId: combat?.id ?? null,
+      receivedSceneId,
+      receivedRound: combat?.round ?? null,
+      receivedTurn: combat?.turn ?? null,
+      receivedStarted: combat?.started ?? null,
+      combatFlags: flagged,
+      currentCombatId: current?.id ?? null,
+      currentCombatUuid: uuidOf(current, "Combat"),
+      currentCombatSceneId: combatSceneContext(current, { instance, gameRef: this.gameRef }).sceneId,
+      receivedSceneContext: receivedContext,
+      currentCombatRound: current?.round ?? null,
+      currentCombatTurn: current?.turn ?? null,
+      currentMatches
+    };
   }
 
   #matchesCombat(combat) {
-    const instance = this.getInstance();
-    if (!instance || !combat) return false;
-    const combatUuid = uuidOf(combat, "Combat");
-    if (instance.deployment?.combatUuid && combatUuid === instance.deployment.combatUuid) return true;
-    const flagged = combat.flags?.[MODULE_ID]?.encounter?.instanceId;
-    return flagged === instance.id;
+    return this.combatDiagnostic(combat).matches;
+  }
+
+  #debugHook(name, combat, payload = {}) {
+    const diagnostic = this.combatDiagnostic(combat);
+    const key = combat ? this.#combatKey(combat) : null;
+    if (globalThis.__PF2E_ENCOUNTER_FORGE_DEBUG__ !== true) return;
+    console.warn(`[PF2E Encounter Forge DEBUG] ${name}`, {
+      diagnostic,
+      payload,
+      knownRound: key ? this.lastRounds.get(key) : undefined,
+      knownTurn: key ? this.lastTurns.get(key) : undefined,
+      serviceStarted: this.started
+    });
   }
 
   #register(name, fn) {
@@ -59,27 +131,120 @@ export class EventService extends RuntimeService {
     await this.bus?.emit?.(type, event);
   }
 
+  #combatKey(combat) {
+    return uuidOf(combat, "Combat") ?? String(combat?.id ?? "combat");
+  }
+
+  #seedCombat(combat) {
+    if (!this.#matchesCombat(combat)) return;
+    const key = this.#combatKey(combat);
+    const round = Number(combat?.round ?? 0);
+    const turn = Number(combat?.turn ?? 0);
+    if (Number.isFinite(round)) this.lastRounds.set(key, round);
+    if (Number.isFinite(turn)) this.lastTurns.set(key, turn);
+  }
+
+  async #processCombatState(combat, { roundSignal = false, turnSignal = false, roundValue = undefined, turnValue = undefined } = {}) {
+    if (!this.#matchesCombat(combat)) return;
+    const key = this.#combatKey(combat);
+    // combatStart/combatRound/combatTurn fire BEFORE Foundry updates the Combat
+    // document. Their updateData argument therefore contains the new values while
+    // combat.round/combat.turn still contain the previous state. Prefer explicit
+    // hook values when supplied and fall back to the persisted document otherwise.
+    const round = Number(roundValue ?? combat?.round ?? 0);
+    const turn = Number(turnValue ?? combat?.turn ?? 0);
+    const combatUuid = uuidOf(combat, "Combat");
+
+    if (roundSignal && Number.isFinite(round)) {
+      const known = this.lastRounds.get(key);
+      const changed = known === undefined || round !== known;
+      if (changed) {
+        // Reserve the new state BEFORE awaiting any Runtime listeners. Foundry v14 can
+        // deliver combatStart/updateCombat/combatTurnChange for the same transition in
+        // quick succession without awaiting module callbacks. Reserving synchronously
+        // makes those parallel signal paths genuinely idempotent.
+        this.lastRounds.set(key, round);
+
+        // The first observed round establishes the Runtime baseline. Never synthesize
+        // earlier completed rounds here: starting/binding an Encounter in an existing
+        // Combat must not retroactively fire round-end mechanics.
+        if (known !== undefined && round > known && known > 0) {
+          // Manual round jumps after the baseline still represent completed rounds.
+          for (let completed = known; completed < round; completed += 1) {
+            await this.#emit("combat.roundEnded", { combatUuid, round: completed, nextRound: completed + 1, turn });
+          }
+        }
+        await this.#emit("combat.roundChanged", { combatUuid, round, turn });
+      }
+    }
+
+    if (turnSignal && Number.isFinite(turn)) {
+      const knownTurn = this.lastTurns.get(key);
+      if (knownTurn === undefined || turn !== knownTurn) {
+        // Same reservation rule as rounds: suppress concurrent duplicate Foundry hooks.
+        this.lastTurns.set(key, turn);
+        await this.#emit("combat.turnChanged", { combatUuid, round, turn });
+      }
+    }
+  }
+
   async start() {
     if (this.started) return this.status();
     await super.start();
 
     this.#register("updateCombat", async (combat, changed = {}) => {
-      if (!this.#matchesCombat(combat)) return;
-      if (Object.prototype.hasOwnProperty.call(changed, "round")) {
-        const currentRound = Number(combat.round ?? changed.round ?? 0);
-        if (currentRound > 1) {
-          await this.#emit("combat.roundEnded", {
-            combatUuid: uuidOf(combat, "Combat"),
-            round: currentRound - 1,
-            nextRound: currentRound,
-            turn: Number(combat.turn ?? 0)
-          });
-        }
-        await this.#emit("combat.roundChanged", { combatUuid: uuidOf(combat, "Combat"), round: currentRound, turn: Number(combat.turn ?? 0) });
-      }
-      if (Object.prototype.hasOwnProperty.call(changed, "turn")) {
-        await this.#emit("combat.turnChanged", { combatUuid: uuidOf(combat, "Combat"), round: Number(combat.round ?? 0), turn: Number(combat.turn ?? changed.turn ?? 0) });
-      }
+      this.#debugHook("updateCombat", combat, { changed });
+      await this.#processCombatState(combat, {
+        roundSignal: Object.prototype.hasOwnProperty.call(changed, "round"),
+        turnSignal: Object.prototype.hasOwnProperty.call(changed, "turn"),
+        roundValue: changed?.round,
+        turnValue: changed?.turn
+      });
+    });
+
+    // Dedicated Foundry combat hooks are used as a second, deduplicated signal path.
+    // PF2e/Core may reach these through code paths whose update payload does not expose
+    // the exact dotted/flat fields Encounter Forge expected in earlier alphas.
+    this.#register("combatStart", async (combat, updateData = {}) => {
+      this.#debugHook("combatStart", combat, { updateData });
+      await this.#processCombatState(combat, {
+        roundSignal: true,
+        turnSignal: true,
+        roundValue: updateData?.round,
+        turnValue: updateData?.turn
+      });
+    });
+    this.#register("combatRound", async (combat, updateData = {}) => {
+      this.#debugHook("combatRound", combat, { updateData });
+      await this.#processCombatState(combat, {
+        roundSignal: true,
+        turnSignal: true,
+        roundValue: updateData?.round,
+        turnValue: updateData?.turn
+      });
+    });
+    this.#register("combatTurn", async (combat, updateData = {}) => {
+      this.#debugHook("combatTurn", combat, { updateData });
+      await this.#processCombatState(combat, {
+        turnSignal: true,
+        roundValue: updateData?.round,
+        turnValue: updateData?.turn
+      });
+    });
+    // v14 also exposes an after-update combatTurnChange hook. This is useful as a
+    // third deduplicated path and is especially robust with systems which customize
+    // Combat advancement. `current` is the already-applied round/turn state.
+    this.#register("combatTurnChange", async (combat, _prior = {}, current = {}) => {
+      this.#debugHook("combatTurnChange", combat, { prior: _prior, current });
+      const previousRound = this.lastRounds.get(this.#combatKey(combat));
+      const currentRound = Number(current?.round ?? combat?.round ?? 0);
+      const roundSignal = Number.isFinite(currentRound) && currentRound !== previousRound;
+      await this.#processCombatState(combat, {
+        roundSignal,
+        turnSignal: true,
+        roundValue: current?.round,
+        turnValue: current?.turn
+      });
     });
 
     this.#register("updateCombatant", async (combatant, changed = {}) => {
@@ -126,6 +291,13 @@ export class EventService extends RuntimeService {
       await this.#emit("participant.tokenDeleted", { participantId: participant.id, tokenUuid: uuidOf(token) });
     });
 
+    // Seed the current combat after hooks are live. This prevents activating an Encounter
+    // in the middle of round 1 from later mistaking the transition to round 2 for an
+    // unknown initial state while still allowing tests/direct calls to infer round N-1.
+    const current = this.gameRef?.combat ?? null;
+    if (current) this.#seedCombat(current);
+    if (globalThis.__PF2E_ENCOUNTER_FORGE_DEBUG__ === true) console.warn("[PF2E Encounter Forge DEBUG] EventService started", this.debugSnapshot());
+
     return this.status();
   }
 
@@ -133,7 +305,35 @@ export class EventService extends RuntimeService {
     for (const { name, id, fn } of this.hooks.splice(0)) {
       try { this.hooksRef?.off?.(name, id ?? fn); } catch {}
     }
+    this.lastRounds.clear();
+    this.lastTurns.clear();
     return super.stop();
+  }
+
+  debugSnapshot() {
+    const combats = collectionContents(this.gameRef?.combats);
+    const current = this.gameRef?.combat ?? null;
+    return {
+      service: this.status(),
+      instance: (() => {
+        const instance = this.getInstance();
+        return instance ? {
+          id: instance.id,
+          status: instance.status,
+          documentUuid: instance.documentUuid ?? null,
+          deployment: {
+            sceneUuid: instance.deployment?.sceneUuid ?? null,
+            combatUuid: instance.deployment?.combatUuid ?? null
+          },
+          runtimeRound: instance.runtimeVariables?.round ?? null,
+          runtimeTurn: instance.runtimeVariables?.turn ?? null
+        } : null;
+      })(),
+      currentCombat: current ? this.combatDiagnostic(current) : null,
+      combats: combats.map((combat) => this.combatDiagnostic(combat)),
+      lastRounds: Object.fromEntries(this.lastRounds),
+      lastTurns: Object.fromEntries(this.lastTurns)
+    };
   }
 
   status() {

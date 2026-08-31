@@ -1,6 +1,6 @@
 import { MODULE_ID } from "../constants.js";
 import { assertEncounterInstance } from "../model/encounter-instance.js";
-import { deepClone, nowIso, randomId } from "../utils/data.js";
+import { collectionContents, deepClone, nowIso, randomId } from "../utils/data.js";
 import { EncounterForgeError } from "../utils/errors.js";
 import { AuthorityService } from "./authority-service.js";
 import { EncounterEventBus } from "./event-bus.js";
@@ -12,6 +12,7 @@ import { ParticipantService } from "./participant-service.js";
 import { TacticsService } from "./tactics-service.js";
 import { ActionService } from "./action-service.js";
 import { RuntimePersistenceService } from "./persistence-service.js";
+import { combatSceneContext, sceneId } from "../utils/combat-context.js";
 
 function localize(key, fallback = key, data = null) {
   try {
@@ -44,13 +45,29 @@ function actionIdsForTrigger(trigger) {
   return Array.isArray(raw) ? raw.map(String) : [];
 }
 
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function documentUuid(document, fallback = null) {
+  if (document?.uuid) return document.uuid;
+  if (fallback && document?.id) return `${fallback}.${document.id}`;
+  return null;
+}
+
 export class EncounterRuntime {
-  constructor({ instanceRepository, blueprintRepository = null, integrations, gameRef = globalThis.game, hooksRef = globalThis.Hooks } = {}) {
+  constructor({ instanceRepository, blueprintRepository = null, integrations, gameRef = globalThis.game, hooksRef = globalThis.Hooks, chatMessageClass = null } = {}) {
     this.instanceRepository = instanceRepository;
     this.blueprintRepository = blueprintRepository;
     this.integrations = integrations;
     this.gameRef = gameRef;
     this.hooksRef = hooksRef;
+    this.chatMessageClass = chatMessageClass ?? globalThis.CONFIG?.ChatMessage?.documentClass ?? globalThis.ChatMessage ?? null;
     this.bus = new EncounterEventBus();
     this.authority = new AuthorityService({ gameRef });
     this.instance = null;
@@ -64,7 +81,7 @@ export class EncounterRuntime {
     const participants = new ParticipantService({ bus: this.bus, getInstance });
     this.services = Object.freeze({
       participants,
-      events: new EventService({ bus: this.bus, getInstance, participants, hooksRef }),
+      events: new EventService({ bus: this.bus, getInstance, participants, hooksRef, gameRef }),
       triggers: new TriggerService({
         bus: this.bus,
         getInstance,
@@ -83,7 +100,7 @@ export class EncounterRuntime {
         handlers: {
           phaseTransition: (phaseId, context) => this.setPhase(phaseId, { reason: context?.reason ?? "action" }),
           objectiveProgress: (objectiveId, amount, context) => this.adjustObjective(objectiveId, amount, { reason: context?.reason ?? "action" }),
-          directorMessage: (message, context) => this.addLog("director.message", message, context)
+          directorMessage: (message, context) => this.#deliverDirectorMessage(message, context)
         }
       }),
       persistence: new RuntimePersistenceService({ repository: instanceRepository })
@@ -109,6 +126,130 @@ export class EncounterRuntime {
     for (const type of ["participant.hpChanged", "participant.actorUpdated", "participant.tokenUpdated", "combat.turnChanged", "combat.roundEnded", "objective.progressChanged", "objective.completed"]) {
       this.bus.on(type, () => this.bus.emit("director.changed", { instanceId: this.activeInstanceId, reason: type }));
     }
+  }
+
+  #matchingCombat(instance = this.instance) {
+    if (!instance) return null;
+    const combats = collectionContents(this.gameRef?.combats);
+    const current = this.gameRef?.combat ?? null;
+    const candidates = current ? [current, ...combats.filter((entry) => entry?.id !== current.id)] : combats;
+    const expectedUuid = instance.deployment?.combatUuid ?? null;
+    const expectedScene = sceneId(instance.deployment?.sceneUuid);
+    for (const combat of candidates) {
+      if (!combat) continue;
+      const uuid = documentUuid(combat, "Combat");
+      if (expectedUuid && uuid === expectedUuid) return combat;
+      const flag = combat.flags?.[MODULE_ID]?.encounter ?? {};
+      if (flag.instanceId === instance.id || flag.instanceUuid === this.instanceRepository?.get?.(instance.id)?.document?.uuid) return combat;
+    }
+    if (!expectedScene) return null;
+    return candidates.find((combat) => combatSceneContext(combat, { instance, gameRef: this.gameRef }).sceneId === expectedScene) ?? null;
+  }
+
+  async #adoptCombat(combat) {
+    if (!this.instance || !combat) return null;
+    const uuid = documentUuid(combat, "Combat");
+    if (!uuid) return combat;
+    this.instance.deployment ??= {};
+    this.instance.deployment.combatUuid = uuid;
+    this.instance.deployment.combatPreparedAt ??= nowIso();
+    this.instance.runtimeVariables ??= {};
+    this.instance.runtimeVariables.round = Number(combat.round ?? 0);
+    this.instance.runtimeVariables.turn = Number(combat.turn ?? 0);
+    if (combat.update) {
+      try {
+        const instanceUuid = this.instanceRepository?.get?.(this.instance.id)?.document?.uuid ?? null;
+        await combat.update({
+          [`flags.${MODULE_ID}.encounter.instanceId`]: this.instance.id,
+          ...(instanceUuid ? { [`flags.${MODULE_ID}.encounter.instanceUuid`]: instanceUuid } : {})
+        }, { render: false });
+      } catch (error) {
+        console.warn(`${MODULE_ID} | Could not bind active Combat to Encounter Instance '${this.instance.id}'.`, error);
+      }
+    }
+    return combat;
+  }
+
+  async #notifyDecisionInChat(decision, trigger) {
+    const ChatMessageClass = this.chatMessageClass;
+    if (!ChatMessageClass?.create || !decision || !this.instance) return null;
+    const gmIds = collectionContents(this.gameRef?.users).filter((user) => user?.isGM && user?.id).map((user) => user.id);
+    if (!gmIds.length && this.gameRef?.user?.isGM && this.gameRef.user.id) gmIds.push(this.gameRef.user.id);
+    const actionNames = (decision.actions ?? []).map((action) => String(action?.name ?? action?.label ?? action?.id ?? action?.type ?? "").trim()).filter(Boolean);
+    const heading = localize("PF2E_ENCOUNTER_FORGE.Director.ChatDecision.Title", "Encounter Director: GM decision required");
+    const explanation = localize("PF2E_ENCOUNTER_FORGE.Director.ChatDecision.Hint", "A trigger is waiting for your decision. Open Encounter Director to apply or dismiss its prepared actions.");
+    const actionLabel = localize("PF2E_ENCOUNTER_FORGE.Director.ChatDecision.Actions", "Prepared actions");
+    const openLabel = localize("PF2E_ENCOUNTER_FORGE.Director.ChatDecision.OpenDirector", "Open Director");
+    const actionsHtml = actionNames.length
+      ? `<p class="encounter-director-chat-actions"><strong>${escapeHtml(actionLabel)}:</strong> ${escapeHtml(actionNames.join(", "))}</p>`
+      : "";
+    const content = `
+      <div class="pf2e-encounter-forge-chat-decision" data-instance-id="${escapeHtml(this.instance.id)}" data-decision-id="${escapeHtml(decision.id)}">
+        <h3><i class="fa-solid fa-bell"></i> ${escapeHtml(heading)}</h3>
+        <p><strong>${escapeHtml(decision.title ?? trigger?.name ?? trigger?.id ?? "")}</strong></p>
+        <p>${escapeHtml(decision.message ?? "")}</p>
+        ${actionsHtml}
+        <p class="encounter-director-chat-hint">${escapeHtml(explanation)}</p>
+        <button type="button" data-pf2e-encounter-forge-open-director data-instance-id="${escapeHtml(this.instance.id)}"><i class="fa-solid fa-clapperboard"></i> ${escapeHtml(openLabel)}</button>
+      </div>`;
+    try {
+      return await ChatMessageClass.create({
+        content,
+        whisper: gmIds,
+        speaker: { alias: localize("PF2E_ENCOUNTER_FORGE.Director.ShortName", "Director") },
+        flags: {
+          [MODULE_ID]: {
+            decision: { instanceId: this.instance.id, decisionId: decision.id, triggerId: trigger?.id ?? null }
+          }
+        }
+      });
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Could not create GM decision Chat message.`, error);
+      return null;
+    }
+  }
+
+  async #notifyDirectorMessageInChat(message, context = {}) {
+    const ChatMessageClass = this.chatMessageClass;
+    const text = String(message ?? "").trim();
+    if (!ChatMessageClass?.create || !text || !this.instance) return null;
+    const gmIds = collectionContents(this.gameRef?.users).filter((user) => user?.isGM && user?.id).map((user) => user.id);
+    if (!gmIds.length && this.gameRef?.user?.isGM && this.gameRef.user.id) gmIds.push(this.gameRef.user.id);
+    const heading = localize("PF2E_ENCOUNTER_FORGE.Director.ChatMessage.Title", "Encounter Director");
+    const openLabel = localize("PF2E_ENCOUNTER_FORGE.Director.ChatDecision.OpenDirector", "Open Director");
+    const content = `
+      <div class="pf2e-encounter-forge-chat-decision pf2e-encounter-forge-chat-message" data-instance-id="${escapeHtml(this.instance.id)}">
+        <h3><i class="fa-solid fa-clapperboard"></i> ${escapeHtml(heading)}</h3>
+        <p>${escapeHtml(text)}</p>
+        <button type="button" data-pf2e-encounter-forge-open-director data-instance-id="${escapeHtml(this.instance.id)}"><i class="fa-solid fa-clapperboard"></i> ${escapeHtml(openLabel)}</button>
+      </div>`;
+    try {
+      return await ChatMessageClass.create({
+        content,
+        whisper: gmIds,
+        speaker: { alias: localize("PF2E_ENCOUNTER_FORGE.Director.ShortName", "Director") },
+        flags: {
+          [MODULE_ID]: {
+            directorMessage: {
+              instanceId: this.instance.id,
+              actionId: context?.action?.id ?? context?.actionId ?? null,
+              triggerId: context?.trigger?.id ?? null
+            }
+          }
+        }
+      });
+    } catch (error) {
+      console.warn(`${MODULE_ID} | Could not create GM Director message.`, error);
+      return null;
+    }
+  }
+
+  async #deliverDirectorMessage(message, context = {}) {
+    const text = String(message ?? "").trim();
+    if (!text) return { handled: true, empty: true };
+    await this.addLog("director.message", text, context);
+    await this.#notifyDirectorMessageInChat(text, context);
+    return { handled: true, message: text };
   }
 
   #assertAuthority(force = false) {
@@ -173,6 +314,7 @@ export class EncounterRuntime {
     }
     this.instance = next;
     this.blueprint = this.#blueprintFor(next);
+    if (globalThis.__PF2E_ENCOUNTER_FORGE_DEBUG__ === true) console.warn("[PF2E Encounter Forge DEBUG] Runtime binding instance", { instanceId: next.id, status: next.status, deployment: next.deployment, gameCombat: this.gameRef?.combat ? { id: this.gameRef.combat.id, uuid: this.gameRef.combat.uuid, round: this.gameRef.combat.round, turn: this.gameRef.combat.turn, scene: this.gameRef.combat.scene?.id ?? this.gameRef.combat.scene ?? this.gameRef.combat.sceneId ?? null } : null });
     this.activeInstanceId = next.id;
 
     for (const service of Object.values(this.services)) await service.start();
@@ -210,13 +352,8 @@ export class EncounterRuntime {
       for (const participant of this.instance.participants ?? []) {
         if (["ready", "materialized", "pending"].includes(participant.state)) participant.state = "active";
       }
-      const combatUuid = this.instance.deployment?.combatUuid;
-      const combat = this.gameRef?.combat;
-      const currentCombatUuid = combat?.uuid ?? (combat?.id ? `Combat.${combat.id}` : null);
-      if (combatUuid && currentCombatUuid === combatUuid) {
-        this.instance.runtimeVariables.round = Number(combat.round ?? 0);
-        this.instance.runtimeVariables.turn = Number(combat.turn ?? 0);
-      }
+      const combat = this.#matchingCombat(this.instance);
+      if (combat) await this.#adoptCombat(combat);
       await this.addLog("encounter.started", localize("PF2E_ENCOUNTER_FORGE.Director.Log.Started", "Encounter started."), { reason });
       await this.#persist({ reason: "activate" });
     }
@@ -377,6 +514,7 @@ export class EncounterRuntime {
       this.instance.decisions.push(decision);
       await this.addLog("trigger.pending", localize("PF2E_ENCOUNTER_FORGE.Director.Log.TriggerPending", `Trigger ${trigger.id} requires a GM decision.`, { trigger: trigger.name ?? trigger.id }), { triggerId: trigger.id, decisionId: decision.id });
       await this.#persist({ reason: "trigger-decision" });
+      await this.#notifyDecisionInChat(decision, trigger);
       await this.bus.emit("decision.required", { instanceId: this.instance.id, decision: deepClone(decision) });
       return decision;
     }
@@ -451,6 +589,28 @@ export class EncounterRuntime {
       }
     });
     this.bootstrapHooks.push({ name: "updateCombat", id });
+  }
+
+  debugSnapshot() {
+    return {
+      status: this.status(),
+      instance: this.instance ? {
+        id: this.instance.id,
+        status: this.instance.status,
+        deployment: this.instance.deployment ?? null,
+        runtimeVariables: this.instance.runtimeVariables ?? null
+      } : null,
+      gameCombat: this.gameRef?.combat ? {
+        id: this.gameRef.combat.id ?? null,
+        uuid: this.gameRef.combat.uuid ?? null,
+        started: this.gameRef.combat.started ?? null,
+        round: this.gameRef.combat.round ?? null,
+        turn: this.gameRef.combat.turn ?? null,
+        sceneId: combatSceneContext(this.gameRef.combat, { instance: this.instance, gameRef: this.gameRef }).sceneId,
+        flags: this.gameRef.combat.flags?.[MODULE_ID]?.encounter ?? {}
+      } : null,
+      events: this.services.events?.debugSnapshot?.() ?? null
+    };
   }
 
   status() {

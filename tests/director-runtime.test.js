@@ -164,3 +164,265 @@ test("ParticipantService resolves synthetic unlinked Token Actors through their 
   const syntheticActor = { id: "a1", uuid: "Scene.s1.Token.t1.Actor.a1", token };
   assert.deepEqual(service.findByActor(syntheticActor).map((entry) => entry.id), ["guard-1"]);
 });
+
+test("GM-confirmed trigger posts a whispered Chat notice with a Director launcher", async () => {
+  const blueprint = createEncounterBlueprint({
+    id: "chat-decision",
+    name: "Chat Decision",
+    actions: [{ id: "advance", name: "Advance ritual", type: "director.message", message: "Advance" }],
+    triggers: [{ id: "needs-gm", name: "Ritual decision", event: "combat.roundChanged", actions: ["advance"], confirm: true }]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "chat-instance", blueprintUuid: "JournalEntry.blueprint" });
+  const repos = repositories(blueprint, instance);
+  const messages = [];
+  const chatMessageClass = { async create(data) { messages.push(clone(data)); return { id: "m1" }; } };
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null, chatMessageClass });
+  await runtime.activate("chat-instance");
+  await runtime.bus.emit("encounter.event", { type: "combat.roundChanged", instanceId: "chat-instance", round: 2, turn: 0 });
+
+  assert.equal(messages.length, 1);
+  assert.deepEqual(messages[0].whisper, ["gm"]);
+  assert.match(messages[0].content, /data-pf2e-encounter-forge-open-director/);
+  assert.match(messages[0].content, /Advance ritual/);
+  assert.equal(messages[0].flags["pf2e-encounter-forge"].decision.instanceId, "chat-instance");
+});
+
+test("Runtime adopts the current Combat on the Encounter Scene when no prepared Combat UUID exists", async () => {
+  const blueprint = createEncounterBlueprint({ id: "scene-combat", name: "Scene Combat" });
+  const instance = createEncounterInstance(blueprint, { id: "scene-instance", blueprintUuid: "JournalEntry.blueprint", sceneUuid: "Scene.s1" });
+  const repos = repositories(blueprint, instance);
+  const updates = [];
+  const combat = {
+    id: "c-live",
+    uuid: "Combat.c-live",
+    scene: { id: "s1" },
+    round: 2,
+    turn: 1,
+    flags: {},
+    async update(data) { updates.push(data); this.flags["pf2e-encounter-forge"] = { encounter: { instanceId: "scene-instance" } }; }
+  };
+  const game = gameRef();
+  game.combat = combat;
+  game.combats = { contents: [combat] };
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: game, hooksRef: null });
+  await runtime.activate("scene-instance");
+
+  const stored = repos.read();
+  assert.equal(stored.deployment.combatUuid, "Combat.c-live");
+  assert.equal(stored.runtimeVariables.round, 2);
+  assert.equal(stored.runtimeVariables.turn, 1);
+  assert.ok(updates.some((entry) => entry["flags.pf2e-encounter-forge.encounter.instanceId"] === "scene-instance"));
+});
+
+test("EventService uses Foundry v14 pre-update combatRound updateData and counts completed rounds", async () => {
+  const callbacks = new Map();
+  const hooksRef = { on(name, fn) { callbacks.set(name, fn); return name; }, off() {} };
+  const bus = new EncounterEventBus();
+  // Foundry v14 fires combatRound before the Combat document update. The document
+  // therefore intentionally remains on the previous round when the hook is called.
+  const combat = { id: "c-scene", uuid: "Combat.c-scene", scene: { id: "s1" }, round: 1, turn: 0, flags: {} };
+  const game = { combat };
+  const instance = { id: "i-scene", deployment: { sceneUuid: "Scene.s1", combatUuid: null }, participants: [] };
+  const events = [];
+  bus.on("encounter.event", (event) => events.push(event));
+  const service = new EventService({ bus, getInstance: () => instance, participants: {}, hooksRef, gameRef: game });
+  await service.start();
+
+  await callbacks.get("combatRound")(combat, { round: 2, turn: 0 }, { direction: 1 });
+  combat.round = 2;
+  await callbacks.get("combatRound")(combat, { round: 3, turn: 0 }, { direction: 1 });
+  combat.round = 3;
+  await callbacks.get("combatRound")(combat, { round: 4, turn: 0 }, { direction: 1 });
+
+  assert.deepEqual(events.filter((entry) => entry.type === "combat.roundEnded").map((entry) => entry.round), [1, 2, 3]);
+  assert.deepEqual(events.filter((entry) => entry.type === "combat.roundChanged").map((entry) => entry.round), [2, 3, 4]);
+  await service.stop();
+});
+
+test("EventService uses Foundry v14 combatStart updateData for the initial Director round", async () => {
+  const callbacks = new Map();
+  const hooksRef = { on(name, fn) { callbacks.set(name, fn); return name; }, off() {} };
+  const bus = new EncounterEventBus();
+  const combat = { id: "c-start", uuid: "Combat.c-start", scene: { id: "s1" }, round: 0, turn: null, flags: {} };
+  const game = { combat };
+  const instance = { id: "i-start", deployment: { sceneUuid: "Scene.s1", combatUuid: null }, participants: [] };
+  const events = [];
+  bus.on("encounter.event", (event) => events.push(event));
+  const service = new EventService({ bus, getInstance: () => instance, participants: {}, hooksRef, gameRef: game });
+  await service.start();
+
+  await callbacks.get("combatStart")(combat, { round: 1, turn: 0 });
+
+  assert.ok(events.some((entry) => entry.type === "combat.roundChanged" && entry.round === 1));
+  assert.equal(events.some((entry) => entry.type === "combat.roundEnded"), false);
+  await service.stop();
+});
+
+
+test("EventService accepts a current Foundry Combat with null scene when its Combatants use Encounter Tokens", async () => {
+  const callbacks = new Map();
+  const hooksRef = { on(name, fn) { callbacks.set(name, fn); return name; }, off() {} };
+  const bus = new EncounterEventBus();
+  const combat = {
+    id: "c-null-scene",
+    uuid: "Combat.c-null-scene",
+    scene: null,
+    round: 1,
+    turn: 0,
+    flags: {},
+    combatants: { contents: [{ tokenId: "enemy-token" }] }
+  };
+  const game = { combat };
+  const instance = {
+    id: "i-null-scene",
+    deployment: {
+      sceneUuid: "Scene.s1",
+      combatUuid: null,
+      tokenUuids: ["Scene.s1.Token.enemy-token"]
+    },
+    participants: []
+  };
+  const events = [];
+  bus.on("encounter.event", (event) => events.push(event));
+  const service = new EventService({ bus, getInstance: () => instance, participants: {}, hooksRef, gameRef: game });
+  await service.start();
+
+  const diagnostic = service.combatDiagnostic(combat);
+  assert.equal(diagnostic.matches, true);
+  assert.equal(diagnostic.receivedSceneId, "s1");
+  assert.equal(diagnostic.receivedSceneContext.sceneReason, "encounter-token-overlap");
+
+  await callbacks.get("combatRound")(combat, { round: 2, turn: 0 }, { direction: 1 });
+  assert.ok(events.some((entry) => entry.type === "combat.roundChanged" && entry.round === 2));
+  assert.ok(events.some((entry) => entry.type === "combat.roundEnded" && entry.round === 1));
+  await service.stop();
+});
+
+test("Runtime adopts a current Combat with null scene when it overlaps deployed Encounter Tokens", async () => {
+  const blueprint = createEncounterBlueprint({ id: "null-scene-combat", name: "Null Scene Combat" });
+  const instance = createEncounterInstance(blueprint, { id: "null-scene-instance", blueprintUuid: "JournalEntry.blueprint", sceneUuid: "Scene.s1" });
+  instance.deployment.tokenUuids = ["Scene.s1.Token.enemy-token"];
+  const repos = repositories(blueprint, instance);
+  const updates = [];
+  const combat = {
+    id: "c-null-scene-live",
+    uuid: "Combat.c-null-scene-live",
+    scene: null,
+    round: 2,
+    turn: 1,
+    flags: {},
+    combatants: { contents: [{ tokenId: "enemy-token" }] },
+    async update(data) { updates.push(data); this.flags["pf2e-encounter-forge"] = { encounter: { instanceId: "null-scene-instance" } }; }
+  };
+  const game = gameRef();
+  game.combat = combat;
+  game.combats = { contents: [combat] };
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: game, hooksRef: null });
+  await runtime.activate("null-scene-instance");
+
+  const stored = repos.read();
+  assert.equal(stored.deployment.combatUuid, "Combat.c-null-scene-live");
+  assert.equal(stored.runtimeVariables.round, 2);
+  assert.equal(stored.runtimeVariables.turn, 1);
+  assert.ok(updates.some((entry) => entry["flags.pf2e-encounter-forge.encounter.instanceId"] === "null-scene-instance"));
+});
+
+test("EventService deduplicates concurrent Foundry v14 combat signals before awaiting Runtime listeners", async () => {
+  const callbacks = new Map();
+  const hooksRef = { on(name, fn) { callbacks.set(name, fn); return name; }, off() {} };
+  const bus = new EncounterEventBus();
+  const instance = { id: "i-dedupe", deployment: { combatUuid: "Combat.c-dedupe" }, participants: [] };
+  const combat = { id: "c-dedupe", uuid: "Combat.c-dedupe", round: 0, turn: 0, flags: {} };
+  const events = [];
+  bus.on("encounter.event", async (event) => {
+    events.push(event);
+    // Force the individual Foundry hook callbacks to overlap. The Runtime must reserve
+    // the observed round/turn synchronously rather than waiting for this listener.
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  });
+  const service = new EventService({ bus, getInstance: () => instance, participants: {}, hooksRef, gameRef: { combat: null } });
+  await service.start();
+
+  await Promise.all([
+    callbacks.get("combatStart")(combat, { round: 1, turn: 0 }),
+    callbacks.get("updateCombat")(combat, { round: 1, turn: 0 }),
+    callbacks.get("combatTurnChange")(combat, { round: 0, turn: null }, { round: 1, turn: 0 })
+  ]);
+
+  assert.equal(events.filter((entry) => entry.type === "combat.roundChanged").length, 1);
+  assert.equal(events.filter((entry) => entry.type === "combat.roundEnded").length, 0, "initial round must establish a baseline, not synthesize completed rounds");
+
+  combat.round = 1;
+  events.length = 0;
+  await Promise.all([
+    callbacks.get("combatRound")(combat, { round: 2, turn: 0 }),
+    callbacks.get("updateCombat")({ ...combat, round: 2 }, { round: 2, turn: 0 }),
+    callbacks.get("combatTurnChange")({ ...combat, round: 2 }, { round: 1, turn: 0 }, { round: 2, turn: 0 })
+  ]);
+
+  assert.deepEqual(events.filter((entry) => entry.type === "combat.roundEnded").map((entry) => entry.round), [1]);
+  assert.deepEqual(events.filter((entry) => entry.type === "combat.roundChanged").map((entry) => entry.round), [2]);
+  await service.stop();
+});
+
+test("EventService never replays elapsed rounds when the first observed combat state is already later", async () => {
+  const callbacks = new Map();
+  const hooksRef = { on(name, fn) { callbacks.set(name, fn); return name; }, off() {} };
+  const bus = new EncounterEventBus();
+  const instance = { id: "i-late", deployment: { combatUuid: "Combat.c-late" }, participants: [] };
+  const events = [];
+  bus.on("encounter.event", (event) => events.push(event));
+  const service = new EventService({ bus, getInstance: () => instance, participants: {}, hooksRef, gameRef: { combat: null } });
+  await service.start();
+
+  await callbacks.get("combatRound")({ id: "c-late", uuid: "Combat.c-late", round: 3, turn: 0, flags: {} }, { round: 4, turn: 0 });
+  assert.deepEqual(events.filter((entry) => entry.type === "combat.roundEnded"), []);
+  assert.deepEqual(events.filter((entry) => entry.type === "combat.roundChanged").map((entry) => entry.round), [4]);
+  await service.stop();
+});
+
+test("one-shot triggers reserve themselves while a parallel duplicate event is still being handled", async () => {
+  const blueprint = createEncounterBlueprint({
+    id: "parallel-trigger",
+    name: "Parallel Trigger",
+    actions: [{ id: "advance", name: "Advance phase", type: "director.message", message: "Advance once" }],
+    triggers: [{ id: "once", name: "Once", event: "objective.completed", objectiveId: "ritual", once: true, confirm: true, actions: ["advance"] }],
+    objectives: [{ id: "ritual", name: "Ritual", target: 3 }]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "parallel-instance", blueprintUuid: "JournalEntry.blueprint" });
+  const repos = repositories(blueprint, instance);
+  const messages = [];
+  const chatMessageClass = { async create(data) { await new Promise((resolve) => setTimeout(resolve, 5)); messages.push(clone(data)); return { id: `m${messages.length}` }; } };
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null, chatMessageClass });
+  await runtime.activate("parallel-instance");
+  const event = { type: "objective.completed", instanceId: "parallel-instance", objectiveId: "ritual", progress: 3, target: 3 };
+  await Promise.all([
+    runtime.bus.emit("encounter.event", clone(event)),
+    runtime.bus.emit("encounter.event", clone(event)),
+    runtime.bus.emit("encounter.event", clone(event))
+  ]);
+  assert.equal(repos.read().decisions.length, 1);
+  assert.equal(messages.length, 1);
+});
+
+test("Director message action is persisted in the Director log and whispered to GMs", async () => {
+  const blueprint = createEncounterBlueprint({
+    id: "director-message",
+    name: "Director Message",
+    actions: [{ id: "note", name: "Ritual warning", type: "director.message", message: "The altar begins to crack." }],
+    triggers: [{ id: "note-trigger", event: "combat.roundChanged", once: true, confirm: false, automatic: true, actions: ["note"] }]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "director-message-instance", blueprintUuid: "JournalEntry.blueprint" });
+  const repos = repositories(blueprint, instance);
+  const messages = [];
+  const chatMessageClass = { async create(data) { messages.push(clone(data)); return { id: "m-note" }; } };
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null, chatMessageClass });
+  await runtime.activate("director-message-instance");
+  await runtime.bus.emit("encounter.event", { type: "combat.roundChanged", instanceId: "director-message-instance", round: 2, turn: 0 });
+
+  assert.ok(repos.read().log.some((entry) => entry.type === "director.message" && entry.message === "The altar begins to crack."));
+  assert.equal(messages.length, 1);
+  assert.deepEqual(messages[0].whisper, ["gm"]);
+  assert.match(messages[0].content, /The altar begins to crack\./);
+  assert.match(messages[0].content, /data-pf2e-encounter-forge-open-director/);
+});

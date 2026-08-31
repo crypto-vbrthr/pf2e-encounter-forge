@@ -7,7 +7,7 @@ import {
 } from "../model/index.js";
 import { ActorFolderService } from "../deployment/folder-service.js";
 import { openEncounterForge } from "../ui/encounter-forge-ui.js";
-import { openEncounterDirector } from "../director/encounter-director-ui.js";
+import { findPreferredEncounterInstanceId, openEncounterDirector } from "../director/encounter-director-ui.js";
 import { detectCurrentParty } from "../engine/party-analyzer.js";
 import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } from "../engine/encounter-budget.js";
 import { analyzeEncounterFlow, FLOW_ACTION_TYPES, FLOW_EVENT_TYPES, FLOW_CONDITION_FIELDS, FLOW_OPERATORS, FLOW_TARGET_MODES } from "../engine/encounter-flow.js";
@@ -98,7 +98,8 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
 
     ui: Object.freeze({
       open: () => openEncounterForge(),
-      openDirector: (instanceOrId = null) => openEncounterDirector(instanceOrId)
+      openDirector: (instanceOrId = null) => openEncounterDirector(instanceOrId),
+      preferredDirectorInstanceId: () => findPreferredEncounterInstanceId()
     }),
 
     runtime: Object.freeze({
@@ -116,6 +117,7 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       stop: (options = {}) => runtime.stop(options),
       restore: (options = {}) => runtime.restore(options),
       status: () => runtime.status(),
+      debug: () => runtime.debugSnapshot(),
       on: (type, listener) => runtime.bus.on(type, listener),
       off: (type, listener) => runtime.bus.off(type, listener)
     })

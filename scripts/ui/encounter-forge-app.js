@@ -1072,7 +1072,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     next.triggers.push({
       id: randomId("trigger"),
       name: `${localize("PF2E_ENCOUNTER_FORGE.Flow.Trigger", "Trigger")} ${number}`,
-      event: "combat.roundChanged",
+      event: "combat.roundEnded",
       activePhaseId: null,
       participantId: null,
       objectiveId: null,

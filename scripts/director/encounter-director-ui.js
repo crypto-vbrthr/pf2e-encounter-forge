@@ -27,24 +27,36 @@ function byRecency(rows) {
 
 export function findPreferredEncounterInstanceId() {
   const api = getApi();
-  const runtimeId = api?.runtime?.status?.()?.activeInstanceId;
-  if (runtimeId) return runtimeId;
+  const runtimeStatus = api?.runtime?.status?.() ?? {};
+  const runtimeId = runtimeStatus.activeInstanceId ?? null;
+  if (runtimeId && ["active", "paused", "prepared"].includes(runtimeStatus.instanceStatus)) return runtimeId;
 
+  // A completed Runtime binding must not pin the Director forever. A newly deployed
+  // prepared Instance on the current Combat/Scene should win immediately.
+  let completedCombatCandidate = null;
   const combatRef = game.combat?.flags?.[MODULE_ID]?.encounter?.instanceUuid ?? game.combat?.flags?.[MODULE_ID]?.encounter?.instanceId ?? null;
-  if (combatRef) return api?.instances?.get?.(combatRef)?.data?.id ?? combatRef;
+  if (combatRef) {
+    const combatEntry = api?.instances?.get?.(combatRef) ?? null;
+    if (["active", "paused", "prepared"].includes(combatEntry?.data?.status)) return combatEntry.data.id;
+    if (combatEntry?.data?.status === "completed") completedCombatCandidate = combatEntry.data.id;
+  }
 
   const scene = globalThis.canvas?.scene ?? game.scenes?.active ?? null;
   const refs = Object.values(scene?.flags?.[MODULE_ID]?.instances ?? {}).map((entry) => entry?.instanceUuid).filter(Boolean);
   const sceneEntries = refs.map((ref) => api?.instances?.get?.(ref)).filter(Boolean);
   const sortedSceneEntries = byRecency(sceneEntries);
-  const scenePreferred = sortedSceneEntries.find((entry) => ["active", "paused", "prepared"].includes(entry.data?.status))
-    ?? sortedSceneEntries.find((entry) => entry.data?.status === "completed");
+  const scenePreferred = sortedSceneEntries.find((entry) => ["active", "paused", "prepared"].includes(entry.data?.status));
   if (scenePreferred) return scenePreferred.data.id;
 
   const sortedGlobalEntries = byRecency(instanceEntries());
-  const globalPreferred = sortedGlobalEntries.find((entry) => ["active", "paused", "prepared"].includes(entry.data?.status))
-    ?? sortedGlobalEntries.find((entry) => entry.data?.status === "completed");
-  return globalPreferred?.data?.id ?? null;
+  const globalPreferred = sortedGlobalEntries.find((entry) => ["active", "paused", "prepared"].includes(entry.data?.status));
+  if (globalPreferred) return globalPreferred.data.id;
+
+  if (runtimeId && runtimeStatus.instanceStatus === "completed") return runtimeId;
+  if (completedCombatCandidate) return completedCombatCandidate;
+  return sortedSceneEntries.find((entry) => entry.data?.status === "completed")?.data?.id
+    ?? sortedGlobalEntries.find((entry) => entry.data?.status === "completed")?.data?.id
+    ?? null;
 }
 
 export async function openEncounterDirector(instanceOrId = null) {
@@ -99,10 +111,27 @@ export function injectDirectorButton(appRef, html) {
   header.append(button);
 }
 
+function injectDecisionChatControls(_message, html) {
+  if (!game.user?.isGM) return;
+  const root = getRoot(html);
+  if (!root) return;
+  for (const button of root.querySelectorAll?.("[data-pf2e-encounter-forge-open-director]") ?? []) {
+    if (button.dataset.encounterForgeBound === "true") continue;
+    button.dataset.encounterForgeBound = "true";
+    button.addEventListener("click", (event) => {
+      event.preventDefault();
+      const instanceId = String(button.dataset.instanceId ?? "").trim() || null;
+      openEncounterDirector(instanceId);
+    });
+  }
+}
+
 export function initializeEncounterDirectorUi() {
   Hooks.on("renderCombatTracker", injectDirectorButton);
   Hooks.on("renderSidebarTab", injectDirectorButton);
   Hooks.on("renderApplicationV2", injectDirectorButton);
+  Hooks.on("renderChatMessage", injectDecisionChatControls);
+  Hooks.on("renderChatMessageHTML", injectDecisionChatControls);
   const current = document.querySelector("#combat, .combat-sidebar, .combat-tracker");
   if (current) injectDirectorButton({ tabName: "combat" }, current);
   console.info(`${MODULE_ID} | Encounter Director UI integration initialized.`);

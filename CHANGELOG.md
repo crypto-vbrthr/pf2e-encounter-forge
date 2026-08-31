@@ -1,5 +1,57 @@
 # Changelog
 
+## 0.1.0-alpha.9.7 - Runtime Event Deduplication & Director Messages
+
+### Fixed
+- Fixed Foundry v14 delivering overlapping `combatStart`, `updateCombat`, and `combatTurnChange` signals for the same round transition causing duplicate Runtime events, repeated objective progress, and multiple GM decision Chat cards.
+- Round/turn observations are now reserved synchronously before Runtime listeners are awaited, making the multiple Foundry signal paths idempotent.
+- One-shot Triggers now reserve themselves while an earlier matching event is still being handled, preventing parallel duplicate events from creating multiple pending decisions.
+- The first observed Combat round now establishes a baseline only; Encounter Forge no longer retroactively synthesizes already elapsed round-end events when binding to an existing Combat.
+- `updateCombat` now consumes `changed.round` / `changed.turn` directly when present instead of depending on document timing.
+
+### Changed
+- `Director message` actions now remain in the persistent Encounter log and additionally create a prominent GM-only Chat message with an **Open Director** button, so authored Director narration is visible even when the Director window is closed.
+
+## 0.1.0-alpha.9.6 - Combat Scene Inference Fix
+
+### Fixed
+- Fixed Encounter Runtime rejecting the active Foundry Combat when Foundry v14 exposes that Combat without a direct Scene reference (`combat.scene` / source scene is `null`).
+- Combat/Encounter matching now infers the Scene from Combatant Token references first, then from direct overlap with the Encounter Instance Token UUIDs, and finally from the currently viewed canvas Scene for the current Combat.
+- Manual Combats created from Encounter Tokens are now adopted by the Runtime even when the Combat document itself has no Scene ID, so Director round/turn counters and `combat.roundEnded` triggers advance normally.
+- The diagnostic API remains available via `api.runtime.debug()`, while per-hook console spam from the temporary debug build is now disabled unless `globalThis.__PF2E_ENCOUNTER_FORGE_DEBUG__ = true` is set manually.
+
+## 0.1.0-alpha.9.5-debug
+
+### Debug
+- Added targeted console diagnostics for Foundry Combat hooks and Encounter Runtime combat matching.
+- Logs `updateCombat`, `combatStart`, `combatRound`, `combatTurn`, and `combatTurnChange` with received round/turn payloads and the exact reason a Combat is accepted or rejected.
+- Added `game.modules.get("pf2e-encounter-forge").api.runtime.debug()` for a compact runtime/combat snapshot.
+
+
+## 0.1.0-alpha.9.4 - Foundry v14 Combat Round Hook Fix
+
+### Fixed
+- Fixed live Combat round and turn tracking against the actual Foundry v14 hook signatures. `combatStart`, `combatRound`, and `combatTurn` fire before the Combat document update, so Runtime now consumes the new values from the hook `updateData` argument instead of reading the still-old `combat.round` / `combat.turn` values.
+- The Encounter Director round/turn counters now advance with the Foundry Combat Tracker, and `combat.roundEnded` triggers reliably fire as rounds are completed.
+- Added the post-update `combatTurnChange` hook as a deduplicated fallback for systems/modules which customize Combat advancement.
+
+## 0.1.0-alpha.9.3 - Decision Chat, Combat Round Tracking & Redeployment Recovery
+
+### Fixed
+- Encounter Runtime now binds to the current Foundry Combat on the Encounter Scene when no Combat was prepared by Encounter Forge, so round/turn tracking also works with a Combat created manually after deployment.
+- Added deduplicated `combatStart`, `combatRound`, and `combatTurn` hook handling in addition to `updateCombat`; round-end events are reconstructed deterministically even when Foundry/PF2e does not expose the expected update payload shape.
+- Completed Runtime bindings no longer pin the Director to an old playthrough after the same Encounter is deployed again. A newer prepared Instance on the same Scene/Blueprint is preferred automatically, including while an already-open Director is observing the completed run.
+- Fixed the Director passive-observation timer being inadvertently reset during certain rerenders.
+- Aura enable actions now reuse and re-enable an existing matching Aura instance instead of assigning the same Aura Definition repeatedly.
+
+### Added
+- GM-confirmed Trigger decisions now create a prominent GM-only Chat message showing the pending decision and prepared action names. The message includes an **Open Director** button, so the GM is notified even when the Director window is closed or hidden behind other Foundry UI.
+- Encounter Runtime can adopt and stamp a current same-Scene Combat when the Encounter is started manually, persisting the discovered Combat UUID and current round/turn into the Encounter Instance.
+
+### Changed
+- Newly authored Triggers now default to **Combat round ended** rather than **Combat round changed**, matching common round-counter mechanics such as ritual progress.
+- The former “Combat round changed” label is now “New combat round started” / “Neue Kampfrunde begonnen” to distinguish it clearly from an actual end-of-round trigger. Existing Blueprints retain their authored event selection.
+
 ## 0.1.0-alpha.9.2 - Director Live HP Observation Hardening
 
 ### Fixed

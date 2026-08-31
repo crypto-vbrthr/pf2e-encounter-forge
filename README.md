@@ -1,5 +1,23 @@
 # PF2E Encounter Forge
 
+## 0.1.0-alpha.9.7 — Runtime Event Deduplication & Director Messages
+
+Foundry v14 can report one Combat transition through several hooks in very quick succession. Encounter Runtime now reserves round and turn observations before awaiting downstream listeners, so those overlapping hook paths collapse into one logical Runtime event. This prevents a single Combat start/round change from advancing an objective multiple times or creating duplicate GM decisions. One-shot triggers also have their own in-flight guard as a second safety layer.
+
+The first Combat state observed by a newly bound Encounter is now treated as the baseline. Already elapsed rounds are never replayed automatically, so starting or rebinding an Encounter cannot suddenly fire historical round-end mechanics.
+
+**Director message** actions are now visible in two places: they remain in the persistent **Encounter Log** at the bottom of Encounter Director, and they also create a GM-only Chat card with an **Open Director** button. This makes them useful even when the Director is closed during play.
+
+## 0.1.0-alpha.9.4 — Foundry v14 Combat Round Hook Fix
+
+GM-confirmed Trigger decisions now surface a prominent GM-only Chat card even when Encounter Director is closed. The card names the pending action(s) and includes an **Open Director** button, while the actual accept/dismiss decision remains owned by the Director.
+
+Combat timing is now aligned with the actual Foundry v14 hook contract. `combatStart`, `combatRound`, and `combatTurn` fire before the Combat document is updated, so Encounter Forge reads the incoming `updateData.round` / `updateData.turn` values instead of the still-old document values. A post-update `combatTurnChange` path remains as a deduplicated safety net. The Director round/turn display and `combat.roundEnded` triggers now follow the Combat Tracker live.
+
+A completed Encounter no longer traps the Director on that old Instance after the Blueprint is deployed again. A newer prepared Instance of the same Encounter on the same Scene is automatically preferred, so the newly placed Actors/Tokens expose **Start Encounter** rather than only **Undo completion**. Undo completion remains available when the GM truly wants to resume the old playthrough with its existing state.
+
+Aura activation was hardened as well: if the matching Aura instance already exists on an Actor, Runtime only re-enables it instead of assigning a duplicate.
+
 ## 0.1.0-alpha.9.2 — Prepared Director Live Updates
 
 
@@ -37,6 +55,12 @@ Saved Encounters in the left library now use a dedicated card layout with clearl
 The left Encounter library is now structured as a compact tool area followed by a clearly labeled saved-encounter list. New, Example, Refresh, and Director controls are contained in a two-column labeled toolbar, and the whole library column now guards against horizontal overflow when the window is resized.
 
 PF2e encounter planning, deployment, and live encounter-direction module in early alpha development.
+
+## 0.1.0-alpha.9.6 — Combat Scene Inference Fix
+
+Foundry v14 can expose the current Combat without a direct Scene reference. Encounter Forge now infers the Combat Scene from its Combatants and deployed Encounter Token UUIDs, with the current canvas Scene as a safe fallback for the current Combat. This fixes the Director remaining at round 0 and round-end triggers never firing in manually created Combats whose `scene` field is null.
+
+The temporary verbose hook logger from alpha.9.5 is off again by default. `api.runtime.debug()` remains available, and detailed hook logs can still be enabled explicitly with `globalThis.__PF2E_ENCOUNTER_FORGE_DEBUG__ = true`.
 
 ## 0.1.0-alpha.8.1 — Live Flow References & Onboarding Example
 

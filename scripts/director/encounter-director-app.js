@@ -92,9 +92,14 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
     return this;
   }
 
-  setInstance(instanceId) {
+  async setInstance(instanceId) {
     this.instanceId = instanceId;
-    return this.#refreshAndRender(false);
+    await this.#refreshSnapshot();
+    this.#subscribeRuntime();
+    this.#subscribeDocuments();
+    this.#startPassiveObservation();
+    await this.render({ force: true });
+    return this;
   }
 
   async #refreshSnapshot() {
@@ -148,6 +153,26 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
     return hpChangeDetected(changed);
   }
 
+  #preparedSuccessorId(snapshot = this.snapshot) {
+    const current = snapshot?.instance;
+    if (!current || current.status !== "completed") return null;
+    const api = getApi();
+    const currentCreated = String(current.metadata?.createdAt ?? "");
+    const currentScene = String(current.deployment?.sceneUuid ?? "");
+    const currentBlueprint = String(current.blueprint?.id ?? "");
+    const rows = api?.instances?.list?.() ?? [];
+    const matches = rows.filter((entry) => {
+      const candidate = entry?.data;
+      if (!candidate || candidate.id === current.id || candidate.status !== "prepared") return false;
+      if (currentBlueprint && String(candidate.blueprint?.id ?? "") !== currentBlueprint) return false;
+      if (currentScene && String(candidate.deployment?.sceneUuid ?? "") !== currentScene) return false;
+      const created = String(candidate.metadata?.createdAt ?? candidate.metadata?.modifiedAt ?? "");
+      return !currentCreated || !created || created > currentCreated;
+    });
+    matches.sort((a, b) => String(b.data?.metadata?.createdAt ?? b.data?.metadata?.modifiedAt ?? "").localeCompare(String(a.data?.metadata?.createdAt ?? a.data?.metadata?.modifiedAt ?? "")));
+    return matches[0]?.data?.id ?? null;
+  }
+
   #observationFingerprint(snapshot = this.snapshot) {
     if (!snapshot?.instance) return "missing";
     const participants = [...(snapshot.participants ?? [])]
@@ -173,13 +198,17 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       if (generation !== this.observationGeneration) return;
       try {
         const api = getApi();
+        const successorId = this.#preparedSuccessorId();
+        const switched = Boolean(successorId && successorId !== this.instanceId);
+        if (switched) this.instanceId = successorId;
         const next = this.instanceId ? await api?.runtime?.inspect?.(this.instanceId) : null;
         const fingerprint = this.#observationFingerprint(next);
-        if (fingerprint !== this.lastObservationFingerprint) {
+        if (switched || fingerprint !== this.lastObservationFingerprint) {
           this.snapshot = next;
           this.lastObservationFingerprint = fingerprint;
+          if (switched) this.#subscribeDocuments();
           if (this.element) {
-            this.pendingScrollTop = this.element?.querySelector?.(".encounter-director-body")?.scrollTop ?? null;
+            this.pendingScrollTop = switched ? 0 : (this.element?.querySelector?.(".encounter-director-body")?.scrollTop ?? null);
             await this.render({ force: true });
           }
         }
@@ -231,8 +260,13 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
   }
 
   async #refreshAndRender(preserveScroll = true) {
-    if (preserveScroll) this.pendingScrollTop = this.element?.querySelector?.(".encounter-director-body")?.scrollTop ?? null;
+    const successorId = this.#preparedSuccessorId();
+    const switched = Boolean(successorId && successorId !== this.instanceId);
+    if (switched) this.instanceId = successorId;
+    if (preserveScroll && !switched) this.pendingScrollTop = this.element?.querySelector?.(".encounter-director-body")?.scrollTop ?? null;
+    else if (switched) this.pendingScrollTop = 0;
     await this.#refreshSnapshot();
+    if (switched) this.#subscribeDocuments();
     await this.render({ force: true });
   }
 
@@ -345,9 +379,6 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       const body = this.element?.querySelector?.(".encounter-director-body");
       if (body) body.scrollTop = this.pendingScrollTop;
       this.pendingScrollTop = null;
-    this.observationTimer = null;
-    this.observationGeneration = 0;
-    this.lastObservationFingerprint = null;
     }
   }
 
