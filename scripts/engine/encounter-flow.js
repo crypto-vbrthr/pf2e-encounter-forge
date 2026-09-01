@@ -4,6 +4,7 @@ export const FLOW_EVENT_TYPES = Object.freeze([
   "combat.roundEnded",
   "combat.roundChanged",
   "combat.turnChanged",
+  "combat.turnEnded",
   "participant.hpChanged",
   "participant.hpDecreased",
   "participant.hpIncreased",
@@ -143,6 +144,7 @@ export const FLOW_GROUP_CONTEXT_FIELDS = Object.freeze([
 export const FLOW_CONDITION_MODES = Object.freeze(["all", "any"]);
 export const FLOW_OPERATORS = Object.freeze(["eq", "neq", "gt", "gte", "lt", "lte", "includes"]);
 export const FLOW_ACTION_TYPES = Object.freeze(["phase.transition", "objective.progress", "director.message", "effect.apply", "aura.setEnabled", "affliction.apply", "loot.createActor"]);
+export const FLOW_ACTION_TIMING_MODES = Object.freeze(["immediate", "roundEnd", "turnEnd"]);
 export const FLOW_TARGET_MODES = Object.freeze(["participant", "group", "all"]);
 
 function idsOf(items = []) {
@@ -270,6 +272,10 @@ export function analyzeEncounterFlow(blueprint = {}) {
     if (type === "effect.apply" && !action.definition) errors.push({ code: "FLOW_EFFECT_DEFINITION", path: `actions.${action.id}`, message: `Effect action '${action.id}' has no Effect Definition.` });
     if (type === "aura.setEnabled" && !action.definition && !action.definitionId) errors.push({ code: "FLOW_AURA_DEFINITION", path: `actions.${action.id}`, message: `Aura action '${action.id}' has no Aura Definition.` });
     if (type === "affliction.apply" && !action.definition) errors.push({ code: "FLOW_AFFLICTION_DEFINITION", path: `actions.${action.id}`, message: `Affliction action '${action.id}' has no Affliction Definition.` });
+    const timingMode = String(action.timing?.mode ?? "immediate");
+    const timingAmount = Number(action.timing?.amount ?? 1);
+    if (!FLOW_ACTION_TIMING_MODES.includes(timingMode)) warnings.push({ code: "FLOW_ACTION_TIMING_MODE", path: `actions.${action.id}.timing`, message: `Action '${action.id}' uses unknown timing mode '${timingMode}'.` });
+    if (timingMode !== "immediate" && (!Number.isInteger(timingAmount) || timingAmount < 1 || timingAmount > 999)) errors.push({ code: "FLOW_ACTION_TIMING_AMOUNT", path: `actions.${action.id}.timing`, message: `Delayed action '${action.id}' requires a timing amount from 1 to 999.` });
   }
 
   for (const trigger of triggers) {

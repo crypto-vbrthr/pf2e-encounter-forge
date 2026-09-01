@@ -443,3 +443,15 @@ test("group-member state conditions expose explicit group evaluation and hide ir
   assert.match(flowSource, /groupParticipantHpPercent/);
   assert.match(apiSource, /groupMatchModes:\s*FLOW_GROUP_MATCH_MODES/);
 });
+
+test("Flow actions expose persistent delayed execution controls and Director schedule management", () => {
+  assert.match(template, /data-flow-action-field="timingMode"/);
+  assert.match(template, /data-flow-action-field="timingAmount"/);
+  assert.match(appSource, /FLOW_ACTION_TIMING_MODES/);
+  assert.match(apiSource, /actionTimingModes:\s*FLOW_ACTION_TIMING_MODES/);
+  const directorTemplate = fs.readFileSync(new URL("../templates/encounter-director-app.hbs", import.meta.url), "utf8");
+  const directorSource = fs.readFileSync(new URL("../scripts/director/encounter-director-app.js", import.meta.url), "utf8");
+  assert.match(directorTemplate, /data-action="runScheduledActionNow"/);
+  assert.match(directorTemplate, /data-action="cancelScheduledAction"/);
+  assert.match(directorSource, /scheduledActions/);
+});

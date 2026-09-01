@@ -238,6 +238,9 @@ export class EventService extends RuntimeService {
       if (knownTurn === undefined || turn !== knownTurn) {
         // Same reservation rule as rounds: suppress concurrent duplicate Foundry hooks.
         this.lastTurns.set(key, turn);
+        // The first observed turn is a baseline. Once a baseline exists, moving to a
+        // different turn means the previous combatant's turn has completed.
+        if (knownTurn !== undefined) await this.#emit("combat.turnEnded", { combatUuid, round, turn: knownTurn, nextTurn: turn });
         await this.#emit("combat.turnChanged", { combatUuid, round, turn });
       }
     }

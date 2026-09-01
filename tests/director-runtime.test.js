@@ -438,3 +438,152 @@ test("Director can manually execute an authored Runtime action through the share
   assert.equal(stored.currentPhaseId, "awakening");
   assert.ok(stored.log.some((entry) => entry.type === "action.manual" && entry.data.actionId === "phase-two"));
 });
+
+test("delayed actions wait for the configured number of completed combat rounds", async () => {
+  const blueprint = createEncounterBlueprint({
+    id: "delayed-rounds",
+    name: "Delayed Rounds",
+    objectives: [{ id: "ritual", name: "Ritual", target: 3 }],
+    actions: [{ id: "advance", name: "Advance", type: "objective.progress", objectiveId: "ritual", amount: 1, timing: { mode: "roundEnd", amount: 2 } }],
+    triggers: [{ id: "arm", event: "participant.defeated", once: true, confirm: false, automatic: true, actions: ["advance"] }]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "delayed-instance", blueprintUuid: "JournalEntry.blueprint" });
+  const repos = repositories(blueprint, instance);
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null });
+  await runtime.activate("delayed-instance");
+
+  await runtime.bus.emit("encounter.event", { type: "participant.defeated", instanceId: "delayed-instance", participantId: "nobody" });
+  let stored = repos.read();
+  assert.equal(stored.objectives.ritual.progress, 0);
+  assert.equal(stored.runtimeVariables.scheduledActions.length, 1);
+  assert.equal(stored.runtimeVariables.scheduledActions[0].dueCounter, 2);
+
+  await runtime.bus.emit("encounter.event", { type: "combat.roundEnded", instanceId: "delayed-instance", round: 1 });
+  stored = repos.read();
+  assert.equal(stored.objectives.ritual.progress, 0);
+  assert.equal(stored.runtimeVariables.scheduledActions.length, 1);
+
+  await runtime.bus.emit("encounter.event", { type: "combat.roundEnded", instanceId: "delayed-instance", round: 2 });
+  stored = repos.read();
+  assert.equal(stored.objectives.ritual.progress, 1);
+  assert.equal(stored.runtimeVariables.scheduledActions.length, 0);
+  assert.ok(stored.log.some((entry) => entry.type === "action.scheduleExecuted"));
+});
+
+test("delayed turn actions freeze while the Encounter is paused and can be cancelled", async () => {
+  const blueprint = createEncounterBlueprint({
+    id: "delayed-turns",
+    name: "Delayed Turns",
+    actions: [{ id: "note", name: "Warning", type: "director.message", message: "Now", timing: { mode: "turnEnd", amount: 2 } }]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "turn-instance", blueprintUuid: "JournalEntry.blueprint" });
+  const repos = repositories(blueprint, instance);
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null, chatMessageClass: { async create() { return null; } } });
+  await runtime.activate("turn-instance");
+  const result = await runtime.executeAction("note");
+  assert.equal(result.scheduled, true);
+  const scheduleId = result.scheduleId;
+
+  await runtime.pause();
+  await runtime.bus.emit("encounter.event", { type: "combat.turnEnded", instanceId: "turn-instance", round: 1, turn: 1 });
+  assert.equal(repos.read().runtimeVariables.timeline.turnEnds, 0);
+
+  await runtime.resume();
+  await runtime.bus.emit("encounter.event", { type: "combat.turnEnded", instanceId: "turn-instance", round: 1, turn: 2 });
+  assert.equal(repos.read().runtimeVariables.timeline.turnEnds, 1);
+  assert.equal(repos.read().runtimeVariables.scheduledActions.length, 1);
+
+  await runtime.cancelScheduledAction(scheduleId);
+  assert.equal(repos.read().runtimeVariables.scheduledActions.length, 0);
+  assert.ok(repos.read().log.some((entry) => entry.type === "action.scheduleCancelled"));
+});
+
+test("EventService emits combat.turnEnded only after a previously observed turn completes", async () => {
+  const callbacks = new Map();
+  const hooksRef = { on(name, fn) { callbacks.set(name, fn); return name; }, off() {} };
+  const bus = new EncounterEventBus();
+  const instance = { id: "turn-end-instance", deployment: { combatUuid: "Combat.turn-end" }, participants: [] };
+  const events = [];
+  bus.on("encounter.event", (event) => events.push(event));
+  const service = new EventService({ bus, getInstance: () => instance, participants: {}, hooksRef, gameRef: { combat: null } });
+  await service.start();
+
+  const combat = { id: "turn-end", uuid: "Combat.turn-end", round: 1, turn: null, flags: {} };
+  await callbacks.get("combatStart")(combat, { round: 1, turn: 0 });
+  assert.equal(events.some((event) => event.type === "combat.turnEnded"), false, "the first observed turn is only a baseline");
+
+  combat.turn = 0;
+  await callbacks.get("combatTurn")(combat, { round: 1, turn: 1 });
+  assert.ok(events.some((event) => event.type === "combat.turnEnded" && event.turn === 0 && event.nextTurn === 1));
+  await service.stop();
+});
+
+test("delayed actions announce their deferred execution in GM Chat", async () => {
+  const blueprint = createEncounterBlueprint({
+    id: "scheduled-chat",
+    name: "Scheduled Chat",
+    actions: [{ id: "delayed-aura", name: "Activate ward", type: "director.message", message: "Ward active", timing: { mode: "roundEnd", amount: 2 } }],
+    triggers: [{ id: "arm-ward", name: "Arm ward", event: "combat.roundChanged", once: true, confirm: false, automatic: true, actions: ["delayed-aura"] }]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "scheduled-chat-instance", blueprintUuid: "JournalEntry.blueprint" });
+  const repos = repositories(blueprint, instance);
+  const messages = [];
+  const chatMessageClass = { async create(data) { messages.push(clone(data)); return { id: `m-${messages.length}` }; } };
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null, chatMessageClass });
+  await runtime.activate("scheduled-chat-instance");
+  await runtime.bus.emit("encounter.event", { type: "combat.roundChanged", instanceId: "scheduled-chat-instance", round: 1, turn: 0 });
+
+  assert.equal(messages.length, 1);
+  assert.match(messages[0].content, /Activate ward/);
+  assert.match(messages[0].content, /scheduled now/i);
+  assert.match(messages[0].content, /2 more completed combat rounds/i);
+  assert.match(messages[0].content, /data-pf2e-encounter-forge-open-director/);
+  assert.equal(messages[0].flags["pf2e-encounter-forge"].scheduledAction.instanceId, "scheduled-chat-instance");
+  assert.equal(repos.read().runtimeVariables.scheduledActions.length, 1);
+});
+
+test("GM decision Chat marks delayed prepared actions before acceptance", async () => {
+  const blueprint = createEncounterBlueprint({
+    id: "delayed-decision-chat",
+    name: "Delayed Decision Chat",
+    actions: [{ id: "delayed-note", name: "Collapse ceiling", type: "director.message", message: "Crash", timing: { mode: "roundEnd", amount: 1 } }],
+    triggers: [{ id: "collapse-warning", name: "Collapse warning", event: "combat.roundChanged", once: true, confirm: true, actions: ["delayed-note"] }]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "delayed-decision-instance", blueprintUuid: "JournalEntry.blueprint" });
+  const repos = repositories(blueprint, instance);
+  const messages = [];
+  const chatMessageClass = { async create(data) { messages.push(clone(data)); return { id: "m-decision" }; } };
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null, chatMessageClass });
+  await runtime.activate("delayed-decision-instance");
+  await runtime.bus.emit("encounter.event", { type: "combat.roundChanged", instanceId: "delayed-decision-instance", round: 1, turn: 0 });
+
+  assert.equal(messages.length, 1);
+  assert.match(messages[0].content, /Collapse ceiling/);
+  assert.match(messages[0].content, /delayed: after the next combat round ends/i);
+  assert.equal(repos.read().runtimeVariables.scheduledActions.length, 0, "the decision has not been accepted yet");
+});
+
+test("scheduled actions do not wait for informational Chat delivery", async () => {
+  const blueprint = createEncounterBlueprint({
+    id: "scheduled-chat-nonblocking",
+    name: "Scheduled Chat Nonblocking",
+    actions: [{ id: "delayed-note", name: "Delayed note", type: "director.message", message: "Later", timing: { mode: "roundEnd", amount: 1 } }],
+    triggers: [{ id: "schedule-note", name: "Schedule note", event: "combat.roundChanged", once: true, confirm: false, automatic: true, actions: ["delayed-note"] }]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "scheduled-chat-nonblocking-instance", blueprintUuid: "JournalEntry.blueprint" });
+  const repos = repositories(blueprint, instance);
+  let chatStarted = 0;
+  const chatMessageClass = { create() { chatStarted += 1; return new Promise(() => {}); } };
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null, chatMessageClass });
+  await runtime.activate("scheduled-chat-nonblocking-instance");
+
+  await Promise.race([
+    runtime.bus.emit("encounter.event", { type: "combat.roundChanged", instanceId: "scheduled-chat-nonblocking-instance", round: 1, turn: 0 }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("scheduling waited for ChatMessage.create")), 100))
+  ]);
+
+  assert.equal(chatStarted, 1);
+  assert.equal(repos.read().runtimeVariables.scheduledActions.length, 1);
+  assert.equal(repos.read().runtimeVariables.scheduledActions[0].mode, "roundEnd");
+  assert.equal(repos.read().runtimeVariables.scheduledActions[0].dueCounter, 1);
+});

@@ -377,3 +377,15 @@ test("group-member state condition validation requires a valid group and positiv
   flow = analyzeEncounterFlow(blueprint);
   assert(flow.errors.some((entry) => entry.code === "FLOW_CONDITION_GROUP_PARTICIPANT_REFERENCE"));
 });
+
+test("flow analysis validates delayed action timing", () => {
+  const blueprint = createEncounterBlueprint({
+    actions: [{ id: "late", type: "director.message", message: "Later", timing: { mode: "roundEnd", amount: 0 } }]
+  });
+  let flow = analyzeEncounterFlow(blueprint);
+  assert(flow.errors.some((entry) => entry.code === "FLOW_ACTION_TIMING_AMOUNT"));
+
+  blueprint.actions[0].timing = { mode: "unknown", amount: 2 };
+  flow = analyzeEncounterFlow(blueprint);
+  assert(flow.warnings.some((entry) => entry.code === "FLOW_ACTION_TIMING_MODE"));
+});

@@ -76,11 +76,11 @@
               <article class="encounter-director-action-row">
                 <div class="encounter-director-action-main">
                   <strong>{{name}}</strong>
-                  <small>{{typeLabel}}{{#if summary}} · {{summary}}{{/if}}</small>
+                  <small>{{typeLabel}}{{#if summary}} · {{summary}}{{/if}}{{#if timingLabel}} · <i class="fa-regular fa-clock"></i> {{timingLabel}}{{/if}}</small>
                   {{#if integrationStatusLabel}}<small class="encounter-director-action-warning"><i class="fa-solid fa-triangle-exclamation"></i> {{integrationStatusLabel}}</small>{{/if}}
                 </div>
                 <button type="button" data-action="runAction" data-action-id="{{id}}" class="secondary" {{#unless runnable}}disabled{{/unless}}>
-                  <i class="fa-solid fa-play"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.RunAction"}}
+                  <i class="fa-solid {{#if delayed}}fa-clock{{else}}fa-play{{/if}}"></i> {{runLabel}}
                 </button>
               </article>
             {{/each}}
@@ -90,6 +90,31 @@
           <p class="encounter-director-empty">{{localize "PF2E_ENCOUNTER_FORGE.Director.NoActions"}}</p>
         {{/if}}
       </section>
+
+      {{#if hasScheduledActions}}
+        <section class="encounter-director-card encounter-director-scheduled-actions">
+          <div class="encounter-director-section-heading">
+            <div>
+              <h2><i class="fa-regular fa-clock"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.ScheduledActions"}}</h2>
+              <p>{{localize "PF2E_ENCOUNTER_FORGE.Director.ScheduledActionsHint"}}</p>
+            </div>
+          </div>
+          <div class="encounter-director-action-list">
+            {{#each scheduledActions}}
+              <article class="encounter-director-action-row encounter-director-scheduled-action-row">
+                <div class="encounter-director-action-main">
+                  <strong>{{name}}</strong>
+                  <small><i class="fa-regular fa-hourglass-half"></i> {{remainingLabel}}</small>
+                </div>
+                <div class="encounter-director-scheduled-controls">
+                  <button type="button" data-action="runScheduledActionNow" data-schedule-id="{{id}}" class="secondary"><i class="fa-solid fa-forward-step"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.RunNow"}}</button>
+                  <button type="button" data-action="cancelScheduledAction" data-schedule-id="{{id}}" class="icon-only danger" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.CancelScheduled"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+              </article>
+            {{/each}}
+          </div>
+        </section>
+      {{/if}}
 
       <section class="encounter-director-card">
         <h2>{{localize "PF2E_ENCOUNTER_FORGE.Director.Phase"}}</h2>

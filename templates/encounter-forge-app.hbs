@@ -484,6 +484,13 @@
                       </div>
                     </div>
                   {{/if}}
+                  <div class="encounter-forge-flow-action-timing">
+                    <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ActionTimingLabel"}}</span><select data-flow-action-field="timingMode">{{#each timingModeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                    {{#if isDelayed}}
+                      <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ActionTimingAmount"}}</span><input type="number" min="1" max="999" step="1" value="{{timingAmount}}" data-flow-action-field="timingAmount"></label>
+                    {{/if}}
+                  </div>
+                  {{#if isDelayed}}<small class="encounter-forge-flow-action-timing-hint">{{localize "PF2E_ENCOUNTER_FORGE.Flow.ActionTimingHint"}}</small>{{/if}}
                 </article>
               {{/each}}
             </div>

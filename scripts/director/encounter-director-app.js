@@ -82,6 +82,8 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       acceptDecision: EncounterDirectorApp.acceptDecision,
       dismissDecision: EncounterDirectorApp.dismissDecision,
       runAction: EncounterDirectorApp.runAction,
+      runScheduledActionNow: EncounterDirectorApp.runScheduledActionNow,
+      cancelScheduledAction: EncounterDirectorApp.cancelScheduledAction,
       viewScene: EncounterDirectorApp.viewScene
     }
   };
@@ -375,6 +377,14 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
         if (type === "aura.setEnabled") summary = `${summary}${summary ? " · " : ""}${action.enabled !== false ? localize("PF2E_ENCOUNTER_FORGE.Director.AuraEnable", "enable") : localize("PF2E_ENCOUNTER_FORGE.Director.AuraDisable", "disable")}`;
       } else if (type === "loot.createActor") summary = String(action.lootActorName ?? action.loot?.config?.newLootActorName ?? "").trim();
       const integrationReady = !integrationId || Boolean(integrationStatus?.usable);
+      const timingMode = String(action.timing?.mode ?? "immediate");
+      const timingAmount = Math.max(1, Math.trunc(Number(action.timing?.amount ?? 1) || 1));
+      const delayed = timingMode !== "immediate";
+      const timingLabel = delayed
+        ? (timingMode === "roundEnd"
+            ? format("PF2E_ENCOUNTER_FORGE.Director.ActionTimingRounds", { amount: timingAmount }, `after ${timingAmount} round end(s)`)
+            : format("PF2E_ENCOUNTER_FORGE.Director.ActionTimingTurns", { amount: timingAmount }, `after ${timingAmount} completed turn(s)`))
+        : "";
       return {
         id: action.id,
         name: String(action.name ?? action.label ?? action.id ?? type),
@@ -384,7 +394,29 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
         integrationId,
         integrationReady,
         integrationStatusLabel: integrationId && !integrationReady ? localize("PF2E_ENCOUNTER_FORGE.Director.ActionIntegrationUnavailable", "Integration unavailable") : "",
+        delayed,
+        timingLabel,
+        runLabel: delayed ? localize("PF2E_ENCOUNTER_FORGE.Director.ScheduleAction", "Schedule") : localize("PF2E_ENCOUNTER_FORGE.Director.RunAction", "Run"),
         runnable: ["active", "paused"].includes(instance.status) && integrationReady
+      };
+    });
+
+    const timeline = instance.runtimeVariables?.timeline ?? { roundEnds: 0, turnEnds: 0 };
+    const scheduledActions = (instance.runtimeVariables?.scheduledActions ?? []).filter((entry) => entry?.status === "pending").map((entry) => {
+      const mode = String(entry.mode ?? "roundEnd");
+      const current = Number(mode === "roundEnd" ? timeline.roundEnds : timeline.turnEnds) || 0;
+      const remaining = Math.max(0, Number(entry.dueCounter ?? current) - current);
+      const action = entry.action ?? (blueprint?.actions ?? []).find((candidate) => candidate.id === entry.actionId) ?? {};
+      const remainingLabel = mode === "roundEnd"
+        ? format("PF2E_ENCOUNTER_FORGE.Director.ScheduleRemainingRounds", { amount: remaining }, `${remaining} round end(s) remaining`)
+        : format("PF2E_ENCOUNTER_FORGE.Director.ScheduleRemainingTurns", { amount: remaining }, `${remaining} completed turn(s) remaining`);
+      return {
+        id: entry.id,
+        actionId: entry.actionId ?? action.id ?? null,
+        name: String(action.name ?? action.label ?? entry.actionId ?? entry.id),
+        remaining,
+        remainingLabel,
+        mode
       };
     });
 
@@ -424,6 +456,8 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       actions: actionRows,
       hasActions: actionRows.length > 0,
       canRunActions: ["active", "paused"].includes(status),
+      scheduledActions,
+      hasScheduledActions: scheduledActions.length > 0,
       pendingDecisions,
       hasPendingDecisions: pendingDecisions.length > 0,
       logs,
@@ -567,6 +601,22 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       console.error(`${MODULE_ID} | Manual Director action failed.`, error);
       ui.notifications.error(error?.message ?? localize("PF2E_ENCOUNTER_FORGE.Notifications.ActionNotExecuted", "Encounter action could not be executed."));
     }
+    await this.#refreshAndRender(true);
+  }
+
+  static async runScheduledActionNow(_event, target) {
+    const id = String(target?.dataset?.scheduleId ?? "").trim();
+    if (!id) return;
+    await this.#ensureBound();
+    await getApi()?.runtime?.executeScheduledActionNow?.(id);
+    await this.#refreshAndRender(true);
+  }
+
+  static async cancelScheduledAction(_event, target) {
+    const id = String(target?.dataset?.scheduleId ?? "").trim();
+    if (!id) return;
+    await this.#ensureBound();
+    await getApi()?.runtime?.cancelScheduledAction?.(id);
     await this.#refreshAndRender(true);
   }
 

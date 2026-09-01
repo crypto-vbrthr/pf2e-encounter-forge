@@ -270,3 +270,12 @@ Loot Actors created by Runtime actions are moved into the Encounter deployment A
 The Encounter Director may invoke authored Blueprint actions manually while an Encounter Instance is `active` or `paused`. This does not create a second execution path: Director calls `EncounterRuntime.executeAction()`, which delegates to the same `ActionService` used by Trigger and GM-decision execution. Integration ownership therefore remains unchanged.
 
 Manual execution is a runtime operation, not a Blueprint mutation. It is logged persistently on the Instance and never rewrites the authored action definition.
+
+
+## Persistent delayed action scheduling
+
+As of `0.1.0-alpha.12`, timing remains declarative action data rather than becoming a separate script/timer subsystem. An action may use `timing.mode = immediate | roundEnd | turnEnd` with a positive `timing.amount`. `ActionService` detects delayed actions at the shared execution boundary and delegates scheduling back to Encounter Runtime; scheduled execution re-enters the same ActionService with a guarded `scheduledExecution` context so integrations and core actions keep one execution path.
+
+Pending schedules live under `instance.runtimeVariables.scheduledActions`. Encounter Runtime also persists monotonic encounter-local `roundEnds` and `turnEnds` counters while scheduled work exists. These counters advance only from normalized completed-round/completed-turn events while the Instance is active, so pausing an Encounter freezes the delay. A schedule stores an action snapshot plus its due counter, making it stable across Runtime restoration and resilient to later Blueprint editing.
+
+The generic `encounter.event` timeline listener is registered before TriggerService. Existing schedules therefore consume the current completed round/turn before a Trigger on that same event can create a new schedule. A newly scheduled `+1` action cannot accidentally fire on the event that created it. The Director is a control surface only: cancel/run-now operations call Runtime APIs and never execute provider logic directly.

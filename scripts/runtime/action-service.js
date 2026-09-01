@@ -14,6 +14,13 @@ function actionTarget(action = {}) {
   };
 }
 
+
+function actionTiming(action = {}) {
+  const mode = String(action?.timing?.mode ?? "immediate");
+  const amount = Math.max(1, Math.trunc(Number(action?.timing?.amount ?? 1) || 1));
+  return { mode, amount };
+}
+
 function integrationUnavailable(id) {
   const error = new Error(`Encounter Forge integration '${id}' is unavailable or disabled.`);
   error.code = "ENCOUNTER_INTEGRATION_UNAVAILABLE";
@@ -132,6 +139,12 @@ export class ActionService extends RuntimeService {
   async execute(action, context = {}) {
     const type = String(action?.type ?? action?.kind ?? "").trim();
     if (!type) return { handled: false, reason: "missing-type" };
+
+    const timing = actionTiming(action);
+    if (!context?.scheduledExecution && timing.mode !== "immediate") {
+      const scheduled = await this.handlers.scheduleAction?.(action, { ...context, timing });
+      return scheduled ?? { handled: false, reason: "schedule-unavailable", type };
+    }
 
     try {
       let result;

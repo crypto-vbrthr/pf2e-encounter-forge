@@ -14,6 +14,7 @@ import {
   FLOW_GROUP_CONTEXT_FIELDS,
   FLOW_OPERATORS,
   FLOW_ACTION_TYPES,
+  FLOW_ACTION_TIMING_MODES,
   analyzeEncounterFlow
 } from "../engine/encounter-flow.js";
 import { randomId } from "../utils/data.js";
@@ -357,6 +358,10 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         integrationStatusLabel: integrationState ? localize(`PF2E_ENCOUNTER_FORGE.Integrations.Status.${integrationState.usable ? "integrated" : (integrationState.ready ? "disabled" : integrationState.active ? "notReady" : integrationState.installed ? "inactive" : "missing")}`, integrationState.usable ? "Integrated" : "Unavailable") : "",
         amountValue: Number.isFinite(Number(action.amount)) ? Number(action.amount) : 1,
         auraEnabledChecked: action.enabled !== false,
+        timingMode: FLOW_ACTION_TIMING_MODES.includes(String(action.timing?.mode ?? "immediate")) ? String(action.timing?.mode ?? "immediate") : "immediate",
+        timingAmount: Math.max(1, Math.trunc(Number(action.timing?.amount ?? 1) || 1)),
+        isDelayed: String(action.timing?.mode ?? "immediate") !== "immediate",
+        timingModeOptions: FLOW_ACTION_TIMING_MODES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ActionTiming.${value}`, value), selected: String(action.timing?.mode ?? "immediate") === value })),
         typeOptions: FLOW_ACTION_TYPES.map((value) => {
           const descriptor = integrationActionDescriptor(value);
           const status = descriptor ? api?.integrations?.status?.(descriptor.integrationId) : null;
@@ -516,7 +521,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         await this.#renderFresh();
       });
     }
-    for (const control of root.querySelectorAll('[data-flow-action-field="phaseId"], [data-flow-action-field="objectiveId"], [data-flow-action-field="targetMode"], [data-flow-action-field="targetId"], [data-flow-action-field="enabled"], [data-trigger-field="event"], [data-trigger-field="activePhaseId"], [data-trigger-field="participantId"], [data-trigger-field="objectiveId"], [data-trigger-field="conditionMode"], [data-trigger-field="conditionObjectiveId"], [data-trigger-field="conditionGroupId"], [data-trigger-condition-field], [data-trigger-action]')) {
+    for (const control of root.querySelectorAll('[data-flow-action-field="phaseId"], [data-flow-action-field="objectiveId"], [data-flow-action-field="timingMode"], [data-flow-action-field="targetMode"], [data-flow-action-field="targetId"], [data-flow-action-field="enabled"], [data-trigger-field="event"], [data-trigger-field="activePhaseId"], [data-trigger-field="participantId"], [data-trigger-field="objectiveId"], [data-trigger-field="conditionMode"], [data-trigger-field="conditionObjectiveId"], [data-trigger-field="conditionGroupId"], [data-trigger-condition-field], [data-trigger-action]')) {
       control.addEventListener("change", async () => {
         this.#syncDraftFromForm();
         await this.#renderFresh();
@@ -679,6 +684,9 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       action.objectiveId = String(read("objectiveId") ?? "").trim() || null;
       action.amount = asInteger(read("amount"), Number(action.amount ?? 1), { min: -999, max: 999 });
       action.message = String(read("message") ?? action.message ?? "");
+      action.timing ??= {};
+      action.timing.mode = FLOW_ACTION_TIMING_MODES.includes(String(read("timingMode") ?? action.timing.mode ?? "immediate")) ? String(read("timingMode") ?? action.timing.mode ?? "immediate") : "immediate";
+      action.timing.amount = action.timing.mode === "immediate" ? 1 : asInteger(read("timingAmount"), Number(action.timing.amount ?? 1), { min: 1, max: 999 });
       action.targetMode = String(read("targetMode") ?? action.targetMode ?? "participant");
       action.targetId = action.targetMode === "all" ? null : (String(read("targetId") ?? action.targetId ?? "").trim() || null);
       const enabledControl = row.querySelector('[data-flow-action-field="enabled"]');
@@ -1186,7 +1194,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       message: "",
       amount: 1,
       phaseId: null,
-      objectiveId: null
+      objectiveId: null,
+      timing: { mode: "immediate", amount: 1 }
     });
     this.draft = next;
     await this.#renderFresh();

@@ -1981,3 +1981,28 @@
 @media (max-width: 1180px) {
   .encounter-forge-trigger-condition > :last-child { justify-self: stretch; }
 }
+
+.encounter-forge-flow-action-timing {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(100px, 0.45fr);
+  gap: 8px;
+  align-items: end;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid color-mix(in srgb, var(--color-border-light-2, #777) 55%, transparent);
+}
+.encounter-forge-flow-action-timing > label,
+.encounter-forge-flow-action-timing input,
+.encounter-forge-flow-action-timing select { min-width: 0; width: 100%; }
+.encounter-forge-flow-action-timing-hint { display: block; margin-top: 4px; opacity: 0.75; }
+.encounter-director-scheduled-controls { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; }
+@media (max-width: 760px) {
+  .encounter-forge-flow-action-timing { grid-template-columns: 1fr; }
+}
+
+.pf2e-encounter-forge-chat-decision .encounter-director-chat-actions ul {
+  margin: 0.25rem 0 0 1.1rem;
+  padding: 0;
+}
+.pf2e-encounter-forge-chat-decision .encounter-director-chat-actions li + li { margin-top: 0.15rem; }
+.pf2e-encounter-forge-chat-decision .encounter-director-chat-actions em { opacity: 0.8; }

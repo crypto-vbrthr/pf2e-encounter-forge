@@ -10,7 +10,7 @@ import { openEncounterForge } from "../ui/encounter-forge-ui.js";
 import { findPreferredEncounterInstanceId, openEncounterDirector } from "../director/encounter-director-ui.js";
 import { detectCurrentParty } from "../engine/party-analyzer.js";
 import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } from "../engine/encounter-budget.js";
-import { analyzeEncounterFlow, FLOW_ACTION_TYPES, FLOW_BOOLEAN_CONDITION_FIELDS, FLOW_CONDITION_FIELDS, FLOW_CONDITION_MODES, FLOW_EVENT_TYPES, FLOW_GROUP_MATCH_MODES, FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS, FLOW_OPERATORS, FLOW_PARTICIPANT_CONTEXT_FIELDS, FLOW_TARGET_MODES } from "../engine/encounter-flow.js";
+import { analyzeEncounterFlow, FLOW_ACTION_TIMING_MODES, FLOW_ACTION_TYPES, FLOW_BOOLEAN_CONDITION_FIELDS, FLOW_CONDITION_FIELDS, FLOW_CONDITION_MODES, FLOW_EVENT_TYPES, FLOW_GROUP_MATCH_MODES, FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS, FLOW_OPERATORS, FLOW_PARTICIPANT_CONTEXT_FIELDS, FLOW_TARGET_MODES } from "../engine/encounter-flow.js";
 import { isIntegrationEnabled, setIntegrationEnabled } from "../integrations/integration-settings.js";
 import { createExampleEncounterBlueprint, isExampleEncounterBlueprint } from "../examples/index.js";
 
@@ -86,6 +86,7 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       analyze: (blueprint) => analyzeEncounterFlow(blueprint),
       events: FLOW_EVENT_TYPES,
       actionTypes: FLOW_ACTION_TYPES,
+      actionTimingModes: FLOW_ACTION_TIMING_MODES,
       targetModes: FLOW_TARGET_MODES,
       conditionFields: FLOW_CONDITION_FIELDS,
       participantContextFields: FLOW_PARTICIPANT_CONTEXT_FIELDS,
@@ -119,6 +120,8 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       setObjectiveState: (objectiveId, state, options = {}) => runtime.setObjectiveState(objectiveId, state, options),
       resolveDecision: (decisionId, resolution, options = {}) => runtime.resolveDecision(decisionId, resolution, options),
       executeAction: (actionOrId, options = {}) => runtime.executeAction(actionOrId, options),
+      cancelScheduledAction: (scheduleId, options = {}) => runtime.cancelScheduledAction(scheduleId, options),
+      executeScheduledActionNow: (scheduleId, options = {}) => runtime.executeScheduledActionNow(scheduleId, options),
       inspect: (instanceOrId = null) => runtime.inspect(instanceOrId),
       stop: (options = {}) => runtime.stop(options),
       restore: (options = {}) => runtime.restore(options),

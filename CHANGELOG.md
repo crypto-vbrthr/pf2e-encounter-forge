@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.1.0-alpha.12.2 - Non-blocking Schedule Chat Fix
+
+### Fixed
+- Delayed-action Chat announcements are now strictly informational and no longer awaited by the Runtime scheduling transaction. `ChatMessage.create()` can therefore not hold a Trigger/action resolution open while Foundry render/document hooks run.
+- Scheduled-action Chat cards use a frozen Instance/action/schedule snapshot so a later Runtime switch cannot retarget their Director button or message flags.
+- Added a regression test where Chat delivery never resolves; the delayed action must still be persisted immediately and the Runtime event must complete normally.
+
+
+## 0.1.0-alpha.12.1 - Delayed Action Chat Clarity
+
+### Added
+- Scheduling a delayed action now creates a GM-only Encounter Director Chat card that explicitly says the action has been **scheduled now but will execute later**, including the remaining configured combat-round or combat-turn delay. The card links back to the Director's Scheduled Actions queue.
+- GM-decision Chat cards annotate every delayed prepared action before the decision is accepted, so approving a Trigger cannot be mistaken for immediate mechanical execution.
+
+### Changed
+- Prepared actions in GM-decision Chat are rendered as individual entries, allowing immediate and delayed actions in the same decision to communicate their timing independently.
+
+## 0.1.0-alpha.12 - Delayed & Scheduled Actions
+
+### Added
+- Every authored Encounter action can now execute **immediately**, after a configurable number of **completed combat rounds**, or after a configurable number of **completed combat turns**. Timing belongs to the action itself, so the same delayed behavior is respected whether the action is reached by an automatic Trigger, an accepted GM decision, or manual Director execution.
+- Encounter Runtime persists pending schedules in the Encounter Instance. Countdown progress survives Runtime persistence/restoration and pauses while the Encounter is paused.
+- Added the normalized `combat.turnEnded` Runtime/Trigger event. The first observed turn is only a baseline; a turn-end signal is emitted only when a previously observed combatant turn actually completes.
+- Encounter Director now shows a **Scheduled Actions** queue with the remaining round/turn countdown. The GM can execute a scheduled action immediately or cancel it.
+- Public API additions: `api.flow.actionTimingModes`, `api.runtime.cancelScheduledAction(...)`, and `api.runtime.executeScheduledActionNow(...)`.
+
+### Changed
+- Delayed execution is handled at the shared `ActionService` boundary, so phase, objective, Director-message, Effect, Aura, Affliction, and Loot actions all use one scheduling model rather than provider-specific timers.
+- Scheduling from a Trigger that fires on a round/turn end starts counting **after that event**, preventing the event that created the schedule from also consuming its first delay step.
+- Completed-round and completed-turn counters are persisted only while relevant scheduled work exists; paused Encounters do not consume countdown steps.
+
+### Validation
+- Flow analysis validates delayed action timing modes and requires a delay from 1 to 999 for non-immediate actions.
+
 ## 0.1.0-alpha.11.2.5 - Directional HP Trigger Events
 
 ### Added

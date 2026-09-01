@@ -1,5 +1,24 @@
 # PF2E Encounter Forge
 
+## 0.1.0-alpha.12.2 — Non-blocking Schedule Chat Fix
+
+Delayed-action Chat is now deliberately outside the Runtime scheduling transaction. Encounter Forge persists the schedule first, emits the Runtime queue update, and only then launches the GM Chat notification without awaiting Chat rendering. A slow or re-entrant Foundry Chat render can therefore no longer stall the Trigger/action resolution that owns the scheduled action. The Chat card also carries a frozen Encounter Instance reference rather than reading whichever Runtime Instance happens to be active later.
+
+
+## 0.1.0-alpha.12.1 — Delayed Action Chat Clarity
+
+Delayed actions now explain their timing in GM Chat. A Trigger or Director command can schedule an action immediately while its actual effect remains deferred until the configured number of completed combat rounds or turns has elapsed. Encounter Forge posts a GM-only Chat card when that schedule is created, including the remaining delay and an **Open Director** button. GM-decision cards also mark delayed prepared actions before acceptance, so "approve now" is visually distinct from "takes effect now."
+
+## 0.1.0-alpha.12 — Delayed & Scheduled Actions
+
+Encounter actions can now wait for the battlefield clock instead of firing the instant a Trigger resolves. Each action chooses **Immediately**, **After completed combat rounds**, or **After completed combat turns**, with a delay from 1 to 999. The timing is part of the reusable action, so automatic Triggers, GM-confirmed decisions, and manual Director controls all respect the same schedule.
+
+A delayed action is stored persistently in the Encounter Instance rather than held in a browser timer. The Runtime counts normalized `combat.roundEnded` or the new `combat.turnEnded` events, freezes those counters while the Encounter is paused, and resumes them when play continues. Scheduling an action from the very round/turn-end event that created it starts counting only with the **next** completed round/turn, avoiding an off-by-one execution.
+
+Encounter Director shows pending work in a new **Scheduled Actions** section with the remaining countdown. The GM can let the clock run, execute an item immediately, or cancel it. This supports patterns such as “the chamber collapses in 2 rounds,” “reinforcements arrive after 3 completed turns,” or a delayed phase transition after a confirmed Trigger.
+
+The Runtime API exposes `cancelScheduledAction(...)` and `executeScheduledActionNow(...)`; Flow metadata exposes `actionTimingModes`. Blueprints without timing data remain immediate and therefore retain their previous behavior.
+
 ## 0.1.0-alpha.11.2.5 — Directional HP Trigger Events
 
 HP-sensitive encounters can now react to the **direction** of a participant's HP change instead of treating damage and healing as the same signal. Trigger authoring offers **Participant HP decreased** and **Participant HP increased** in addition to the existing general **Participant HP changed** event.
