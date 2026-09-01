@@ -22,6 +22,15 @@ For participant transition events (`defeated`, `restored`, Token removed), aggre
 
 Flow analysis owns structural checks for condition references and simple impossible numeric conjunctions. The Runtime still treats the authored expression as declarative data and performs no arbitrary JavaScript evaluation.
 
+
+## Logical zones and Foundry Scene Regions
+
+A Blueprint **zone** is an Encounter Forge logical reference, not a replacement for Foundry Regions. Authoring binds the zone to a Foundry Region by UUID and stores the Region name as a portability snapshot. Runtime matching prefers the exact UUID; if a Blueprint is later used on another Scene, a Region with the stored binding name may satisfy the logical zone. An unbound zone never matches merely because its logical Encounter Forge name happens to resemble a Region.
+
+Encounter Forge does not register a custom Region Behavior. While an Encounter Runtime is active, `EventService` observes Token Region membership and keeps a lightweight previous-membership snapshot. Token movement, creation/deletion, and Region document changes are diffed into normalized `region.tokenEntered` and `region.tokenExited` events. Spatial event payloads include Token/participant identity plus current Region occupancy counts for all Tokens, player characters, Encounter participants, and tactical groups.
+
+Spatial Triggers first match their logical zone, then their Token scope (`any`, `player`, or `encounter`), followed by the ordinary phase/participant/objective filters and condition expression. This keeps spatial logic inside the same Trigger/Action pipeline as combat, HP, and objective events.
+
 ## Persistence
 
 Blueprints and Instances are stored as hidden-by-default JournalEntry documents under `Encounter Forge/Blueprints` and `Encounter Forge/Runtime`. The payload lives in `flags.pf2e-encounter-forge.repository`.

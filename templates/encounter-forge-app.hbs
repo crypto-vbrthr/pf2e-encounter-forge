@@ -427,6 +427,46 @@
         </section>
       </div>
 
+      <section class="encounter-forge-flow-panel encounter-forge-zone-panel">
+        <header>
+          <div>
+            <h3><i class="fa-solid fa-draw-polygon"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.ZonesTitle"}}</h3>
+            <p>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ZonesHint"}}</p>
+          </div>
+          <div class="encounter-forge-zone-toolbar">
+            {{#if hasRegionQuickAddOptions}}
+              <select data-region-quick-add aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Flow.AddRegionAsZone"}}">
+                <option value="">{{localize "PF2E_ENCOUNTER_FORGE.Flow.AddRegionAsZone"}}</option>
+                {{#each regionQuickAddOptions}}<option value="{{value}}">{{label}}</option>{{/each}}
+              </select>
+            {{/if}}
+            <div class="encounter-forge-flow-row-actions">
+              <button type="button" data-action="refreshRegions" class="secondary icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Flow.RefreshRegions"><i class="fa-solid fa-rotate"></i></button>
+              <button type="button" data-action="addZone" class="secondary"><i class="fa-solid fa-plus"></i> {{localize "PF2E_ENCOUNTER_FORGE.Flow.AddZone"}}</button>
+            </div>
+          </div>
+        </header>
+        {{#if hasZones}}
+          <div class="encounter-forge-flow-list encounter-forge-zone-list">
+            {{#each zones}}
+              <article class="encounter-forge-zone-row" data-zone-id="{{id}}">
+                <div class="encounter-forge-flow-row-head">
+                  <input type="text" value="{{name}}" data-zone-field="name" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Fields.Name"}}">
+                  <div class="encounter-forge-flow-row-actions">
+                    <button type="button" data-action="duplicateZone" data-zone-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Flow.Duplicate"><i class="fa-regular fa-copy"></i></button>
+                    <button type="button" data-action="removeZone" data-zone-id="{{id}}" class="icon-only danger"><i class="fa-solid fa-trash"></i></button>
+                  </div>
+                </div>
+                <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.BoundRegion"}}</span><select data-zone-field="regionUuid">{{#each regionOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                {{#if bindingLabel}}<small class="encounter-forge-zone-binding"><i class="fa-solid fa-link"></i> {{bindingLabel}}</small>{{/if}}
+              </article>
+            {{/each}}
+          </div>
+        {{else}}
+          <p class="encounter-forge-flow-empty">{{localize "PF2E_ENCOUNTER_FORGE.Flow.NoZones"}}</p>
+        {{/if}}
+      </section>
+
       <div class="encounter-forge-flow-columns encounter-forge-flow-columns-runtime">
         <section class="encounter-forge-flow-panel">
           <header>
@@ -524,6 +564,12 @@
                     <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Participant"}}</span><select data-trigger-field="participantId">{{#each participantOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
                     <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Objective"}}</span><select data-trigger-field="objectiveId">{{#each objectiveOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
                   </div>
+                  {{#if isRegionEvent}}
+                    <div class="encounter-forge-region-trigger-grid">
+                      <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ZoneLabel"}}</span><select data-trigger-field="zoneId">{{#each zoneOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                      <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.RegionTokenScopeLabel"}}</span><select data-trigger-field="regionTokenScope">{{#each regionTokenScopeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                    </div>
+                  {{/if}}
                   <div class="encounter-forge-trigger-flags">
                     <label><input type="checkbox" data-trigger-field="enabled" {{#if enabledChecked}}checked{{/if}}> {{localize "PF2E_ENCOUNTER_FORGE.Flow.Enabled"}}</label>
                     <label><input type="checkbox" data-trigger-field="once" {{#if onceChecked}}checked{{/if}}> {{localize "PF2E_ENCOUNTER_FORGE.Flow.Once"}}</label>
@@ -605,6 +651,7 @@
         <div class="encounter-forge-stat"><strong>{{draft.groupCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Groups"}}</span></div>
         <div class="encounter-forge-stat"><strong>{{draft.objectiveCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Objectives"}}</span></div>
         <div class="encounter-forge-stat"><strong>{{draft.phaseCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Phases"}}</span></div>
+        <div class="encounter-forge-stat"><strong>{{draft.zoneCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Zones"}}</span></div>
         <div class="encounter-forge-stat"><strong>{{draft.triggerCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Triggers"}}</span></div>
         <div class="encounter-forge-stat"><strong>{{draft.actionCount}}</strong><span>{{localize "PF2E_ENCOUNTER_FORGE.Structure.Actions"}}</span></div>
       </div>

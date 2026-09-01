@@ -11,6 +11,7 @@ const forgeEditorSource = fs.readFileSync(new URL("../scripts/ui/forge-participa
 const deploymentDialogSource = fs.readFileSync(new URL("../scripts/ui/deployment-dialog-app.js", import.meta.url), "utf8");
 const deploymentTemplate = fs.readFileSync(new URL("../templates/deployment-dialog-app.hbs", import.meta.url), "utf8");
 const flowSource = fs.readFileSync(new URL("../scripts/engine/encounter-flow.js", import.meta.url), "utf8");
+const css = fs.readFileSync(new URL("../styles/encounter-forge.css", import.meta.url), "utf8");
 
 test("Encounter Forge installs a GM Actor Directory launcher with Foundry 14 fallbacks", () => {
   assert.match(uiSource, /renderActorDirectory/);
@@ -454,4 +455,39 @@ test("Flow actions expose persistent delayed execution controls and Director sch
   assert.match(directorTemplate, /data-action="runScheduledActionNow"/);
   assert.match(directorTemplate, /data-action="cancelScheduledAction"/);
   assert.match(directorSource, /scheduledActions/);
+});
+
+test("Flow authoring exposes logical zones bound to Foundry Scene Regions and spatial Trigger controls", () => {
+  assert.match(template, /PF2E_ENCOUNTER_FORGE\.Flow\.ZonesTitle/);
+  assert.match(template, /data-zone-field="regionUuid"/);
+  assert.match(template, /data-action="refreshRegions"/);
+  assert.match(template, /\{\{#if isRegionEvent\}\}/);
+  assert.match(template, /data-trigger-field="zoneId"/);
+  assert.match(template, /data-trigger-field="regionTokenScope"/);
+  assert.match(appSource, /FLOW_REGION_EVENT_TYPES/);
+  assert.match(appSource, /FLOW_REGION_TOKEN_SCOPES/);
+  assert.match(flowSource, /region\.tokenEntered/);
+  assert.match(flowSource, /region\.tokenExited/);
+  assert.match(flowSource, /regionPlayerCharacterCount/);
+  assert.match(apiSource, /regionEventTypes:\s*FLOW_REGION_EVENT_TYPES/);
+  assert.match(apiSource, /regionTokenScopes:\s*FLOW_REGION_TOKEN_SCOPES/);
+  assert.match(apiSource, /regionConditionFields:\s*FLOW_REGION_CONDITION_FIELDS/);
+});
+
+
+test("Scene Regions can be adopted directly while the Encounter editor stays open", () => {
+  assert.match(template, /data-region-quick-add/);
+  assert.match(appSource, /DIRECT_REGION_OPTION_PREFIX/);
+  assert.match(appSource, /createRegion/);
+  assert.match(appSource, /deleteRegion/);
+  assert.match(appSource, /updateRegion/);
+  assert.match(appSource, /canvasReady/);
+  assert.match(appSource, /#bindTriggerToSceneRegion/);
+  assert.match(appSource, /#addZoneFromRegion/);
+});
+
+test("Linked Trigger action checkboxes keep their labels visually attached", () => {
+  assert.match(css, /encounter-forge-trigger-actions-list input\[type="checkbox"\]/);
+  assert.match(css, /width:\s*1rem\s*!important/);
+  assert.match(css, /encounter-forge-trigger-actions-list label[\s\S]*display:\s*inline-flex\s*!important/);
 });

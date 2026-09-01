@@ -1,5 +1,43 @@
 # PF2E Encounter Forge
 
+
+## Part of the Forge Suite
+
+**Encounter Forge** is part of the **Forge Suite**, a growing collection of Foundry VTT modules and add-ons built for the busy Game Master. The suite is designed to reduce preparation and bookkeeping, make common GM tasks easier, and add useful tools that help make running and playing campaigns smoother and more enjoyable.
+
+An overview of the Forge Suite, its modules, add-ons, and shared documentation is available here:
+
+**Forge Suite:** https://github.com/crypto-vbrthr/pf2e-forge-suite
+
+
+## Feedback, Bug Reports & Feature Requests
+
+Found a bug, have an idea for an improvement, or would like to suggest a new feature?
+
+Feedback is always welcome. Please feel free to open a new **GitHub Issue** at any time, whether you want to report a problem, suggest a quality-of-life improvement, propose a new feature, or share an idea for how the module could be made more useful.
+
+When reporting a bug, please include as much relevant information as possible, such as the Foundry VTT version, PF2e system version, module version, steps to reproduce the issue, and any console errors or screenshots that may help identify the problem.
+
+Suggestions and feature requests are equally welcome. Even small ideas can lead to useful improvements.
+
+**Open an issue here:** https://github.com/crypto-vbrthr/pf2e-encounter-forge/issues
+
+
+## 0.1.0-alpha.13.1 — Live Region Picker & Trigger Layout
+
+- Foundry Regions created while Encounter Forge is open are discovered automatically and become selectable without reopening the editor.
+- Existing Scene Regions can be adopted as logical Encounter Zones from the Zones & Regions toolbar or directly from a spatial Trigger's Zone dropdown.
+- Linked Trigger action checkboxes now stay compact and directly beside their labels.
+
+## 0.1.0-alpha.13 — Scene Region Spatial Triggers
+
+Encounter Blueprints can now attach reusable **logical zones** to Foundry Scene Regions and react when Tokens cross those boundaries. A Region Trigger chooses a zone plus whether it should react to any Token, player-character Tokens, or deployed Encounter participants. The normal participant filter can narrow the event further to a specific creature or participant template.
+
+Spatial conditions expose the live occupancy of the Region that produced the event: total Tokens, player characters, Encounter participants, and members of a selected tactical group. This enables encounter logic such as **two PCs reach an altar**, **a boss enters an escape area**, or **the final defender leaves a ward** without hard-coding Scene coordinates into the Runtime.
+These occupancy fields are intentionally available only on Region enter/exit Triggers, because their counts belong to the Region that produced the current spatial event.
+
+Encounter Forge observes Foundry Region membership directly and keeps a per-Token membership snapshot while the Runtime is active. Token movement, creation/deletion, and Region geometry/document changes can therefore produce normalized `region.tokenEntered` / `region.tokenExited` events. The Blueprint stores a Region UUID plus its name snapshot; UUID matching is preferred and the stored Region name provides a same-named portability fallback when a Blueprint is reused on another Scene.
+
 ## 0.1.0-alpha.12.2 — Non-blocking Schedule Chat Fix
 
 Delayed-action Chat is now deliberately outside the Runtime scheduling transaction. Encounter Forge persists the schedule first, emits the Runtime queue update, and only then launches the GM Chat notification without awaiting Chat rendering. A slow or re-entrant Foundry Chat render can therefore no longer stall the Trigger/action resolution that owns the scheduled action. The Chat card also carries a frozen Encounter Instance reference rather than reading whichever Runtime Instance happens to be active later.

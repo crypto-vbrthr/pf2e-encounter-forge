@@ -11,6 +11,8 @@ export const FLOW_EVENT_TYPES = Object.freeze([
   "participant.defeated",
   "participant.restored",
   "participant.tokenDeleted",
+  "region.tokenEntered",
+  "region.tokenExited",
   "objective.progressChanged",
   "objective.completed"
 ]);
@@ -46,6 +48,10 @@ export const FLOW_CONDITION_FIELDS = Object.freeze([
   "groupDefeatedCount",
   "groupActiveCount",
   "groupRemainingCount",
+  "regionTokenCount",
+  "regionPlayerCharacterCount",
+  "regionEncounterParticipantCount",
+  "regionGroupParticipantCount",
   "participantTotalCount",
   "participantDefeatedCount",
   "participantActiveCount",
@@ -83,6 +89,10 @@ export const FLOW_NUMERIC_CONDITION_FIELDS = Object.freeze([
   "groupDefeatedCount",
   "groupActiveCount",
   "groupRemainingCount",
+  "regionTokenCount",
+  "regionPlayerCharacterCount",
+  "regionEncounterParticipantCount",
+  "regionGroupParticipantCount",
   "participantTotalCount",
   "participantDefeatedCount",
   "participantActiveCount",
@@ -138,10 +148,14 @@ export const FLOW_GROUP_CONTEXT_FIELDS = Object.freeze([
   "groupTotalCount",
   "groupDefeatedCount",
   "groupActiveCount",
-  "groupRemainingCount"
+  "groupRemainingCount",
+  "regionGroupParticipantCount"
 ]);
 
 export const FLOW_CONDITION_MODES = Object.freeze(["all", "any"]);
+export const FLOW_REGION_EVENT_TYPES = Object.freeze(["region.tokenEntered", "region.tokenExited"]);
+export const FLOW_REGION_TOKEN_SCOPES = Object.freeze(["any", "player", "encounter"]);
+export const FLOW_REGION_CONDITION_FIELDS = Object.freeze(["regionTokenCount", "regionPlayerCharacterCount", "regionEncounterParticipantCount", "regionGroupParticipantCount"]);
 export const FLOW_OPERATORS = Object.freeze(["eq", "neq", "gt", "gte", "lt", "lte", "includes"]);
 export const FLOW_ACTION_TYPES = Object.freeze(["phase.transition", "objective.progress", "director.message", "effect.apply", "aura.setEnabled", "affliction.apply", "loot.createActor"]);
 export const FLOW_ACTION_TIMING_MODES = Object.freeze(["immediate", "roundEnd", "turnEnd"]);
@@ -246,6 +260,7 @@ export function analyzeEncounterFlow(blueprint = {}) {
   const actionIds = idsOf(actions);
   const participantIds = idsOf(blueprint.participants);
   const groupIds = idsOf(blueprint.groups);
+  const zoneIds = idsOf(blueprint.zones);
   const actionById = new Map(actions.map((entry) => [entry.id, entry]));
 
   for (const action of actions) {
@@ -281,6 +296,17 @@ export function analyzeEncounterFlow(blueprint = {}) {
   for (const trigger of triggers) {
     const event = String(trigger?.event ?? trigger?.eventType ?? "").trim();
     if (!event || !FLOW_EVENT_TYPES.includes(event)) warnings.push({ code: "FLOW_EVENT_UNKNOWN", path: `triggers.${trigger.id}.event`, message: `Trigger '${trigger.id}' uses unknown event '${event || "?"}'.` });
+    if (FLOW_REGION_EVENT_TYPES.includes(event)) {
+      const zoneId = String(trigger?.zoneId ?? "").trim();
+      if (!zoneId) errors.push({ code: "FLOW_TRIGGER_ZONE_REQUIRED", path: `triggers.${trigger.id}.zoneId`, message: `Region trigger '${trigger.id}' requires a zone.` });
+      else if (!zoneIds.has(zoneId)) errors.push({ code: "FLOW_TRIGGER_ZONE_REFERENCE", path: `triggers.${trigger.id}.zoneId`, message: `Region trigger '${trigger.id}' references unknown zone '${zoneId}'.` });
+      else {
+        const zone = asArray(blueprint.zones).find((entry) => String(entry?.id ?? "") === zoneId);
+        if (!String(zone?.regionUuid ?? zone?.regionName ?? "").trim()) warnings.push({ code: "FLOW_ZONE_UNBOUND", path: `zones.${zoneId}`, message: `Zone '${zoneId}' is not bound to a Foundry Region.` });
+      }
+      const tokenScope = String(trigger?.regionTokenScope ?? "any");
+      if (!FLOW_REGION_TOKEN_SCOPES.includes(tokenScope)) warnings.push({ code: "FLOW_REGION_TOKEN_SCOPE", path: `triggers.${trigger.id}.regionTokenScope`, message: `Region trigger '${trigger.id}' uses unknown token scope '${tokenScope}'.` });
+    }
     if (trigger.activePhaseId && !phaseIds.has(trigger.activePhaseId)) errors.push({ code: "FLOW_TRIGGER_PHASE", path: `triggers.${trigger.id}.activePhaseId`, message: `Trigger '${trigger.id}' references unknown active phase '${trigger.activePhaseId}'.` });
     if (trigger.participantId && !participantIds.has(trigger.participantId)) errors.push({ code: "FLOW_TRIGGER_PARTICIPANT", path: `triggers.${trigger.id}.participantId`, message: `Trigger '${trigger.id}' references unknown participant '${trigger.participantId}'.` });
     if (trigger.objectiveId && !objectiveIds.has(trigger.objectiveId)) errors.push({ code: "FLOW_TRIGGER_OBJECTIVE", path: `triggers.${trigger.id}.objectiveId`, message: `Trigger '${trigger.id}' references unknown objective '${trigger.objectiveId}'.` });
@@ -296,6 +322,9 @@ export function analyzeEncounterFlow(blueprint = {}) {
       const operator = String(condition?.operator ?? "eq");
       if (field && !FLOW_CONDITION_FIELDS.includes(field)) warnings.push({ code: "FLOW_CONDITION_FIELD", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses custom condition field '${field}'.` });
       if (!FLOW_OPERATORS.includes(operator)) warnings.push({ code: "FLOW_CONDITION_OPERATOR", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses unknown operator '${operator}'.` });
+      if (FLOW_REGION_CONDITION_FIELDS.includes(field) && !FLOW_REGION_EVENT_TYPES.includes(event)) {
+        errors.push({ code: "FLOW_CONDITION_REGION_EVENT_REQUIRED", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses Region occupancy context '${field}' without a Region enter/exit event.` });
+      }
       if (FLOW_OBJECTIVE_CONTEXT_FIELDS.includes(field) && !(trigger.conditionObjectiveId || trigger.objectiveId)) {
         errors.push({ code: "FLOW_CONDITION_OBJECTIVE_REQUIRED", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses objective context '${field}' without selecting a condition objective.` });
       }

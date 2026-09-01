@@ -10,6 +10,9 @@ import {
   FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS,
   FLOW_GROUP_MATCH_MODES,
   FLOW_CONDITION_MODES,
+  FLOW_REGION_EVENT_TYPES,
+  FLOW_REGION_TOKEN_SCOPES,
+  FLOW_REGION_CONDITION_FIELDS,
   FLOW_OBJECTIVE_CONTEXT_FIELDS,
   FLOW_GROUP_CONTEXT_FIELDS,
   FLOW_OPERATORS,
@@ -17,7 +20,7 @@ import {
   FLOW_ACTION_TIMING_MODES,
   analyzeEncounterFlow
 } from "../engine/encounter-flow.js";
-import { randomId } from "../utils/data.js";
+import { collectionContents, randomId } from "../utils/data.js";
 import { ParticipantBrowserApp } from "./participant-browser-app.js";
 import { ForgeParticipantEditorApp } from "./forge-participant-editor-app.js";
 import { EncounterDeploymentDialogApp } from "./deployment-dialog-app.js";
@@ -123,13 +126,48 @@ function clone(value) {
   return structuredClone(value);
 }
 
-function conditionSummary(trigger, { phases = [], objectives = [], groups = [], participants = [], displayMode = "verbose" } = {}) {
+const DIRECT_REGION_OPTION_PREFIX = "__sceneRegion__:";
+
+function currentSceneDocument() {
+  return globalThis.canvas?.scene
+    ?? globalThis.game?.scenes?.current
+    ?? globalThis.game?.scenes?.active
+    ?? null;
+}
+
+function currentSceneRegions() {
+  const scene = currentSceneDocument();
+  const embedded = scene?.regions ?? scene?.getEmbeddedCollection?.("Region") ?? null;
+  return collectionContents(embedded).map((region) => ({
+    id: String(region?.id ?? ""),
+    uuid: String(region?.uuid ?? (scene?.id && region?.id ? `Scene.${scene.id}.Region.${region.id}` : "")),
+    name: String(region?.name ?? region?.id ?? "Region"),
+    sceneId: String(scene?.id ?? "")
+  })).filter((entry) => entry.uuid).sort((a, b) => a.name.localeCompare(b.name, globalThis.game?.i18n?.lang));
+}
+
+function directRegionOptionValue(regionUuid) {
+  return `${DIRECT_REGION_OPTION_PREFIX}${regionUuid}`;
+}
+
+function directRegionUuid(value) {
+  const text = String(value ?? "");
+  return text.startsWith(DIRECT_REGION_OPTION_PREFIX) ? text.slice(DIRECT_REGION_OPTION_PREFIX.length) : null;
+}
+
+function regionBindingLabel(zone = {}) {
+  const name = String(zone?.regionName ?? "").trim();
+  return name || String(zone?.regionUuid ?? "").trim();
+}
+
+function conditionSummary(trigger, { phases = [], objectives = [], groups = [], participants = [], zones = [], displayMode = "verbose" } = {}) {
   const conditions = Array.isArray(trigger?.conditions) ? trigger.conditions : [];
   if (!conditions.length) return "";
   const phaseNames = new Map(phases.map((entry) => [String(entry.value ?? entry.id), String(entry.label ?? entry.name ?? entry.id)]));
   const objectiveNames = new Map(objectives.map((entry) => [String(entry.value ?? entry.id), String(entry.label ?? entry.name ?? entry.id)]));
   const groupNames = new Map(groups.map((entry) => [String(entry.value ?? entry.id), String(entry.label ?? entry.name ?? entry.id)]));
   const participantNames = new Map(participants.map((entry) => [String(entry.value ?? entry.id), String(entry.label ?? entry.name ?? entry.id)]));
+  const zoneNames = new Map(zones.map((entry) => [String(entry.value ?? entry.id), String(entry.label ?? entry.name ?? entry.id)]));
   const joinMode = displayMode === "operators" ? "operators" : "verbose";
   const joiner = String(trigger?.conditionMode ?? "all") === "any"
     ? ` ${localize(`PF2E_ENCOUNTER_FORGE.Flow.ConditionJoin.${joinMode}.any`, joinMode === "operators" ? "OR" : localize("PF2E_ENCOUNTER_FORGE.Flow.ConditionJoin.any", "OR"))} `
@@ -147,6 +185,10 @@ function conditionSummary(trigger, { phases = [], objectives = [], groups = [], 
     if (FLOW_GROUP_CONTEXT_FIELDS.includes(field)) {
       const id = trigger?.conditionGroupId ?? null;
       if (id) fieldLabel += ` [${groupNames.get(String(id)) ?? id}]`;
+    }
+    if (["regionTokenCount", "regionPlayerCharacterCount", "regionEncounterParticipantCount", "regionGroupParticipantCount"].includes(field)) {
+      const id = trigger?.zoneId ?? null;
+      if (id) fieldLabel += ` [${zoneNames.get(String(id)) ?? id}]`;
     }
     if (FLOW_PARTICIPANT_CONTEXT_FIELDS.includes(field)) {
       const id = condition?.participantId ?? null;
@@ -202,6 +244,10 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       movePhaseUp: EncounterForgeApp.movePhaseUp,
       movePhaseDown: EncounterForgeApp.movePhaseDown,
       addObjective: EncounterForgeApp.addObjective,
+      addZone: EncounterForgeApp.addZone,
+      duplicateZone: EncounterForgeApp.duplicateZone,
+      removeZone: EncounterForgeApp.removeZone,
+      refreshRegions: EncounterForgeApp.refreshRegions,
       duplicateObjective: EncounterForgeApp.duplicateObjective,
       removeObjective: EncounterForgeApp.removeObjective,
       addFlowAction: EncounterForgeApp.addFlowAction,
@@ -236,6 +282,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     this.childApps = new Set();
     this.integrationsExpanded = false;
     this.pendingScrollState = null;
+    this.regionHookIds = [];
+    this.regionRefreshTimer = null;
   }
 
   get isDirty() {
@@ -333,6 +381,28 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const objectiveChoices = (draft.objectives ?? []).map((objective) => ({ value: objective.id, label: objective.name || objective.id }));
     const participantChoices = (draft.participants ?? []).map((participant) => ({ value: participant.id, label: participant.name || participant.id }));
     const groupChoices = (draft.groups ?? []).map((group) => ({ value: group.id, label: group.name || group.id }));
+    const sceneRegions = currentSceneRegions();
+    const zones = (draft.zones ?? []).map((zone) => {
+      const options = sceneRegions.map((region) => ({ value: region.uuid, label: region.name, selected: String(zone.regionUuid ?? "") === region.uuid }));
+      const selectedPresent = options.some((entry) => entry.selected);
+      if (zone.regionUuid && !selectedPresent) options.unshift({ value: zone.regionUuid, label: regionBindingLabel(zone) || zone.regionUuid, selected: true });
+      return {
+        ...zone,
+        bindingLabel: regionBindingLabel(zone),
+        regionOptions: [
+          { value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.ZoneUnbound", "No Region bound"), selected: !zone.regionUuid },
+          ...options
+        ]
+      };
+    });
+    const zoneChoices = (draft.zones ?? []).map((zone) => ({ value: zone.id, label: zone.name || zone.id }));
+    const boundRegionUuids = new Set((draft.zones ?? []).map((zone) => String(zone.regionUuid ?? "")).filter(Boolean));
+    const unboundSceneRegions = sceneRegions.filter((region) => !boundRegionUuids.has(region.uuid));
+    const regionQuickAddOptions = unboundSceneRegions.map((region) => ({ value: region.uuid, label: region.name }));
+    const directRegionZoneOptions = unboundSceneRegions.map((region) => ({
+      value: directRegionOptionValue(region.uuid),
+      label: localize("PF2E_ENCOUNTER_FORGE.Flow.DirectRegionOption", `Foundry: ${region.name}`).replace("{name}", region.name)
+    }));
     const flowActions = (draft.actions ?? []).map((action) => {
       const type = String(action.type ?? action.kind ?? "director.message");
       const integration = integrationActionDescriptor(type);
@@ -377,6 +447,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const conditionLogicDisplayMode = getConditionLogicDisplayMode();
     const triggers = (draft.triggers ?? []).map((trigger) => {
       const authoredConditions = trigger.conditions ?? [];
+      const isRegionEvent = FLOW_REGION_EVENT_TYPES.includes(String(trigger.event ?? ""));
       const usesObjectiveConditionContext = authoredConditions.some((condition) => FLOW_OBJECTIVE_CONTEXT_FIELDS.includes(String(condition?.field ?? condition?.path ?? "")));
       const usesGroupConditionContext = authoredConditions.some((condition) => FLOW_GROUP_CONTEXT_FIELDS.includes(String(condition?.field ?? condition?.path ?? "")));
       return {
@@ -384,9 +455,16 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       enabledChecked: trigger.enabled !== false,
       onceChecked: trigger.once !== false,
       confirmChecked: trigger.confirm !== false && trigger.automatic !== true,
+      isRegionEvent,
+      zoneOptions: [
+        { value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectZone", "Select zone"), selected: !trigger.zoneId },
+        ...zoneChoices.map((entry) => ({ ...entry, selected: String(trigger.zoneId ?? "") === entry.value })),
+        ...directRegionZoneOptions.map((entry) => ({ ...entry, selected: false }))
+      ],
+      regionTokenScopeOptions: FLOW_REGION_TOKEN_SCOPES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.RegionTokenScope.${value}`, value), selected: String(trigger.regionTokenScope ?? "any") === value })),
       usesObjectiveConditionContext,
       usesGroupConditionContext,
-      conditionSummary: conditionSummary(trigger, { phases: phaseChoices, objectives: objectiveChoices, groups: groupChoices, participants: participantChoices, displayMode: conditionLogicDisplayMode }),
+      conditionSummary: conditionSummary(trigger, { phases: phaseChoices, objectives: objectiveChoices, groups: groupChoices, participants: participantChoices, zones: zoneChoices, displayMode: conditionLogicDisplayMode }),
       eventOptions: FLOW_EVENT_TYPES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.Event.${value}`, value), selected: String(trigger.event ?? "") === value })),
       activePhaseOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.AnyPhase", "Any phase"), selected: !trigger.activePhaseId }, ...phaseChoices.map((entry) => ({ ...entry, selected: trigger.activePhaseId === entry.value }))],
       participantOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.AnyParticipant", "Any participant"), selected: !trigger.participantId }, ...participantChoices.map((entry) => ({ ...entry, selected: trigger.participantId === entry.value }))],
@@ -419,7 +497,9 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
             { value: "true", label: localize("PF2E_ENCOUNTER_FORGE.Flow.Boolean.true", "Yes"), selected: condition.value === true || String(condition.value) === "true" },
             { value: "false", label: localize("PF2E_ENCOUNTER_FORGE.Flow.Boolean.false", "No"), selected: condition.value === false || String(condition.value) === "false" }
           ],
-          fieldOptions: FLOW_CONDITION_FIELDS.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ConditionField.${value}`, value), selected: field === value })),
+          fieldOptions: FLOW_CONDITION_FIELDS
+            .filter((value) => isRegionEvent || !FLOW_REGION_CONDITION_FIELDS.includes(value))
+            .map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ConditionField.${value}`, value), selected: field === value })),
           operatorOptions: operatorValues.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.Operator.${value}`, value), selected: String(condition.operator ?? "eq") === value }))
         };
       }),
@@ -453,6 +533,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         groupCount: draft.groups?.length ?? 0,
         objectiveCount: draft.objectives?.length ?? 0,
         phaseCount: draft.phases?.length ?? 0,
+        zoneCount: draft.zones?.length ?? 0,
         triggerCount: draft.triggers?.length ?? 0,
         actionCount: draft.actions?.length ?? 0
       },
@@ -473,10 +554,15 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       npcForgeReady,
       phases,
       objectives,
+      zones,
+      sceneRegionCount: sceneRegions.length,
+      regionQuickAddOptions,
+      hasRegionQuickAddOptions: regionQuickAddOptions.length > 0,
       flowActions,
       triggers,
       hasPhases: phases.length > 0,
       hasObjectives: objectives.length > 0,
+      hasZones: zones.length > 0,
       hasFlowActions: flowActions.length > 0,
       hasTriggers: triggers.length > 0,
       flowReport: { ...flowReport, issues: flowIssues, issueCount: flowIssues.length },
@@ -506,8 +592,17 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     super._onRender(context, options);
     const root = this.element;
     if (!(root instanceof HTMLElement)) return;
+    this.#ensureRegionHooks();
 
-    for (const input of root.querySelectorAll("[data-blueprint-field], [data-participant-field], [data-group-field], [data-phase-field], [data-objective-field], [data-flow-action-field], [data-trigger-field], [data-trigger-condition-field], [data-trigger-action]")) {
+    const quickRegion = root.querySelector("[data-region-quick-add]");
+    quickRegion?.addEventListener("change", async () => {
+      const regionUuid = String(quickRegion.value ?? "").trim();
+      if (!regionUuid) return;
+      this.#syncDraftFromForm();
+      await this.#addZoneFromRegion(regionUuid);
+    });
+
+    for (const input of root.querySelectorAll("[data-blueprint-field], [data-participant-field], [data-group-field], [data-phase-field], [data-objective-field], [data-zone-field], [data-flow-action-field], [data-trigger-field], [data-trigger-condition-field], [data-trigger-action]")) {
       const syncAndRefreshReferences = () => {
         this.#syncDraftFromForm();
         this.#refreshReferenceLabels();
@@ -521,8 +616,16 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         await this.#renderFresh();
       });
     }
-    for (const control of root.querySelectorAll('[data-flow-action-field="phaseId"], [data-flow-action-field="objectiveId"], [data-flow-action-field="timingMode"], [data-flow-action-field="targetMode"], [data-flow-action-field="targetId"], [data-flow-action-field="enabled"], [data-trigger-field="event"], [data-trigger-field="activePhaseId"], [data-trigger-field="participantId"], [data-trigger-field="objectiveId"], [data-trigger-field="conditionMode"], [data-trigger-field="conditionObjectiveId"], [data-trigger-field="conditionGroupId"], [data-trigger-condition-field], [data-trigger-action]')) {
+    for (const control of root.querySelectorAll('[data-flow-action-field="phaseId"], [data-flow-action-field="objectiveId"], [data-flow-action-field="timingMode"], [data-flow-action-field="targetMode"], [data-flow-action-field="targetId"], [data-flow-action-field="enabled"], [data-trigger-field="event"], [data-trigger-field="activePhaseId"], [data-trigger-field="participantId"], [data-trigger-field="objectiveId"], [data-trigger-field="conditionMode"], [data-trigger-field="conditionObjectiveId"], [data-trigger-field="conditionGroupId"], [data-trigger-field="zoneId"], [data-trigger-field="regionTokenScope"], [data-zone-field="regionUuid"], [data-trigger-condition-field], [data-trigger-action]')) {
       control.addEventListener("change", async () => {
+        if (control.matches('[data-trigger-field="zoneId"]')) {
+          const regionUuid = directRegionUuid(control.value);
+          if (regionUuid) {
+            this.#syncDraftFromForm();
+            await this.#bindTriggerToSceneRegion(control, regionUuid);
+            return;
+          }
+        }
         this.#syncDraftFromForm();
         await this.#renderFresh();
       });
@@ -555,7 +658,91 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       try { await app.close?.({ animate: false }); } catch {}
     }
     this.childApps.clear();
+    this.#removeRegionHooks();
     return super.close(options);
+  }
+
+  #ensureRegionHooks() {
+    if (this.regionHookIds.length || !globalThis.Hooks?.on) return;
+    const refreshForRegion = (region) => {
+      const currentSceneId = String(currentSceneDocument()?.id ?? "");
+      const regionSceneId = String(region?.parent?.id ?? region?.scene?.id ?? "");
+      if (regionSceneId && currentSceneId && regionSceneId !== currentSceneId) return;
+      this.#queueRegionRefresh();
+    };
+    for (const hook of ["createRegion", "deleteRegion"]) {
+      const id = globalThis.Hooks.on(hook, refreshForRegion);
+      this.regionHookIds.push([hook, id]);
+    }
+    const updateRegionId = globalThis.Hooks.on("updateRegion", (region, changes = {}) => {
+      // Region geometry can update repeatedly while a shape is being edited. The
+      // picker only needs a rerender when the human-readable binding changes.
+      if (Object.prototype.hasOwnProperty.call(changes ?? {}, "name")) refreshForRegion(region);
+    });
+    this.regionHookIds.push(["updateRegion", updateRegionId]);
+    const canvasReadyId = globalThis.Hooks.on("canvasReady", () => this.#queueRegionRefresh());
+    this.regionHookIds.push(["canvasReady", canvasReadyId]);
+  }
+
+  #removeRegionHooks() {
+    if (this.regionRefreshTimer) {
+      clearTimeout(this.regionRefreshTimer);
+      this.regionRefreshTimer = null;
+    }
+    for (const [hook, id] of this.regionHookIds.splice(0)) {
+      try { globalThis.Hooks?.off?.(hook, id); } catch {}
+    }
+  }
+
+  #queueRegionRefresh() {
+    if (this.regionRefreshTimer) clearTimeout(this.regionRefreshTimer);
+    this.regionRefreshTimer = setTimeout(async () => {
+      this.regionRefreshTimer = null;
+      if (!this.element) return;
+      this.#syncDraftFromForm();
+      await this.#renderFresh();
+    }, 100);
+  }
+
+  async #addZoneFromRegion(regionUuid) {
+    const region = currentSceneRegions().find((entry) => entry.uuid === regionUuid);
+    if (!region) return;
+    const next = clone(this.draft);
+    next.zones ??= [];
+    if (!next.zones.some((zone) => String(zone.regionUuid ?? "") === region.uuid)) {
+      next.zones.push({
+        id: randomId("zone"),
+        name: region.name || localize("PF2E_ENCOUNTER_FORGE.Flow.Zone", "Zone"),
+        regionUuid: region.uuid,
+        regionName: region.name,
+        regionSceneId: region.sceneId
+      });
+    }
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  async #bindTriggerToSceneRegion(control, regionUuid) {
+    const region = currentSceneRegions().find((entry) => entry.uuid === regionUuid);
+    const triggerId = String(control.closest?.("[data-trigger-id]")?.dataset?.triggerId ?? "");
+    if (!region || !triggerId) return;
+    const next = clone(this.draft);
+    next.zones ??= [];
+    let zone = next.zones.find((entry) => String(entry.regionUuid ?? "") === region.uuid);
+    if (!zone) {
+      zone = {
+        id: randomId("zone"),
+        name: region.name || localize("PF2E_ENCOUNTER_FORGE.Flow.Zone", "Zone"),
+        regionUuid: region.uuid,
+        regionName: region.name,
+        regionSceneId: region.sceneId
+      };
+      next.zones.push(zone);
+    }
+    const trigger = next.triggers?.find?.((entry) => String(entry.id) === triggerId);
+    if (trigger) trigger.zoneId = zone.id;
+    this.draft = next;
+    await this.#renderFresh();
   }
 
   async #reloadBlueprints() {
@@ -673,6 +860,27 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       objective.target = asInteger(read("target"), Number(objective.target ?? 1), { min: 1, max: 999 });
     }
 
+    const zoneById = new Map((next.zones ?? []).map((zone) => [zone.id, zone]));
+    const availableRegions = new Map(currentSceneRegions().map((region) => [region.uuid, region]));
+    for (const row of root.querySelectorAll(".encounter-forge-zone-row[data-zone-id]")) {
+      const zone = zoneById.get(row.dataset.zoneId);
+      if (!zone) continue;
+      const read = (field) => row.querySelector(`[data-zone-field="${field}"]`)?.value;
+      zone.name = String(read("name") ?? zone.name ?? zone.id).trim() || zone.id;
+      const regionUuid = String(read("regionUuid") ?? "").trim() || null;
+      zone.regionUuid = regionUuid;
+      if (!regionUuid) {
+        zone.regionName = null;
+        zone.regionSceneId = null;
+      } else {
+        const region = availableRegions.get(regionUuid);
+        if (region) {
+          zone.regionName = region.name;
+          zone.regionSceneId = region.sceneId;
+        }
+      }
+    }
+
     const actionById = new Map((next.actions ?? []).map((action) => [action.id, action]));
     for (const row of root.querySelectorAll(".encounter-forge-flow-action-row[data-flow-action-id]")) {
       const action = actionById.get(row.dataset.flowActionId);
@@ -705,6 +913,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       trigger.activePhaseId = String(read("activePhaseId") ?? "").trim() || null;
       trigger.participantId = String(read("participantId") ?? "").trim() || null;
       trigger.objectiveId = String(read("objectiveId") ?? "").trim() || null;
+      trigger.zoneId = String(read("zoneId") ?? "").trim() || null;
+      trigger.regionTokenScope = FLOW_REGION_TOKEN_SCOPES.includes(String(read("regionTokenScope") ?? trigger.regionTokenScope ?? "any")) ? String(read("regionTokenScope") ?? trigger.regionTokenScope ?? "any") : "any";
       trigger.conditionMode = FLOW_CONDITION_MODES.includes(String(read("conditionMode") ?? "all")) ? String(read("conditionMode") ?? "all") : "all";
       trigger.conditionObjectiveId = String(read("conditionObjectiveId") ?? "").trim() || null;
       trigger.conditionGroupId = String(read("conditionGroupId") ?? "").trim() || null;
@@ -748,6 +958,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const participants = new Map((this.draft?.participants ?? []).map((entry) => [String(entry.id), String(entry.name || entry.id)]));
     const groups = new Map((this.draft?.groups ?? []).map((entry) => [String(entry.id), String(entry.name || entry.id)]));
     const actions = new Map((this.draft?.actions ?? []).map((entry) => [String(entry.id), String(entry.name || entry.id)]));
+    const zones = new Map((this.draft?.zones ?? []).map((entry) => [String(entry.id), String(entry.name || entry.id)]));
 
     const refreshOptions = (selector, labels) => {
       for (const select of root.querySelectorAll(selector)) {
@@ -762,6 +973,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     refreshOptions('[data-flow-action-field="objectiveId"], [data-trigger-field="objectiveId"], [data-trigger-field="conditionObjectiveId"]', objectives);
     refreshOptions('[data-trigger-field="participantId"], [data-trigger-condition-field="participantId"]', participants);
     refreshOptions('[data-participant-field="groupId"], [data-trigger-field="conditionGroupId"], [data-trigger-condition-field="groupId"]', groups);
+    refreshOptions('[data-trigger-field="zoneId"]', zones);
     for (const row of root.querySelectorAll('.encounter-forge-flow-action-row[data-flow-action-id]')) {
       const mode = row.querySelector('[data-flow-action-field="targetMode"]')?.value;
       const labels = mode === "group" ? groups : participants;
@@ -1138,6 +1350,52 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     await this.#renderFresh();
   }
 
+  static async addZone() {
+    this.#syncDraftFromForm();
+    const next = clone(this.draft);
+    next.zones ??= [];
+    const number = next.zones.length + 1;
+    next.zones.push({
+      id: randomId("zone"),
+      name: `${localize("PF2E_ENCOUNTER_FORGE.Flow.Zone", "Zone")} ${number}`,
+      regionUuid: null,
+      regionName: null,
+      regionSceneId: null
+    });
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async duplicateZone(_event, target) {
+    this.#syncDraftFromForm();
+    const id = String(target?.dataset?.zoneId ?? "").trim();
+    const next = clone(this.draft);
+    const index = (next.zones ?? []).findIndex((entry) => entry.id === id);
+    if (index < 0) return;
+    const source = clone(next.zones[index]);
+    source.id = randomId("zone");
+    source.name = `${source.name || localize("PF2E_ENCOUNTER_FORGE.Flow.Zone", "Zone")} (${localize("PF2E_ENCOUNTER_FORGE.Flow.Copy", "Copy")})`;
+    next.zones.splice(index + 1, 0, source);
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async removeZone(_event, target) {
+    this.#syncDraftFromForm();
+    const id = String(target?.dataset?.zoneId ?? "").trim();
+    if (!id) return;
+    const next = clone(this.draft);
+    next.zones = (next.zones ?? []).filter((entry) => entry.id !== id);
+    for (const trigger of next.triggers ?? []) if (String(trigger.zoneId ?? "") === id) trigger.zoneId = null;
+    this.draft = next;
+    await this.#renderFresh();
+  }
+
+  static async refreshRegions() {
+    this.#syncDraftFromForm();
+    await this.#renderFresh();
+  }
+
   static async addObjective() {
     this.#syncDraftFromForm();
     const next = clone(this.draft);
@@ -1249,6 +1507,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       activePhaseId: null,
       participantId: null,
       objectiveId: null,
+      zoneId: null,
+      regionTokenScope: "any",
       conditionMode: "all",
       conditionObjectiveId: null,
       conditionGroupId: null,
@@ -1301,7 +1561,9 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       ? { field: "hpPercent", operator: "lte", value: 50 }
       : trigger.event === "objective.progressChanged"
         ? { field: "progress", operator: "gte", value: 1 }
-        : { field: "round", operator: "gte", value: 1 };
+        : FLOW_REGION_EVENT_TYPES.includes(trigger.event)
+          ? { field: "regionTokenCount", operator: "gte", value: 1 }
+          : { field: "round", operator: "gte", value: 1 };
     trigger.conditions.push({ ...defaults, negate: false });
     this.draft = next;
     await this.#renderFresh();

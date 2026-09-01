@@ -1,4 +1,4 @@
-import { FLOW_GROUP_MATCH_MODES, FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS, FLOW_PARTICIPANT_CONTEXT_FIELDS } from "../engine/encounter-flow.js";
+import { FLOW_GROUP_MATCH_MODES, FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS, FLOW_PARTICIPANT_CONTEXT_FIELDS, FLOW_REGION_EVENT_TYPES, FLOW_REGION_TOKEN_SCOPES } from "../engine/encounter-flow.js";
 import { RuntimeService } from "./base-service.js";
 
 function getPath(object, path) {
@@ -18,10 +18,24 @@ function compare(left, operator, right) {
   }
 }
 
-function matchesEvent(trigger, event) {
+function zoneMatchesEvent(trigger, event, blueprint) {
+  const zoneId = String(trigger?.zoneId ?? "").trim();
+  if (!zoneId) return false;
+  const zone = (blueprint?.zones ?? []).find((entry) => String(entry?.id ?? "") === zoneId);
+  if (!zone) return false;
+  const expectedUuid = String(zone?.regionUuid ?? "").trim();
+  const expectedName = String(zone?.regionName ?? "").trim();
+  const receivedUuid = String(event?.regionUuid ?? "").trim();
+  const receivedName = String(event?.regionName ?? "").trim();
+  if (expectedUuid && receivedUuid && expectedUuid === receivedUuid) return true;
+  return Boolean(expectedName && receivedName && expectedName === receivedName);
+}
+
+function matchesEvent(trigger, event, blueprint = null) {
   const expected = String(trigger?.event ?? trigger?.eventType ?? trigger?.type ?? "").trim();
-  if (!expected) return false;
-  return expected === event.type;
+  if (!expected || expected !== event.type) return false;
+  if (FLOW_REGION_EVENT_TYPES.includes(expected)) return zoneMatchesEvent(trigger, event, blueprint);
+  return true;
 }
 
 function participantRows(instance, groupId = null) {
@@ -69,6 +83,13 @@ function resolveConditionValue(field, { event, instance, trigger }) {
     case "groupDefeatedCount": return participantCounts(instance, trigger?.conditionGroupId, event).defeated;
     case "groupActiveCount": return participantCounts(instance, trigger?.conditionGroupId, event).active;
     case "groupRemainingCount": return participantCounts(instance, trigger?.conditionGroupId, event).remaining;
+    case "regionTokenCount": return Number(event?.regionTokenCount ?? 0);
+    case "regionPlayerCharacterCount": return Number(event?.regionPlayerCharacterCount ?? 0);
+    case "regionEncounterParticipantCount": return Number(event?.regionEncounterParticipantCount ?? 0);
+    case "regionGroupParticipantCount": {
+      const id = String(trigger?.conditionGroupId ?? "").trim();
+      return id ? Number(event?.regionGroupParticipantCounts?.[id] ?? 0) : null;
+    }
     case "participantTotalCount": return participantCounts(instance, null, event).total;
     case "participantDefeatedCount": return participantCounts(instance, null, event).defeated;
     case "participantActiveCount": return participantCounts(instance, null, event).active;
@@ -156,6 +177,11 @@ async function groupParticipantConditionMatches(condition, trigger, { event, ins
 
 export async function matchesTriggerConditions(trigger, event, instance = null, { participants = null } = {}) {
   if (trigger?.activePhaseId && trigger.activePhaseId !== instance?.currentPhaseId) return false;
+  if (FLOW_REGION_EVENT_TYPES.includes(String(event?.type ?? ""))) {
+    const scope = FLOW_REGION_TOKEN_SCOPES.includes(String(trigger?.regionTokenScope ?? "any")) ? String(trigger?.regionTokenScope ?? "any") : "any";
+    if (scope === "player" && event?.isPlayerCharacter !== true) return false;
+    if (scope === "encounter" && !event?.participantId) return false;
+  }
   if (trigger?.participantId) {
     const eventParticipant = (instance?.participants ?? []).find((entry) => String(entry?.id ?? "") === String(event?.participantId ?? ""));
     const matchesParticipant = String(trigger.participantId) === String(event?.participantId ?? "")
@@ -221,7 +247,7 @@ export class TriggerService extends RuntimeService {
       if (trigger?.enabled === false) continue;
       const once = trigger?.once !== false;
       if (once && (fired.has(trigger.id) || this.inFlight.has(trigger.id))) continue;
-      if (!matchesEvent(trigger, event)) continue;
+      if (!matchesEvent(trigger, event, blueprint)) continue;
 
       // Reserve one-shot triggers before any async participant snapshot lookup. Foundry can
       // deliver several document hooks for one transition in the same tick; without this

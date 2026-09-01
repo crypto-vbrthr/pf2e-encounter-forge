@@ -10,7 +10,7 @@ import { openEncounterForge } from "../ui/encounter-forge-ui.js";
 import { findPreferredEncounterInstanceId, openEncounterDirector } from "../director/encounter-director-ui.js";
 import { detectCurrentParty } from "../engine/party-analyzer.js";
 import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } from "../engine/encounter-budget.js";
-import { analyzeEncounterFlow, FLOW_ACTION_TIMING_MODES, FLOW_ACTION_TYPES, FLOW_BOOLEAN_CONDITION_FIELDS, FLOW_CONDITION_FIELDS, FLOW_CONDITION_MODES, FLOW_EVENT_TYPES, FLOW_GROUP_MATCH_MODES, FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS, FLOW_OPERATORS, FLOW_PARTICIPANT_CONTEXT_FIELDS, FLOW_TARGET_MODES } from "../engine/encounter-flow.js";
+import { analyzeEncounterFlow, FLOW_ACTION_TIMING_MODES, FLOW_ACTION_TYPES, FLOW_BOOLEAN_CONDITION_FIELDS, FLOW_CONDITION_FIELDS, FLOW_CONDITION_MODES, FLOW_EVENT_TYPES, FLOW_GROUP_MATCH_MODES, FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS, FLOW_OPERATORS, FLOW_PARTICIPANT_CONTEXT_FIELDS, FLOW_REGION_CONDITION_FIELDS, FLOW_REGION_EVENT_TYPES, FLOW_REGION_TOKEN_SCOPES, FLOW_TARGET_MODES } from "../engine/encounter-flow.js";
 import { isIntegrationEnabled, setIntegrationEnabled } from "../integrations/integration-settings.js";
 import { createExampleEncounterBlueprint, isExampleEncounterBlueprint } from "../examples/index.js";
 
@@ -94,6 +94,9 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       booleanConditionFields: FLOW_BOOLEAN_CONDITION_FIELDS,
       conditionModes: FLOW_CONDITION_MODES,
       groupMatchModes: FLOW_GROUP_MATCH_MODES,
+      regionEventTypes: FLOW_REGION_EVENT_TYPES,
+      regionTokenScopes: FLOW_REGION_TOKEN_SCOPES,
+      regionConditionFields: FLOW_REGION_CONDITION_FIELDS,
       operators: FLOW_OPERATORS
     }),
 

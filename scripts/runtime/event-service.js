@@ -22,6 +22,36 @@ function hpSnapshot(actor) {
   };
 }
 
+function tokenSceneId(token) {
+  return String(token?.parent?.id ?? token?.scene?.id ?? token?.sceneId ?? "").trim() || null;
+}
+
+function regionDescriptor(region, token = null) {
+  const scene = region?.parent ?? token?.parent ?? null;
+  const sceneIdValue = String(scene?.id ?? region?.scene?.id ?? "").trim() || null;
+  const id = String(region?.id ?? "").trim() || null;
+  return {
+    id,
+    uuid: region?.uuid ?? (sceneIdValue && id ? `Scene.${sceneIdValue}.Region.${id}` : null),
+    name: String(region?.name ?? id ?? "Region"),
+    sceneId: sceneIdValue
+  };
+}
+
+function regionCollection(token) {
+  const direct = collectionContents(token?.regions);
+  if (direct.length) return direct;
+  const sceneRegions = collectionContents(token?.parent?.regions);
+  return sceneRegions.filter((region) => {
+    const tokens = collectionContents(region?.tokens);
+    return tokens.some((entry) => entry === token || (entry?.id && entry.id === token?.id));
+  });
+}
+
+function isPlayerCharacterToken(token) {
+  return String(token?.actor?.type ?? "").toLowerCase() === "character";
+}
+
 export class EventService extends RuntimeService {
   constructor({ bus = null, getInstance = () => null, participants = null, hooksRef = globalThis.Hooks, gameRef = globalThis.game } = {}) {
     super("events");
@@ -34,6 +64,7 @@ export class EventService extends RuntimeService {
     this.lastRounds = new Map();
     this.lastTurns = new Map();
     this.lastHp = new Map();
+    this.lastRegions = new Map();
   }
 
   combatDiagnostic(combat) {
@@ -163,6 +194,127 @@ export class EventService extends RuntimeService {
         });
       }
     } catch {}
+  }
+
+  #encounterSceneId() {
+    return sceneId(this.getInstance()?.deployment?.sceneUuid);
+  }
+
+  #isEncounterSceneToken(token) {
+    const expected = this.#encounterSceneId();
+    const received = tokenSceneId(token);
+    return Boolean(expected && received && expected === received);
+  }
+
+  #tokenRegionMap(token) {
+    const map = new Map();
+    for (const region of regionCollection(token)) {
+      const descriptor = regionDescriptor(region, token);
+      if (descriptor.uuid) map.set(descriptor.uuid, { ...descriptor, document: region });
+    }
+    return map;
+  }
+
+  #sceneTokens() {
+    const id = this.#encounterSceneId();
+    if (!id) return [];
+    const scene = this.gameRef?.scenes?.get?.(id) ?? (this.gameRef?.scenes?.contents ?? []).find?.((entry) => entry?.id === id) ?? null;
+    return collectionContents(scene?.tokens);
+  }
+
+  #regionTokens(region) {
+    const direct = collectionContents(region?.tokens);
+    if (direct.length || region?.tokens) return direct;
+    const regionUuid = regionDescriptor(region).uuid;
+    if (!regionUuid) return [];
+    return this.#sceneTokens().filter((token) => this.#tokenRegionMap(token).has(regionUuid));
+  }
+
+  #regionCounts(region, { token = null, eventType = null } = {}) {
+    const rows = [...this.#regionTokens(region)];
+    const eventTokenUuid = uuidOf(token);
+    const hasEventToken = eventTokenUuid && rows.some((entry) => uuidOf(entry) === eventTokenUuid);
+    if (eventType === "region.tokenEntered" && token && !hasEventToken) rows.push(token);
+    if (eventType === "region.tokenExited" && eventTokenUuid) {
+      for (let index = rows.length - 1; index >= 0; index -= 1) if (uuidOf(rows[index]) === eventTokenUuid) rows.splice(index, 1);
+    }
+
+    let playerCharacters = 0;
+    let encounterParticipants = 0;
+    const groupCounts = {};
+    const seen = new Set();
+    for (const row of rows) {
+      const key = uuidOf(row) ?? String(row?.id ?? "");
+      if (key && seen.has(key)) continue;
+      if (key) seen.add(key);
+      if (isPlayerCharacterToken(row)) playerCharacters += 1;
+      const participant = this.participants?.findByTokenDocument?.(row) ?? null;
+      if (participant) {
+        encounterParticipants += 1;
+        const groupId = String(participant?.groupId ?? "").trim();
+        if (groupId) groupCounts[groupId] = Number(groupCounts[groupId] ?? 0) + 1;
+      }
+    }
+    return {
+      regionTokenCount: seen.size || rows.length,
+      regionPlayerCharacterCount: playerCharacters,
+      regionEncounterParticipantCount: encounterParticipants,
+      regionGroupParticipantCounts: groupCounts
+    };
+  }
+
+  async #emitRegionEvent(type, token, regionLike) {
+    const region = regionLike?.document ?? regionLike;
+    const descriptor = regionLike?.uuid ? regionLike : regionDescriptor(region, token);
+    const participant = this.participants?.findByTokenDocument?.(token) ?? null;
+    const counts = this.#regionCounts(region, { token, eventType: type });
+    await this.#emit(type, {
+      participantId: participant?.id ?? null,
+      tokenUuid: uuidOf(token),
+      tokenId: token?.id ?? null,
+      tokenName: token?.name ?? token?.actor?.name ?? null,
+      actorUuid: uuidOf(token?.actor, "Actor"),
+      isPlayerCharacter: isPlayerCharacterToken(token),
+      regionId: descriptor?.id ?? region?.id ?? null,
+      regionUuid: descriptor?.uuid ?? uuidOf(region),
+      regionName: descriptor?.name ?? region?.name ?? null,
+      regionSceneId: descriptor?.sceneId ?? tokenSceneId(token),
+      ...counts
+    });
+  }
+
+  async #processTokenRegions(token, { deleted = false, assumeEmptyPrevious = false } = {}) {
+    if (!token || !this.#isEncounterSceneToken(token)) return false;
+    const key = uuidOf(token);
+    if (!key) return false;
+    const previous = assumeEmptyPrevious ? new Map() : (this.lastRegions.get(key) ?? new Map());
+    const current = deleted ? new Map() : this.#tokenRegionMap(token);
+    this.lastRegions.set(key, current);
+
+    let changed = false;
+    for (const [uuid, descriptor] of current) {
+      if (previous.has(uuid)) continue;
+      changed = true;
+      await this.#emitRegionEvent("region.tokenEntered", token, descriptor);
+    }
+    for (const [uuid, descriptor] of previous) {
+      if (current.has(uuid)) continue;
+      changed = true;
+      await this.#emitRegionEvent("region.tokenExited", token, descriptor);
+    }
+    if (deleted) this.lastRegions.delete(key);
+    return changed;
+  }
+
+  async #seedRegionMembership() {
+    for (const token of this.#sceneTokens()) {
+      const key = uuidOf(token);
+      if (key) this.lastRegions.set(key, this.#tokenRegionMap(token));
+    }
+  }
+
+  async #rescanRegionMembership() {
+    for (const token of this.#sceneTokens()) await this.#processTokenRegions(token);
   }
 
   async #processParticipantHp(participant, actor, payload = {}) {
@@ -318,6 +470,7 @@ export class EventService extends RuntimeService {
     });
 
     this.#register("updateToken", async (token, changed = {}) => {
+      await this.#processTokenRegions(token);
       const participant = this.participants?.findByTokenDocument?.(token);
       if (!participant) return;
       const hpChanged = hpChangeDetected(changed);
@@ -327,6 +480,22 @@ export class EventService extends RuntimeService {
         await this.#emit("participant.tokenUpdated", { participantId: participant.id, tokenUuid: uuidOf(token), changed });
       }
     });
+
+    this.#register("createToken", async (token) => {
+      await this.#processTokenRegions(token, { assumeEmptyPrevious: true });
+    });
+
+    const rescanEncounterRegion = async (region) => {
+      if (String(region?.parent?.id ?? "") !== String(this.#encounterSceneId() ?? "")) return;
+      // Region geometry/membership is updated by Foundry as part of the document
+      // transaction. Yield once so TokenDocument.regions / RegionDocument.tokens
+      // reflect the new authoritative containment before diffing snapshots.
+      await Promise.resolve();
+      await this.#rescanRegionMembership();
+    };
+    this.#register("createRegion", rescanEncounterRegion);
+    this.#register("updateRegion", rescanEncounterRegion);
+    this.#register("deleteRegion", rescanEncounterRegion);
 
     this.#register("updateActor", async (actor, changed = {}) => {
       const participants = this.participants?.findByActor?.(actor) ?? [];
@@ -342,6 +511,7 @@ export class EventService extends RuntimeService {
     });
 
     this.#register("deleteToken", async (token) => {
+      await this.#processTokenRegions(token, { deleted: true });
       const participant = this.participants?.findByTokenDocument?.(token);
       if (!participant) return;
       await this.#emit("participant.tokenDeleted", { participantId: participant.id, tokenUuid: uuidOf(token) });
@@ -351,6 +521,7 @@ export class EventService extends RuntimeService {
     // in the middle of round 1 from later mistaking the transition to round 2 for an
     // unknown initial state while still allowing tests/direct calls to infer round N-1.
     await this.#seedParticipantHp();
+    await this.#seedRegionMembership();
     const current = this.gameRef?.combat ?? null;
     if (current) this.#seedCombat(current);
     if (globalThis.__PF2E_ENCOUNTER_FORGE_DEBUG__ === true) console.warn("[PF2E Encounter Forge DEBUG] EventService started", this.debugSnapshot());
@@ -365,6 +536,7 @@ export class EventService extends RuntimeService {
     this.lastRounds.clear();
     this.lastTurns.clear();
     this.lastHp.clear();
+    this.lastRegions.clear();
     return super.stop();
   }
 
@@ -391,7 +563,8 @@ export class EventService extends RuntimeService {
       combats: combats.map((combat) => this.combatDiagnostic(combat)),
       lastRounds: Object.fromEntries(this.lastRounds),
       lastTurns: Object.fromEntries(this.lastTurns),
-      lastHp: Object.fromEntries(this.lastHp)
+      lastHp: Object.fromEntries(this.lastHp),
+      lastRegions: Object.fromEntries([...this.lastRegions].map(([tokenUuid, regions]) => [tokenUuid, [...regions.keys()]]))
     };
   }
 

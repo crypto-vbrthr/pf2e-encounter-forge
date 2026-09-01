@@ -6,7 +6,7 @@ import { createEncounterInstance } from "../scripts/model/encounter-instance.js"
 import { EncounterRuntime } from "../scripts/runtime/encounter-runtime.js";
 import { EventService } from "../scripts/runtime/event-service.js";
 import { EncounterEventBus } from "../scripts/runtime/event-bus.js";
-import { matchesTriggerConditions } from "../scripts/runtime/trigger-service.js";
+import { matchesTriggerConditions, TriggerService } from "../scripts/runtime/trigger-service.js";
 
 function repositories(blueprint, instance) {
   let stored = structuredClone(instance);
@@ -388,4 +388,134 @@ test("flow analysis validates delayed action timing", () => {
   blueprint.actions[0].timing = { mode: "unknown", amount: 2 };
   flow = analyzeEncounterFlow(blueprint);
   assert(flow.warnings.some((entry) => entry.code === "FLOW_ACTION_TIMING_MODE"));
+});
+
+
+test("region trigger validation requires a logical zone and accepts a bound Foundry Region", () => {
+  const blueprint = createEncounterBlueprint({
+    zones: [{ id: "altar", name: "Altar", regionUuid: "Scene.s.Region.r", regionName: "Altar" }],
+    triggers: [{ id: "enter", event: "region.tokenEntered", regionTokenScope: "player", actions: [] }]
+  });
+  let flow = analyzeEncounterFlow(blueprint);
+  assert(flow.errors.some((entry) => entry.code === "FLOW_TRIGGER_ZONE_REQUIRED"));
+
+  blueprint.triggers[0].zoneId = "missing";
+  flow = analyzeEncounterFlow(blueprint);
+  assert(flow.errors.some((entry) => entry.code === "FLOW_TRIGGER_ZONE_REFERENCE"));
+
+  blueprint.triggers[0].zoneId = "altar";
+  flow = analyzeEncounterFlow(blueprint);
+  assert.equal(flow.errors.some((entry) => entry.code === "FLOW_TRIGGER_ZONE_REQUIRED" || entry.code === "FLOW_TRIGGER_ZONE_REFERENCE"), false);
+});
+
+test("region triggers match their zone binding and token scope", async () => {
+  const bus = new EncounterEventBus();
+  const instance = { id: "i", currentPhaseId: null, participants: [], triggeredEvents: [] };
+  const blueprint = createEncounterBlueprint({
+    zones: [{ id: "altar", name: "Altar Zone", regionUuid: "Scene.s.Region.altar", regionName: "Altar" }],
+    triggers: [{ id: "pc-enters", event: "region.tokenEntered", zoneId: "altar", regionTokenScope: "player", once: false, actions: [] }]
+  });
+  const fired = [];
+  const service = new TriggerService({
+    bus,
+    getInstance: () => instance,
+    getBlueprint: () => blueprint,
+    enabled: () => true,
+    onTrigger: async (trigger, event) => fired.push([trigger.id, event.regionUuid])
+  });
+  await service.start();
+
+  await bus.emit("encounter.event", { type: "region.tokenEntered", regionUuid: "Scene.s.Region.other", regionName: "Other", isPlayerCharacter: true });
+  await bus.emit("encounter.event", { type: "region.tokenEntered", regionUuid: "Scene.s.Region.altar", regionName: "Altar", isPlayerCharacter: false });
+  await bus.emit("encounter.event", { type: "region.tokenEntered", regionUuid: "Scene.s.Region.altar", regionName: "Altar", isPlayerCharacter: true });
+  assert.deepEqual(fired, [["pc-enters", "Scene.s.Region.altar"]]);
+});
+
+test("spatial conditions can count PCs, Encounter participants, and tactical groups in a zone", async () => {
+  const instance = { participants: [], objectives: {}, runtimeVariables: {} };
+  const event = {
+    type: "region.tokenEntered",
+    isPlayerCharacter: true,
+    regionTokenCount: 5,
+    regionPlayerCharacterCount: 2,
+    regionEncounterParticipantCount: 3,
+    regionGroupParticipantCounts: { defenders: 2 }
+  };
+  const trigger = {
+    regionTokenScope: "player",
+    conditionGroupId: "defenders",
+    conditionMode: "all",
+    conditions: [
+      { field: "regionPlayerCharacterCount", operator: "gte", value: 2 },
+      { field: "regionEncounterParticipantCount", operator: "eq", value: 3 },
+      { field: "regionGroupParticipantCount", operator: "eq", value: 2 }
+    ]
+  };
+  assert.equal(await matchesTriggerConditions(trigger, event, instance), true);
+  event.regionGroupParticipantCounts.defenders = 1;
+  assert.equal(await matchesTriggerConditions(trigger, event, instance), false);
+});
+
+test("event service emits token enter and exit events from Foundry Region membership", async () => {
+  const callbacks = new Map();
+  const hooksRef = { on(name, fn) { callbacks.set(name, fn); return name; }, off() {} };
+  const bus = new EncounterEventBus();
+  const scene = { id: "s", tokens: { contents: [] }, regions: { contents: [] } };
+  const region = { id: "r", uuid: "Scene.s.Region.r", name: "Altar", parent: scene, tokens: new Set() };
+  scene.regions.contents.push(region);
+  const enemy = { id: "e", uuid: "Scene.s.Token.e", name: "Guard", parent: scene, actor: { type: "npc", name: "Guard" }, regions: new Set() };
+  const pc = { id: "p", uuid: "Scene.s.Token.p", name: "Hero", parent: scene, actor: { type: "character", name: "Hero" }, regions: new Set() };
+  scene.tokens.contents.push(enemy, pc);
+  const participant = { id: "guard", tokenUuid: enemy.uuid, groupId: "defenders" };
+  const participants = {
+    findByTokenDocument(token) { return token === enemy ? participant : null; },
+    findByActor() { return []; },
+    findByCombatant() { return null; },
+    async snapshots() { return []; }
+  };
+  const gameWithScene = { ...gameRef, scenes: { get(id) { return id === "s" ? scene : null; }, contents: [scene] } };
+  const instance = { id: "i", deployment: { sceneUuid: "Scene.s" }, participants: [participant] };
+  const events = [];
+  bus.on("encounter.event", (event) => events.push(event));
+  const service = new EventService({ bus, getInstance: () => instance, participants, hooksRef, gameRef: gameWithScene });
+  await service.start();
+
+  pc.regions.add(region); region.tokens.add(pc);
+  await callbacks.get("updateToken")(pc, { x: 10 });
+  let spatial = events.find((entry) => entry.type === "region.tokenEntered");
+  assert.equal(spatial.regionUuid, region.uuid);
+  assert.equal(spatial.isPlayerCharacter, true);
+  assert.equal(spatial.regionPlayerCharacterCount, 1);
+  assert.equal(spatial.regionEncounterParticipantCount, 0);
+
+  events.length = 0;
+  enemy.regions.add(region); region.tokens.add(enemy);
+  await callbacks.get("updateToken")(enemy, { x: 20 });
+  spatial = events.find((entry) => entry.type === "region.tokenEntered");
+  assert.equal(spatial.participantId, "guard");
+  assert.equal(spatial.regionTokenCount, 2);
+  assert.equal(spatial.regionPlayerCharacterCount, 1);
+  assert.equal(spatial.regionEncounterParticipantCount, 1);
+  assert.equal(spatial.regionGroupParticipantCounts.defenders, 1);
+
+  events.length = 0;
+  enemy.regions.delete(region); region.tokens.delete(enemy);
+  await callbacks.get("updateToken")(enemy, { x: 30 });
+  spatial = events.find((entry) => entry.type === "region.tokenExited");
+  assert.equal(spatial.regionTokenCount, 1);
+  assert.equal(spatial.regionEncounterParticipantCount, 0);
+});
+
+test("Region occupancy conditions are rejected outside spatial enter/exit triggers", () => {
+  const blueprint = createEncounterBlueprint({
+    name: "Invalid spatial context",
+    triggers: [{
+      id: "hp-trigger",
+      event: "participant.hpChanged",
+      conditions: [{ field: "regionTokenCount", operator: "gte", value: 1 }],
+      actions: []
+    }]
+  });
+  const report = analyzeEncounterFlow(blueprint);
+  assert.ok(report.errors.some((entry) => entry.code === "FLOW_CONDITION_REGION_EVENT_REQUIRED"));
 });

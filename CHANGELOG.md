@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.1.0-alpha.13.1 - Live Region Picker & Trigger Checkbox Layout
+
+### Fixed
+- Foundry Scene Regions created while Encounter Forge is already open are now picked up automatically. The editor listens for Region creation/deletion, Region renames, and viewed-Scene changes, preserves the current form state, and refreshes the Region choices without requiring the Encounter editor to be closed and reopened.
+- Region discovery now uses the current Canvas Scene with Foundry Scene-collection fallbacks and the Scene's embedded Region collection, making the picker more tolerant of Foundry v14 Scene state.
+- Linked-action checkboxes in Trigger cards no longer inherit the flow panel's full-width input rule. Checkboxes now remain compact and sit directly beside their labels.
+- Removed a duplicate "Add Trigger" button introduced in the alpha.13 template.
+
+### Added
+- The Zones & Regions panel now has a quick picker to adopt an existing Foundry Region directly as a logical Encounter Zone.
+- Spatial Trigger zone dropdowns also list currently unbound Foundry Regions. Selecting one automatically creates/binds the logical Zone and assigns it to that Trigger in one step. This includes Regions created during Encounter editing.
+
+## 0.1.0-alpha.13 - Scene Region Spatial Triggers
+
+### Added
+- Encounter Blueprints can define reusable **logical zones** and bind each one to a Foundry Scene Region on the currently viewed Scene. The binding stores both the Region UUID and a name snapshot, so exact deployment bindings stay deterministic while same-named Regions can be used as a portability fallback on another Scene.
+- Added normalized `region.tokenEntered` and `region.tokenExited` Runtime/Trigger events. Region membership is observed for both Encounter participants and other Scene Tokens without requiring Encounter Forge to install its own Region Behavior type.
+- Spatial Triggers choose a logical zone plus a Token scope: **any Token**, **player character**, or **Encounter participant**. The existing participant filter can narrow an Encounter-participant spatial Trigger to one specific Blueprint participant.
+- Spatial condition fields can count all Tokens, player-character Tokens, Encounter participants, or members of a selected tactical group currently inside the event Region. This supports patterns such as “at least two PCs reach the altar,” “the boss enters the escape zone,” and “the last defender leaves the ward.”
+- Region-occupancy condition fields are offered only for Region enter/exit Triggers and Flow validation rejects them on unrelated events, avoiding a misleading zero-value context.
+- Region membership is seeded when the Runtime starts and diffed on Token movement/creation/deletion. Region creation, editing, and deletion on the Encounter Scene also trigger a membership rescan so boundary edits can become spatial enter/exit signals.
+- Public Flow metadata now exposes `regionEventTypes` and `regionTokenScopes`.
+
+### Validation
+- Flow analysis requires every spatial Trigger to reference an existing logical zone, warns when that zone has no Foundry Region binding, and validates the Region Token scope.
+
 ## 0.1.0-alpha.12.2 - Non-blocking Schedule Chat Fix
 
 ### Fixed
