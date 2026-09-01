@@ -1658,17 +1658,50 @@
 }
 .encounter-forge-flow-panel > header h3 { margin: 0; font-size: 0.92rem; }
 .encounter-forge-flow-panel > header p { margin: 0.15rem 0 0; font-size: 0.72rem; opacity: 0.65; }
-.encounter-forge-flow-list { display: grid; gap: 0.45rem; }
+.encounter-forge-flow-list { display: grid; gap: 0.6rem; }
 .encounter-forge-phase-row,
 .encounter-forge-objective-row,
 .encounter-forge-flow-action-row,
 .encounter-forge-trigger-row {
   display: grid;
   gap: 0.42rem;
-  padding: 0.5rem;
-  border: 1px solid rgba(255,255,255,0.075);
-  border-radius: 5px;
-  background: rgba(255,255,255,0.025);
+  padding: 0.55rem;
+  border: 2px solid rgba(111, 139, 255, 0.58);
+  border-radius: 7px;
+  background: rgba(82, 102, 190, 0.055);
+  box-shadow: 0 1px 3px rgba(0,0,0,0.18), inset 0 0 0 1px rgba(255,255,255,0.025);
+  transition: border-color 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+/* Give each authored flow entry a visible blue/violet edge so adjacent
+   phases, objectives, actions, and triggers remain easy to scan. */
+.encounter-forge-phase-row {
+  border-color: rgba(83, 145, 255, 0.7);
+  background: rgba(67, 119, 210, 0.055);
+}
+.encounter-forge-objective-row {
+  border-color: rgba(124, 105, 235, 0.7);
+  background: rgba(105, 86, 205, 0.055);
+}
+.encounter-forge-flow-action-row {
+  border-color: rgba(99, 122, 238, 0.7);
+  background: rgba(82, 102, 210, 0.055);
+}
+.encounter-forge-trigger-row {
+  border-color: rgba(151, 94, 228, 0.72);
+  background: rgba(126, 72, 196, 0.055);
+}
+.encounter-forge-phase-row:hover,
+.encounter-forge-objective-row:hover,
+.encounter-forge-flow-action-row:hover,
+.encounter-forge-trigger-row:hover,
+.encounter-forge-phase-row:focus-within,
+.encounter-forge-objective-row:focus-within,
+.encounter-forge-flow-action-row:focus-within,
+.encounter-forge-trigger-row:focus-within {
+  border-color: rgba(145, 128, 255, 0.9);
+  background: rgba(111, 94, 215, 0.085);
+  box-shadow: 0 2px 7px rgba(0,0,0,0.24), 0 0 0 1px rgba(126, 108, 255, 0.16);
 }
 .encounter-forge-flow-row-head {
   display: flex;
@@ -1708,11 +1741,34 @@
   border-top: 1px solid rgba(255,255,255,0.06);
 }
 .encounter-forge-trigger-subhead { display: flex; justify-content: space-between; align-items: center; }
+.encounter-forge-condition-context-grid {
+  display: grid;
+  grid-template-columns: 0.8fr 1fr 1fr;
+  gap: 0.35rem;
+}
+.encounter-forge-condition-summary {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  padding: 0.38rem 0.5rem;
+  border-radius: 4px;
+  border: 1px solid rgba(201,165,106,0.2);
+  background: rgba(201,165,106,0.05);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+.encounter-forge-condition-summary i { margin-top: 0.1rem; opacity: 0.7; }
 .encounter-forge-trigger-condition {
   display: grid;
-  grid-template-columns: 1.2fr 0.9fr 1fr auto;
+  grid-template-columns: auto 1.2fr 0.9fr 1fr auto;
   gap: 0.3rem;
   align-items: center;
+}
+.encounter-forge-condition-negate {
+  display: flex !important;
+  align-items: center;
+  gap: 0.2rem;
+  white-space: nowrap;
 }
 .encounter-forge-trigger-actions-list { display: flex; flex-wrap: wrap; gap: 0.25rem 0.55rem; }
 .encounter-forge-trigger-actions-list label { display: flex; align-items: center; gap: 0.2rem; }
@@ -1722,6 +1778,7 @@
 @media (max-width: 1050px) {
   .encounter-forge-flow-columns { grid-template-columns: 1fr; }
   .encounter-forge-trigger-grid { grid-template-columns: 1fr; }
+  .encounter-forge-condition-context-grid { grid-template-columns: 1fr; }
 }
 
 /* Onboarding example */

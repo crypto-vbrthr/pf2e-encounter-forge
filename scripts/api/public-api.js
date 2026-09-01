@@ -10,7 +10,7 @@ import { openEncounterForge } from "../ui/encounter-forge-ui.js";
 import { findPreferredEncounterInstanceId, openEncounterDirector } from "../director/encounter-director-ui.js";
 import { detectCurrentParty } from "../engine/party-analyzer.js";
 import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } from "../engine/encounter-budget.js";
-import { analyzeEncounterFlow, FLOW_ACTION_TYPES, FLOW_EVENT_TYPES, FLOW_CONDITION_FIELDS, FLOW_OPERATORS, FLOW_TARGET_MODES } from "../engine/encounter-flow.js";
+import { analyzeEncounterFlow, FLOW_ACTION_TYPES, FLOW_EVENT_TYPES, FLOW_CONDITION_FIELDS, FLOW_CONDITION_MODES, FLOW_OPERATORS, FLOW_TARGET_MODES } from "../engine/encounter-flow.js";
 import { isIntegrationEnabled, setIntegrationEnabled } from "../integrations/integration-settings.js";
 import { createExampleEncounterBlueprint, isExampleEncounterBlueprint } from "../examples/index.js";
 
@@ -88,6 +88,7 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       actionTypes: FLOW_ACTION_TYPES,
       targetModes: FLOW_TARGET_MODES,
       conditionFields: FLOW_CONDITION_FIELDS,
+      conditionModes: FLOW_CONDITION_MODES,
       operators: FLOW_OPERATORS
     }),
 

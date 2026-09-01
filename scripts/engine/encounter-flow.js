@@ -12,7 +12,14 @@ export const FLOW_EVENT_TYPES = Object.freeze([
   "objective.completed"
 ]);
 
+/**
+ * Conditions deliberately distinguish event payload values from persistent
+ * Encounter context. Event fields describe the signal which just arrived,
+ * while context fields let an author ask about the current Encounter state
+ * regardless of which event woke the trigger.
+ */
 export const FLOW_CONDITION_FIELDS = Object.freeze([
+  // Event payload fields
   "round",
   "turn",
   "participantId",
@@ -24,9 +31,61 @@ export const FLOW_CONDITION_FIELDS = Object.freeze([
   "previousProgress",
   "target",
   "objectiveState",
-  "previousObjectiveState"
+  "previousObjectiveState",
+  // Encounter context
+  "currentRound",
+  "currentTurn",
+  "currentPhaseId",
+  "objectiveProgress",
+  "objectiveTarget",
+  "objectiveStateCurrent",
+  "groupTotalCount",
+  "groupDefeatedCount",
+  "groupActiveCount",
+  "groupRemainingCount",
+  "participantTotalCount",
+  "participantDefeatedCount",
+  "participantActiveCount",
+  "participantRemainingCount"
 ]);
 
+export const FLOW_NUMERIC_CONDITION_FIELDS = Object.freeze([
+  "round",
+  "turn",
+  "hpValue",
+  "hpMax",
+  "hpPercent",
+  "progress",
+  "previousProgress",
+  "target",
+  "currentRound",
+  "currentTurn",
+  "objectiveProgress",
+  "objectiveTarget",
+  "groupTotalCount",
+  "groupDefeatedCount",
+  "groupActiveCount",
+  "groupRemainingCount",
+  "participantTotalCount",
+  "participantDefeatedCount",
+  "participantActiveCount",
+  "participantRemainingCount"
+]);
+
+export const FLOW_OBJECTIVE_CONTEXT_FIELDS = Object.freeze([
+  "objectiveProgress",
+  "objectiveTarget",
+  "objectiveStateCurrent"
+]);
+
+export const FLOW_GROUP_CONTEXT_FIELDS = Object.freeze([
+  "groupTotalCount",
+  "groupDefeatedCount",
+  "groupActiveCount",
+  "groupRemainingCount"
+]);
+
+export const FLOW_CONDITION_MODES = Object.freeze(["all", "any"]);
 export const FLOW_OPERATORS = Object.freeze(["eq", "neq", "gt", "gte", "lt", "lte", "includes"]);
 export const FLOW_ACTION_TYPES = Object.freeze(["phase.transition", "objective.progress", "director.message", "effect.apply", "aura.setEnabled", "affliction.apply", "loot.createActor"]);
 export const FLOW_TARGET_MODES = Object.freeze(["participant", "group", "all"]);
@@ -62,10 +121,55 @@ function findCycles(graph) {
   return cycles;
 }
 
+function numericBoundsContradict(conditions = []) {
+  let min = -Infinity;
+  let minInclusive = true;
+  let max = Infinity;
+  let maxInclusive = true;
+  let equality = null;
+  const notEqual = new Set();
+
+  for (const condition of conditions) {
+    if (condition?.negate) continue; // General NOT expressions are intentionally not simplified here.
+    const op = String(condition?.operator ?? "eq");
+    const value = Number(condition?.value);
+    if (!Number.isFinite(value)) continue;
+    if (op === "eq") equality = equality === null ? value : (equality === value ? equality : NaN);
+    else if (op === "neq") notEqual.add(value);
+    else if (op === "gt" && (value > min || (value === min && minInclusive))) { min = value; minInclusive = false; }
+    else if (op === "gte" && value > min) { min = value; minInclusive = true; }
+    else if (op === "lt" && (value < max || (value === max && maxInclusive))) { max = value; maxInclusive = false; }
+    else if (op === "lte" && value < max) { max = value; maxInclusive = true; }
+  }
+
+  if (Number.isNaN(equality)) return true;
+  if (equality !== null) {
+    if (notEqual.has(equality)) return true;
+    if (equality < min || equality > max) return true;
+    if (equality === min && !minInclusive) return true;
+    if (equality === max && !maxInclusive) return true;
+  }
+  if (min > max) return true;
+  if (min === max && (!minInclusive || !maxInclusive)) return true;
+  return false;
+}
+
+function conditionContradictions(trigger = {}) {
+  if (String(trigger.conditionMode ?? "all") !== "all") return [];
+  const grouped = new Map();
+  for (const condition of asArray(trigger.conditions)) {
+    const field = String(condition?.field ?? condition?.path ?? "").trim();
+    if (!field || !FLOW_NUMERIC_CONDITION_FIELDS.includes(field)) continue;
+    if (!grouped.has(field)) grouped.set(field, []);
+    grouped.get(field).push(condition);
+  }
+  return [...grouped.entries()].filter(([, conditions]) => numericBoundsContradict(conditions)).map(([field]) => field);
+}
+
 /**
  * Performs structural validation that is useful while authoring a flow.
  * The normal blueprint validator remains the hard schema gate; this report focuses on
- * dead references, phase reachability, and suspicious transition cycles.
+ * dead references, phase reachability, and suspicious transition/condition logic.
  */
 export function analyzeEncounterFlow(blueprint = {}) {
   const errors = [];
@@ -113,6 +217,10 @@ export function analyzeEncounterFlow(blueprint = {}) {
     if (trigger.activePhaseId && !phaseIds.has(trigger.activePhaseId)) errors.push({ code: "FLOW_TRIGGER_PHASE", path: `triggers.${trigger.id}.activePhaseId`, message: `Trigger '${trigger.id}' references unknown active phase '${trigger.activePhaseId}'.` });
     if (trigger.participantId && !participantIds.has(trigger.participantId)) errors.push({ code: "FLOW_TRIGGER_PARTICIPANT", path: `triggers.${trigger.id}.participantId`, message: `Trigger '${trigger.id}' references unknown participant '${trigger.participantId}'.` });
     if (trigger.objectiveId && !objectiveIds.has(trigger.objectiveId)) errors.push({ code: "FLOW_TRIGGER_OBJECTIVE", path: `triggers.${trigger.id}.objectiveId`, message: `Trigger '${trigger.id}' references unknown objective '${trigger.objectiveId}'.` });
+    if (trigger.conditionObjectiveId && !objectiveIds.has(trigger.conditionObjectiveId)) errors.push({ code: "FLOW_CONDITION_OBJECTIVE_REFERENCE", path: `triggers.${trigger.id}.conditionObjectiveId`, message: `Trigger '${trigger.id}' references unknown condition objective '${trigger.conditionObjectiveId}'.` });
+    if (trigger.conditionGroupId && !groupIds.has(trigger.conditionGroupId)) errors.push({ code: "FLOW_CONDITION_GROUP_REFERENCE", path: `triggers.${trigger.id}.conditionGroupId`, message: `Trigger '${trigger.id}' references unknown condition group '${trigger.conditionGroupId}'.` });
+    const mode = String(trigger.conditionMode ?? "all");
+    if (!FLOW_CONDITION_MODES.includes(mode)) warnings.push({ code: "FLOW_CONDITION_MODE", path: `triggers.${trigger.id}.conditionMode`, message: `Trigger '${trigger.id}' uses unknown condition combination '${mode}'.` });
     for (const actionId of refsOf(trigger)) {
       if (!actionIds.has(actionId)) errors.push({ code: "FLOW_TRIGGER_ACTION", path: `triggers.${trigger.id}`, message: `Trigger '${trigger.id}' references unknown action '${actionId}'.` });
     }
@@ -121,6 +229,18 @@ export function analyzeEncounterFlow(blueprint = {}) {
       const operator = String(condition?.operator ?? "eq");
       if (field && !FLOW_CONDITION_FIELDS.includes(field)) warnings.push({ code: "FLOW_CONDITION_FIELD", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses custom condition field '${field}'.` });
       if (!FLOW_OPERATORS.includes(operator)) warnings.push({ code: "FLOW_CONDITION_OPERATOR", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses unknown operator '${operator}'.` });
+      if (FLOW_OBJECTIVE_CONTEXT_FIELDS.includes(field) && !(trigger.conditionObjectiveId || trigger.objectiveId)) {
+        errors.push({ code: "FLOW_CONDITION_OBJECTIVE_REQUIRED", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses objective context '${field}' without selecting a condition objective.` });
+      }
+      if (FLOW_GROUP_CONTEXT_FIELDS.includes(field) && !trigger.conditionGroupId) {
+        errors.push({ code: "FLOW_CONDITION_GROUP_REQUIRED", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses group context '${field}' without selecting a condition group.` });
+      }
+      if (field === "currentPhaseId" && ["eq", "neq"].includes(operator) && condition.value && !phaseIds.has(String(condition.value))) {
+        warnings.push({ code: "FLOW_CONDITION_PHASE_VALUE", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' compares the current phase to unknown phase '${condition.value}'.` });
+      }
+    }
+    for (const field of conditionContradictions(trigger)) {
+      warnings.push({ code: "FLOW_CONDITION_CONTRADICTION", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' contains contradictory ALL conditions for '${field}'.` });
     }
   }
 

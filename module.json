@@ -2,7 +2,7 @@
   "id": "pf2e-encounter-forge",
   "title": "PF2E Encounter Forge",
   "description": "Builds persistent PF2e encounter blueprints with authored phases, objectives, triggers, and cross-Forge Runtime actions; materializes opponents and Scene deployments; and provides a GM-facing Encounter Director backed by an authoritative persistent Runtime.",
-  "version": "0.1.0-alpha.10",
+  "version": "0.1.0-alpha.11.1",
   "authors": [
     {
       "name": "crypto-vbrthr"

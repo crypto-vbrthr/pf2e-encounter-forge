@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.1.0-alpha.11.1 - Flow Entry Visual Separation
+
+### Changed
+- Phase, Objective, Action, and Trigger entries in Flow authoring now use clearly visible blue/violet two-pixel borders, subtle category-tinted backgrounds, and slightly larger spacing between adjacent entries.
+- Hovering or focusing an entry strengthens its outline so the currently edited block remains easy to track in dense encounters.
+
+## 0.1.0-alpha.11 - Advanced Encounter Logic
+
+### Added
+- Trigger conditions can now be combined as **ALL (AND)** or **ANY (OR)**, with an optional per-condition **NOT** inversion. Existing Blueprints remain equivalent because the default is ALL.
+- Added persistent Encounter-context condition fields for current round/turn/phase, objective progress/target/state, tactical-group counts, and encounter-wide participant counts. These conditions can be evaluated on any normalized Runtime event instead of only reading that event's payload.
+- Added explicit Objective and tactical Group context selectors for state-based conditions. Group conditions support total, defeated, available, and remaining member counts.
+- Added a readable **When:** preview beneath each Trigger so complex condition logic can be sanity-checked without translating field IDs mentally. Current-phase conditions use a Phase selector instead of requiring an internal ID to be typed manually.
+- Public `api.flow` metadata now exposes `conditionModes` in addition to fields/operators.
+
+### Changed
+- Participant-scoped Triggers now match both the Blueprint participant template ID and concrete quantity-expanded Runtime participant IDs. A Trigger authored for one three-creature participant entry therefore reacts to any of its concrete members.
+- Group/participant aggregate conditions project the participant state transition carried by the current event before evaluation. A `participant.defeated` event therefore counts that new defeat immediately, even though the persisted participant state update follows the normalized event.
+- Flow analysis now validates missing Objective/Group condition contexts, stale condition references, unknown condition modes, phase-value references, and warns about contradictory numeric ALL conditions such as `round >= 4` together with `round <= 2`.
+
 ## 0.1.0-alpha.10 - Director Manual Actions & Flow Authoring Comfort
 
 ### Added

@@ -1,6 +1,6 @@
 {
   "name": "pf2e-encounter-forge",
-  "version": "0.1.0-alpha.10",
+  "version": "0.1.0-alpha.11.1",
   "private": true,
   "type": "module",
   "scripts": {

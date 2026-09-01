@@ -368,3 +368,28 @@ test("Flow authoring can duplicate phases, objectives, actions, and safe-disable
   assert.match(appSource, /source\.enabled = false/);
   assert.match(template, /PF2E_ENCOUNTER_FORGE\.Flow\.Duplicate/);
 });
+
+test("advanced Flow conditions expose AND/OR, NOT, context references, and readable summaries", () => {
+  assert.match(template, /data-trigger-field="conditionMode"/);
+  assert.match(template, /data-trigger-field="conditionObjectiveId"/);
+  assert.match(template, /data-trigger-field="conditionGroupId"/);
+  assert.match(template, /data-trigger-condition-field="negate"/);
+  assert.match(template, /encounter-forge-condition-summary/);
+  assert.match(appSource, /FLOW_CONDITION_MODES/);
+  assert.match(apiSource, /conditionModes:\s*FLOW_CONDITION_MODES/);
+});
+
+test("Flow authoring visually separates individual phase, objective, action, and trigger entries", () => {
+  const css = fs.readFileSync(new URL("../styles/encounter-forge.css", import.meta.url), "utf8");
+  for (const selector of [
+    ".encounter-forge-phase-row",
+    ".encounter-forge-objective-row",
+    ".encounter-forge-flow-action-row",
+    ".encounter-forge-trigger-row"
+  ]) {
+    assert.match(css, new RegExp(selector.replaceAll(".", "\\.") + "[\\s\\S]*border-color:\\s*rgba\\("));
+  }
+  assert.match(css, /border:\s*2px solid rgba\(/);
+  assert.match(css, /encounter-forge-flow-list \{ display: grid; gap: 0\.6rem; \}/);
+  assert.match(css, /focus-within/);
+});

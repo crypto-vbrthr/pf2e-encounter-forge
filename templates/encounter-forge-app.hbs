@@ -528,11 +528,24 @@
                       <strong>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Conditions"}}</strong>
                       <button type="button" data-action="addTriggerCondition" data-trigger-id="{{id}}" class="secondary compact"><i class="fa-solid fa-plus"></i></button>
                     </div>
+                    <div class="encounter-forge-condition-context-grid">
+                      <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ConditionModeLabel"}}</span><select data-trigger-field="conditionMode">{{#each conditionModeOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                      <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ConditionObjectiveContext"}}</span><select data-trigger-field="conditionObjectiveId">{{#each conditionObjectiveOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                      <label><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.ConditionGroupContext"}}</span><select data-trigger-field="conditionGroupId">{{#each conditionGroupOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select></label>
+                    </div>
+                    {{#if conditionSummary}}
+                      <div class="encounter-forge-condition-summary"><i class="fa-solid fa-code-branch"></i><span><strong>{{localize "PF2E_ENCOUNTER_FORGE.Flow.When"}}:</strong> {{conditionSummary}}</span></div>
+                    {{/if}}
                     {{#each conditions}}
                       <div class="encounter-forge-trigger-condition" data-condition-index="{{conditionIndex}}">
+                        <label class="encounter-forge-condition-negate" data-tooltip="PF2E_ENCOUNTER_FORGE.Flow.Not"><input type="checkbox" data-trigger-condition-field="negate" {{#if negateChecked}}checked{{/if}}><span>{{localize "PF2E_ENCOUNTER_FORGE.Flow.Not"}}</span></label>
                         <select data-trigger-condition-field="field">{{#each fieldOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
                         <select data-trigger-condition-field="operator">{{#each operatorOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
-                        <input type="text" value="{{value}}" data-trigger-condition-field="value" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Flow.Value"}}">
+                        {{#if isPhaseContext}}
+                          <select data-trigger-condition-field="value" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Flow.Value"}}">{{#each phaseValueOptions}}<option value="{{value}}" {{#if selected}}selected{{/if}}>{{label}}</option>{{/each}}</select>
+                        {{else}}
+                          <input type="text" value="{{value}}" data-trigger-condition-field="value" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Flow.Value"}}">
+                        {{/if}}
                         <button type="button" data-action="removeTriggerCondition" data-trigger-id="{{../id}}" data-condition-index="{{conditionIndex}}" class="icon-only danger"><i class="fa-solid fa-xmark"></i></button>
                       </div>
                     {{/each}}

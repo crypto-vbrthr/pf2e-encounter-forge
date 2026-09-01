@@ -1,5 +1,21 @@
 # PF2E Encounter Forge
 
+## 0.1.0-alpha.11.1 — Flow Entry Visual Separation
+
+Dense Flow authoring screens are easier to scan. Individual **Phase**, **Objective**, **Action**, and **Trigger** entries now have a clearly visible two-pixel blue/violet outline, a very subtle category tint, and more space between neighboring entries. The outline becomes stronger while an entry is hovered or one of its fields has focus, making it easier to keep track of the block currently being edited without changing any Flow behavior or saved Blueprint data.
+
+## 0.1.0-alpha.11 — Advanced Encounter Logic
+
+Trigger authoring now supports real condition composition rather than a flat list of implicit checks. Conditions can be evaluated as **ALL / AND** or **ANY / OR**, and every individual condition can be inverted with **NOT**. Existing encounters keep their previous behavior because an omitted combination mode still means ALL.
+
+Conditions can still read the event which woke the Trigger, such as HP percentage or the completed round. They can now also inspect persistent **Encounter context**: the current round, turn, and phase; the progress, target, or state of a selected objective; counts for a selected tactical group; and counts across all Encounter participants. This makes patterns such as “two ritualists are defeated AND the ritual is not complete” or “round 4 has started OR only one defender remains” directly authorable without helper objectives.
+
+Objective and Group context are selected by name in the Trigger editor. Current-phase comparisons also use a Phase selector rather than requiring an internal ID. Beneath the condition editor, Encounter Forge renders a compact **When:** sentence that resolves those references into readable names.
+
+Aggregate defeat/removal conditions are evaluated against the state transition carried by the current Runtime event, so the creature that was just defeated is already included in the count for that Trigger evaluation. Participant filters also understand quantity-expanded participants: a Trigger scoped to a Blueprint entry with quantity 3 can react to any of its three concrete Runtime participants.
+
+Flow analysis now catches missing context references and stale Phase/Objective/Group references, and warns about contradictory numeric ALL conditions before they become silent table-time puzzles. Add-ons can inspect the supported modes through `api.flow.conditionModes`.
+
 ## 0.1.0-alpha.10 — Director Manual Actions & Flow Authoring Comfort
 
 Encounter Director now exposes the Blueprint's **Prepared Actions** as a live GM control surface. During an active or paused Encounter, the GM can run an authored phase change, objective adjustment, Director message, Effect, Aura, Affliction, or Loot action directly without waiting for a Trigger. Manual execution deliberately uses the same Runtime action pipeline as automatic/confirmed Trigger execution, so external Forges remain responsible for their own rules and documents.

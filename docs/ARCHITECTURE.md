@@ -12,6 +12,16 @@
 
 Encounter Forge owns encounter-specific state only: phases, objectives, participant roles, tactical groups, encounter tactics, trigger history, deployment identity, and orchestration state. Other Forge modules retain ownership of their native resources and runtimes.
 
+## Trigger condition model
+
+Trigger filters and conditions are intentionally split into two layers. Event/phase/participant/objective filters first decide whether a Trigger is relevant to a normalized Runtime event. The condition expression then evaluates either **all** conditions (AND, the compatibility default) or **any** condition (OR); each condition may be negated individually.
+
+Condition values may come from the normalized event payload or from persistent Encounter context. Context currently includes current Combat round/turn, current phase, one explicitly referenced objective, one explicitly referenced tactical group, and encounter/group participant-state counts. Context resolution reads Encounter Instance state rather than duplicating native PF2e/Foundry document state.
+
+For participant transition events (`defeated`, `restored`, Token removed), aggregate counts project the incoming transition during evaluation. This keeps trigger semantics atomic: the event which says a participant was defeated can immediately satisfy “at least two group members defeated” even though the Instance persistence listener writes the new participant state immediately afterward.
+
+Flow analysis owns structural checks for condition references and simple impossible numeric conjunctions. The Runtime still treats the authored expression as declarative data and performs no arbitrary JavaScript evaluation.
+
 ## Persistence
 
 Blueprints and Instances are stored as hidden-by-default JournalEntry documents under `Encounter Forge/Blueprints` and `Encounter Forge/Runtime`. The payload lives in `flags.pf2e-encounter-forge.repository`.
