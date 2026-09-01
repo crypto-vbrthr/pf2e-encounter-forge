@@ -285,6 +285,8 @@ test("Flow authoring exposes round-end and objective trigger selectors", () => {
   const flowSource = fs.readFileSync(new URL("../scripts/engine/encounter-flow.js", import.meta.url), "utf8");
   assert.match(template, /data-trigger-field="objectiveId"/);
   assert.match(flowSource, /"combat\.roundEnded"/);
+  assert.match(flowSource, /"participant\.hpDecreased"/);
+  assert.match(flowSource, /"participant\.hpIncreased"/);
   assert.match(flowSource, /"objective\.progressChanged"/);
   assert.match(flowSource, /"objective\.completed"/);
 });

@@ -106,6 +106,43 @@ test("HP change events expose current HP and percentage for authored conditions"
   assert.equal(event.hpPercent, 45);
 });
 
+test("HP direction events distinguish decreases from increases and retain previous HP", async () => {
+  const callbacks = new Map();
+  const hooksRef = { on(name, fn) { callbacks.set(name, fn); return name; }, off() {} };
+  const bus = new EncounterEventBus();
+  const participant = { id: "boss", tokenUuid: "Scene.s.Token.t", actorUuid: "Actor.a" };
+  const instance = { id: "i", deployment: {}, participants: [participant] };
+  const actor = { system: { attributes: { hp: { value: 80, max: 100 } } } };
+  const token = { uuid: participant.tokenUuid, actor };
+  const participants = {
+    findByTokenDocument: () => participant,
+    findByActor: () => [],
+    findByCombatant: () => null,
+    async snapshots() { return [{ id: participant.id, hp: { value: 80, max: 100, percent: 80 } }]; }
+  };
+  const events = [];
+  bus.on("encounter.event", (event) => events.push(event));
+  const service = new EventService({ bus, getInstance: () => instance, participants, hooksRef });
+  await service.start();
+
+  actor.system.attributes.hp.value = 50;
+  await callbacks.get("updateToken")(token, { delta: { system: { attributes: { hp: { value: 50 } } } } });
+  assert.deepEqual(events.map((entry) => entry.type), ["participant.hpChanged", "participant.hpDecreased"]);
+  assert.equal(events[1].previousHpValue, 80);
+  assert.equal(events[1].hpValue, 50);
+
+  events.length = 0;
+  actor.system.attributes.hp.value = 70;
+  await callbacks.get("updateToken")(token, { delta: { system: { attributes: { hp: { value: 70 } } } } });
+  assert.deepEqual(events.map((entry) => entry.type), ["participant.hpChanged", "participant.hpIncreased"]);
+  assert.equal(events[1].previousHpValue, 50);
+  assert.equal(events[1].hpValue, 70);
+
+  events.length = 0;
+  await callbacks.get("updateToken")(token, { delta: { system: { attributes: { hp: { value: 70 } } } } });
+  assert.deepEqual(events, []);
+});
+
 test("round-end events are emitted only after a completed combat round", async () => {
   const callbacks = new Map();
   const hooksRef = { on(name, fn) { callbacks.set(name, fn); return name; }, off() {} };

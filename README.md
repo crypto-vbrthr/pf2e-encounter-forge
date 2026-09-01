@@ -1,5 +1,15 @@
 # PF2E Encounter Forge
 
+## 0.1.0-alpha.11.2.5 — Directional HP Trigger Events
+
+HP-sensitive encounters can now react to the **direction** of a participant's HP change instead of treating damage and healing as the same signal. Trigger authoring offers **Participant HP decreased** and **Participant HP increased** in addition to the existing general **Participant HP changed** event.
+
+This makes patterns such as “when Burgel loses HP, but only if all Defenders are at 50% HP or lower” precise: use **Burgel → HP decreased** as the event and keep the tactical-group condition for the Defenders. Healing Burgel no longer wakes that Trigger. The existing **HP changed** event remains available when both directions should count.
+
+Encounter Runtime seeds the currently deployed Token/Actor HP when it binds and remembers the last observed value per concrete participant. Each directional event also carries the previous and current HP snapshot. Duplicate Foundry hooks for the same synthetic/unlinked Token Actor update are collapsed before the directional event is emitted.
+
+The directional events intentionally describe **numeric HP movement**, not a generic “damage taken” claim. If temporary HP absorbs a hit and the participant's actual HP value does not fall, **HP decreased** does not fire.
+
 ## 0.1.0-alpha.11.2.4 — Interactive Token Participant Mapping Fix
 
 Manual/interactive Scene placement now reconciles each created Token by the stable Encounter participant id stored in the Token flags instead of assuming Foundry returns Token documents in source order. This prevents shuffled placement results from cross-wiring a participant's `tokenUuid` with another creature's Token, which could otherwise make live HP/group-state conditions and participant-specific Runtime actions inspect the wrong combatant.

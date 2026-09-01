@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.1.0-alpha.11.2.5 - Directional HP Trigger Events
+
+### Added
+- Added `participant.hpDecreased` / **Participant HP decreased** and `participant.hpIncreased` / **Participant HP increased** Trigger events alongside the existing general `participant.hpChanged` event. Encounter authors can now distinguish HP loss from healing or other HP gains without approximating direction through a percentage condition.
+- Directional HP events include both the current and previous HP value/max/percentage in their Runtime payload for precise downstream logic and add-on use.
+
+### Changed
+- EventService seeds live participant HP when it binds to an Encounter and tracks the last observed HP per concrete participant. This gives HP direction a stable baseline even when Tokens were manually adjusted before combat begins.
+- Synthetic/unlinked Token Actor updates are deduplicated by participant and HP snapshot before Runtime events are emitted, preventing one Foundry document change from creating duplicate directional HP events through overlapping hooks.
+- Adding a condition to any HP event (`changed`, `decreased`, or `increased`) defaults to an HP-percentage condition just like the original HP-changed event.
+
+### Clarified
+- “HP decreased” means the participant's numeric PF2e HP value became lower. It deliberately does not claim that a damage event occurred, so temporary HP absorption or other system-specific damage processing is not misreported as HP loss when the actual HP value did not decrease.
+
 ## 0.1.0-alpha.11.2.4 - Interactive Token Participant Mapping Fix
 
 ### Fixed

@@ -5,6 +5,8 @@ export const FLOW_EVENT_TYPES = Object.freeze([
   "combat.roundChanged",
   "combat.turnChanged",
   "participant.hpChanged",
+  "participant.hpDecreased",
+  "participant.hpIncreased",
   "participant.defeated",
   "participant.restored",
   "participant.tokenDeleted",

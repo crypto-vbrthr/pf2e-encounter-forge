@@ -33,6 +33,7 @@ export class EventService extends RuntimeService {
     this.hooks = [];
     this.lastRounds = new Map();
     this.lastTurns = new Map();
+    this.lastHp = new Map();
   }
 
   combatDiagnostic(combat) {
@@ -142,6 +143,60 @@ export class EventService extends RuntimeService {
     const turn = Number(combat?.turn ?? 0);
     if (Number.isFinite(round)) this.lastRounds.set(key, round);
     if (Number.isFinite(turn)) this.lastTurns.set(key, turn);
+  }
+
+  async #seedParticipantHp() {
+    if (!this.participants?.snapshots) return;
+    try {
+      const snapshots = await this.participants.snapshots();
+      for (const snapshot of snapshots ?? []) {
+        const id = String(snapshot?.id ?? "").trim();
+        if (!id) continue;
+        const value = Number(snapshot?.hp?.value);
+        const max = Number(snapshot?.hp?.max);
+        const percent = Number(snapshot?.hp?.percent);
+        if (!Number.isFinite(value) && !Number.isFinite(max) && !Number.isFinite(percent)) continue;
+        this.lastHp.set(id, {
+          hpValue: Number.isFinite(value) ? value : null,
+          hpMax: Number.isFinite(max) ? max : null,
+          hpPercent: Number.isFinite(percent) ? percent : null
+        });
+      }
+    } catch {}
+  }
+
+  async #processParticipantHp(participant, actor, payload = {}) {
+    const participantId = String(participant?.id ?? "").trim();
+    if (!participantId) return false;
+    const current = hpSnapshot(actor);
+    const previous = this.lastHp.get(participantId) ?? null;
+    const changed = !previous
+      || current.hpValue !== previous.hpValue
+      || current.hpMax !== previous.hpMax
+      || current.hpPercent !== previous.hpPercent;
+    if (!changed) return false;
+
+    // Reserve the new HP state before awaiting listeners. Synthetic Token Actors may
+    // surface the same underlying update through more than one Foundry document hook.
+    // Early reservation keeps directional HP events idempotent.
+    this.lastHp.set(participantId, current);
+    const eventPayload = {
+      participantId,
+      ...payload,
+      ...current,
+      previousHpValue: previous?.hpValue ?? null,
+      previousHpMax: previous?.hpMax ?? null,
+      previousHpPercent: previous?.hpPercent ?? null
+    };
+
+    await this.#emit("participant.hpChanged", eventPayload);
+    const before = previous?.hpValue ?? null;
+    const after = current.hpValue ?? null;
+    if (Number.isFinite(before) && Number.isFinite(after)) {
+      if (after < before) await this.#emit("participant.hpDecreased", eventPayload);
+      else if (after > before) await this.#emit("participant.hpIncreased", eventPayload);
+    }
+    return true;
   }
 
   async #processCombatState(combat, { roundSignal = false, turnSignal = false, roundValue = undefined, turnValue = undefined } = {}) {
@@ -263,12 +318,11 @@ export class EventService extends RuntimeService {
       const participant = this.participants?.findByTokenDocument?.(token);
       if (!participant) return;
       const hpChanged = hpChangeDetected(changed);
-      await this.#emit(hpChanged ? "participant.hpChanged" : "participant.tokenUpdated", {
-        participantId: participant.id,
-        tokenUuid: uuidOf(token),
-        ...(hpChanged ? hpSnapshot(token?.actor) : {}),
-        changed
-      });
+      if (hpChanged) {
+        await this.#processParticipantHp(participant, token?.actor, { tokenUuid: uuidOf(token), changed });
+      } else {
+        await this.#emit("participant.tokenUpdated", { participantId: participant.id, tokenUuid: uuidOf(token), changed });
+      }
     });
 
     this.#register("updateActor", async (actor, changed = {}) => {
@@ -276,12 +330,11 @@ export class EventService extends RuntimeService {
       if (!participants.length) return;
       const hpChanged = hpChangeDetected(changed);
       for (const participant of participants) {
-        await this.#emit(hpChanged ? "participant.hpChanged" : "participant.actorUpdated", {
-          participantId: participant.id,
-          actorUuid: uuidOf(actor, "Actor"),
-          ...(hpChanged ? hpSnapshot(actor) : {}),
-          changed
-        });
+        if (hpChanged) {
+          await this.#processParticipantHp(participant, actor, { actorUuid: uuidOf(actor, "Actor"), changed });
+        } else {
+          await this.#emit("participant.actorUpdated", { participantId: participant.id, actorUuid: uuidOf(actor, "Actor"), changed });
+        }
       }
     });
 
@@ -294,6 +347,7 @@ export class EventService extends RuntimeService {
     // Seed the current combat after hooks are live. This prevents activating an Encounter
     // in the middle of round 1 from later mistaking the transition to round 2 for an
     // unknown initial state while still allowing tests/direct calls to infer round N-1.
+    await this.#seedParticipantHp();
     const current = this.gameRef?.combat ?? null;
     if (current) this.#seedCombat(current);
     if (globalThis.__PF2E_ENCOUNTER_FORGE_DEBUG__ === true) console.warn("[PF2E Encounter Forge DEBUG] EventService started", this.debugSnapshot());
@@ -307,6 +361,7 @@ export class EventService extends RuntimeService {
     }
     this.lastRounds.clear();
     this.lastTurns.clear();
+    this.lastHp.clear();
     return super.stop();
   }
 
@@ -332,7 +387,8 @@ export class EventService extends RuntimeService {
       currentCombat: current ? this.combatDiagnostic(current) : null,
       combats: combats.map((combat) => this.combatDiagnostic(combat)),
       lastRounds: Object.fromEntries(this.lastRounds),
-      lastTurns: Object.fromEntries(this.lastTurns)
+      lastTurns: Object.fromEntries(this.lastTurns),
+      lastHp: Object.fromEntries(this.lastHp)
     };
   }
 

@@ -1287,7 +1287,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const trigger = next.triggers?.find?.((entry) => entry.id === id);
     if (!trigger) return;
     trigger.conditions ??= [];
-    const defaults = trigger.event === "participant.hpChanged"
+    const hpEvent = ["participant.hpChanged", "participant.hpDecreased", "participant.hpIncreased"].includes(trigger.event);
+    const defaults = hpEvent
       ? { field: "hpPercent", operator: "lte", value: 50 }
       : trigger.event === "objective.progressChanged"
         ? { field: "progress", operator: "gte", value: 1 }
