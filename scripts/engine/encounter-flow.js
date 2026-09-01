@@ -46,7 +46,21 @@ export const FLOW_CONDITION_FIELDS = Object.freeze([
   "participantTotalCount",
   "participantDefeatedCount",
   "participantActiveCount",
-  "participantRemainingCount"
+  "participantRemainingCount",
+  "participantHpValue",
+  "participantHpMax",
+  "participantHpPercent",
+  "participantHpBelowMax",
+  "participantAtFullHp",
+  "participantDefeated",
+  "participantActive",
+  "groupParticipantHpValue",
+  "groupParticipantHpMax",
+  "groupParticipantHpPercent",
+  "groupParticipantHpBelowMax",
+  "groupParticipantAtFullHp",
+  "groupParticipantDefeated",
+  "groupParticipantActive"
 ]);
 
 export const FLOW_NUMERIC_CONDITION_FIELDS = Object.freeze([
@@ -69,8 +83,47 @@ export const FLOW_NUMERIC_CONDITION_FIELDS = Object.freeze([
   "participantTotalCount",
   "participantDefeatedCount",
   "participantActiveCount",
-  "participantRemainingCount"
+  "participantRemainingCount",
+  "participantHpValue",
+  "participantHpMax",
+  "participantHpPercent",
+  "groupParticipantHpValue",
+  "groupParticipantHpMax",
+  "groupParticipantHpPercent"
 ]);
+
+export const FLOW_BOOLEAN_CONDITION_FIELDS = Object.freeze([
+  "participantHpBelowMax",
+  "participantAtFullHp",
+  "participantDefeated",
+  "participantActive",
+  "groupParticipantHpBelowMax",
+  "groupParticipantAtFullHp",
+  "groupParticipantDefeated",
+  "groupParticipantActive"
+]);
+
+export const FLOW_PARTICIPANT_CONTEXT_FIELDS = Object.freeze([
+  "participantHpValue",
+  "participantHpMax",
+  "participantHpPercent",
+  "participantHpBelowMax",
+  "participantAtFullHp",
+  "participantDefeated",
+  "participantActive"
+]);
+
+export const FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS = Object.freeze([
+  "groupParticipantHpValue",
+  "groupParticipantHpMax",
+  "groupParticipantHpPercent",
+  "groupParticipantHpBelowMax",
+  "groupParticipantAtFullHp",
+  "groupParticipantDefeated",
+  "groupParticipantActive"
+]);
+
+export const FLOW_GROUP_MATCH_MODES = Object.freeze(["any", "all", "atLeast"]);
 
 export const FLOW_OBJECTIVE_CONTEXT_FIELDS = Object.freeze([
   "objectiveProgress",
@@ -160,10 +213,16 @@ function conditionContradictions(trigger = {}) {
   for (const condition of asArray(trigger.conditions)) {
     const field = String(condition?.field ?? condition?.path ?? "").trim();
     if (!field || !FLOW_NUMERIC_CONDITION_FIELDS.includes(field)) continue;
-    if (!grouped.has(field)) grouped.set(field, []);
-    grouped.get(field).push(condition);
+    // Group-member conditions can intentionally be satisfied by different members
+    // (for example one defender <= 50% HP and another >= 80% HP), so scalar
+    // numeric-bound contradiction analysis is not valid for them.
+    if (FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS.includes(field)) continue;
+    const participantRef = FLOW_PARTICIPANT_CONTEXT_FIELDS.includes(field) ? String(condition?.participantId ?? "") : "";
+    const key = participantRef ? `${field}::${participantRef}` : field;
+    if (!grouped.has(key)) grouped.set(key, []);
+    grouped.get(key).push(condition);
   }
-  return [...grouped.entries()].filter(([, conditions]) => numericBoundsContradict(conditions)).map(([field]) => field);
+  return [...grouped.entries()].filter(([, conditions]) => numericBoundsContradict(conditions)).map(([field]) => field.split("::")[0]);
 }
 
 /**
@@ -234,6 +293,20 @@ export function analyzeEncounterFlow(blueprint = {}) {
       }
       if (FLOW_GROUP_CONTEXT_FIELDS.includes(field) && !trigger.conditionGroupId) {
         errors.push({ code: "FLOW_CONDITION_GROUP_REQUIRED", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses group context '${field}' without selecting a condition group.` });
+      }
+      if (FLOW_PARTICIPANT_CONTEXT_FIELDS.includes(field)) {
+        const participantRef = String(condition?.participantId ?? "").trim();
+        if (!participantRef) errors.push({ code: "FLOW_CONDITION_PARTICIPANT_REQUIRED", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses participant context '${field}' without selecting a participant.` });
+        else if (!participantIds.has(participantRef)) errors.push({ code: "FLOW_CONDITION_PARTICIPANT_REFERENCE", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' references unknown condition participant '${participantRef}'.` });
+      }
+      if (FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS.includes(field)) {
+        const groupRef = String(condition?.groupId ?? trigger?.conditionGroupId ?? "").trim();
+        const matchMode = String(condition?.groupMatchMode ?? "any");
+        const matchCount = Number(condition?.groupMatchCount ?? 1);
+        if (!groupRef) errors.push({ code: "FLOW_CONDITION_GROUP_PARTICIPANT_REQUIRED", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses group participant context '${field}' without selecting a group.` });
+        else if (!groupIds.has(groupRef)) errors.push({ code: "FLOW_CONDITION_GROUP_PARTICIPANT_REFERENCE", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' references unknown condition group '${groupRef}'.` });
+        if (!FLOW_GROUP_MATCH_MODES.includes(matchMode)) warnings.push({ code: "FLOW_CONDITION_GROUP_MATCH_MODE", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' uses unknown group match mode '${matchMode}'.` });
+        if (matchMode === "atLeast" && (!Number.isInteger(matchCount) || matchCount < 1)) errors.push({ code: "FLOW_CONDITION_GROUP_MATCH_COUNT", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' requires a positive group match count.` });
       }
       if (field === "currentPhaseId" && ["eq", "neq"].includes(operator) && condition.value && !phaseIds.has(String(condition.value))) {
         warnings.push({ code: "FLOW_CONDITION_PHASE_VALUE", path: `triggers.${trigger.id}.conditions`, message: `Trigger '${trigger.id}' compares the current phase to unknown phase '${condition.value}'.` });

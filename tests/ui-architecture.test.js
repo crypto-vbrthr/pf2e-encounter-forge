@@ -10,6 +10,7 @@ const browserSource = fs.readFileSync(new URL("../scripts/ui/participant-browser
 const forgeEditorSource = fs.readFileSync(new URL("../scripts/ui/forge-participant-editor-app.js", import.meta.url), "utf8");
 const deploymentDialogSource = fs.readFileSync(new URL("../scripts/ui/deployment-dialog-app.js", import.meta.url), "utf8");
 const deploymentTemplate = fs.readFileSync(new URL("../templates/deployment-dialog-app.hbs", import.meta.url), "utf8");
+const flowSource = fs.readFileSync(new URL("../scripts/engine/encounter-flow.js", import.meta.url), "utf8");
 
 test("Encounter Forge installs a GM Actor Directory launcher with Foundry 14 fallbacks", () => {
   assert.match(uiSource, /renderActorDirectory/);
@@ -390,6 +391,53 @@ test("Flow authoring visually separates individual phase, objective, action, and
     assert.match(css, new RegExp(selector.replaceAll(".", "\\.") + "[\\s\\S]*border-color:\\s*rgba\\("));
   }
   assert.match(css, /border:\s*2px solid rgba\(/);
-  assert.match(css, /encounter-forge-flow-list \{ display: grid; gap: 0\.6rem; \}/);
+  assert.match(css, /encounter-forge-flow-list \{ display: grid; gap: 0\.6rem;[\s\S]*?\}/);
   assert.match(css, /focus-within/);
+});
+
+
+test("Flow authoring exposes per-condition participant state references", () => {
+  assert.match(template, /data-trigger-condition-field="participantId"/);
+  assert.match(appSource, /FLOW_PARTICIPANT_CONTEXT_FIELDS/);
+  assert.match(flowSource, /participantHpBelowMax/);
+  assert.match(flowSource, /FLOW_CONDITION_PARTICIPANT_REQUIRED/);
+});
+
+test("participant and group-state Trigger conditions cannot widen the Blueprint editor", () => {
+  const css = fs.readFileSync(new URL("../styles/encounter-forge.css", import.meta.url), "utf8");
+  assert.match(css, /\.encounter-forge-editor\s*\{[\s\S]*?min-width:\s*0;[\s\S]*?overflow-x:\s*hidden;/);
+  assert.match(css, /\.encounter-forge-trigger-condition\s*\{[\s\S]*?grid-template-areas:[\s\S]*?"negate field operator remove"[\s\S]*?"\. value value remove"/);
+  assert.match(css, /\.encounter-forge-trigger-condition\.has-participant-context\s*\{[\s\S]*?"negate field participant remove"[\s\S]*?"\. operator value remove"/);
+  assert.match(css, /\.encounter-forge-trigger-condition\.has-group-participant-context\s*\{[\s\S]*?"negate field group remove"[\s\S]*?"\. groupmatch operator remove"/);
+  assert.match(css, /\.encounter-forge-condition-group-control\s*\{\s*grid-area:\s*group;/);
+  assert.doesNotMatch(css, /\.encounter-forge-trigger-condition[\s\S]{0,300}minmax\(9rem/);
+  assert.match(css, /\.encounter-forge-flow-panel input,[\s\S]*?width:\s*100%;/);
+});
+
+test("condition logic labels can be displayed verbosely or as AND/OR per client", () => {
+  const settingsSource = fs.readFileSync(new URL("../scripts/ui/ui-settings.js", import.meta.url), "utf8");
+  const mainSource = fs.readFileSync(new URL("../scripts/main.js", import.meta.url), "utf8");
+  assert.match(settingsSource, /CONDITION_LOGIC_DISPLAY_SETTING\s*=\s*"ui\.conditionLogicDisplay"/);
+  assert.match(settingsSource, /scope:\s*"client"/);
+  assert.match(settingsSource, /config:\s*true/);
+  assert.match(settingsSource, /verbose/);
+  assert.match(settingsSource, /operators/);
+  assert.match(settingsSource, /AND \/ OR/);
+  assert.match(mainSource, /registerEncounterForgeUiSettings\(\)/);
+  assert.match(appSource, /getConditionLogicDisplayMode\(\)/);
+  assert.match(appSource, /ConditionMode\.\$\{conditionLogicDisplayMode\}/);
+  assert.match(uiSource, /pf2eEncounterForgeConditionLogicDisplayChanged/);
+});
+
+
+test("group-member state conditions expose explicit group evaluation and hide irrelevant shared context selectors", () => {
+  assert.match(template, /\{\{#if usesObjectiveConditionContext\}\}/);
+  assert.match(template, /\{\{#if usesGroupConditionContext\}\}/);
+  assert.match(template, /data-trigger-condition-field="groupId"/);
+  assert.match(template, /data-trigger-condition-field="groupMatchMode"/);
+  assert.match(template, /data-trigger-condition-field="groupMatchCount"/);
+  assert.match(appSource, /FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS/);
+  assert.match(appSource, /FLOW_GROUP_MATCH_MODES/);
+  assert.match(flowSource, /groupParticipantHpPercent/);
+  assert.match(apiSource, /groupMatchModes:\s*FLOW_GROUP_MATCH_MODES/);
 });

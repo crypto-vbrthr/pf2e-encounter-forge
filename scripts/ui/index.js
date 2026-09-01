@@ -5,3 +5,5 @@ export { initializeEncounterForgeUi, injectEncounterForgeButton, openEncounterFo
 export { EncounterDeploymentDialogApp } from "./deployment-dialog-app.js";
 
 export { IntegrationActionEditorApp } from "./integration-action-editor-app.js";
+
+export { registerEncounterForgeUiSettings, getConditionLogicDisplayMode, CONDITION_LOGIC_DISPLAY_SETTING, CONDITION_LOGIC_DISPLAY_MODES } from "./ui-settings.js";

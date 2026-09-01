@@ -5,6 +5,10 @@ import {
   FLOW_EVENT_TYPES,
   FLOW_CONDITION_FIELDS,
   FLOW_NUMERIC_CONDITION_FIELDS,
+  FLOW_BOOLEAN_CONDITION_FIELDS,
+  FLOW_PARTICIPANT_CONTEXT_FIELDS,
+  FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS,
+  FLOW_GROUP_MATCH_MODES,
   FLOW_CONDITION_MODES,
   FLOW_OBJECTIVE_CONTEXT_FIELDS,
   FLOW_GROUP_CONTEXT_FIELDS,
@@ -17,6 +21,7 @@ import { ParticipantBrowserApp } from "./participant-browser-app.js";
 import { ForgeParticipantEditorApp } from "./forge-participant-editor-app.js";
 import { EncounterDeploymentDialogApp } from "./deployment-dialog-app.js";
 import { IntegrationActionEditorApp } from "./integration-action-editor-app.js";
+import { getConditionLogicDisplayMode } from "./ui-settings.js";
 import {
   createExampleEncounterBlueprint,
   isExampleEncounterBlueprint,
@@ -117,15 +122,17 @@ function clone(value) {
   return structuredClone(value);
 }
 
-function conditionSummary(trigger, { phases = [], objectives = [], groups = [] } = {}) {
+function conditionSummary(trigger, { phases = [], objectives = [], groups = [], participants = [], displayMode = "verbose" } = {}) {
   const conditions = Array.isArray(trigger?.conditions) ? trigger.conditions : [];
   if (!conditions.length) return "";
   const phaseNames = new Map(phases.map((entry) => [String(entry.value ?? entry.id), String(entry.label ?? entry.name ?? entry.id)]));
   const objectiveNames = new Map(objectives.map((entry) => [String(entry.value ?? entry.id), String(entry.label ?? entry.name ?? entry.id)]));
   const groupNames = new Map(groups.map((entry) => [String(entry.value ?? entry.id), String(entry.label ?? entry.name ?? entry.id)]));
+  const participantNames = new Map(participants.map((entry) => [String(entry.value ?? entry.id), String(entry.label ?? entry.name ?? entry.id)]));
+  const joinMode = displayMode === "operators" ? "operators" : "verbose";
   const joiner = String(trigger?.conditionMode ?? "all") === "any"
-    ? ` ${localize("PF2E_ENCOUNTER_FORGE.Flow.ConditionJoin.any", "OR")} `
-    : ` ${localize("PF2E_ENCOUNTER_FORGE.Flow.ConditionJoin.all", "AND")} `;
+    ? ` ${localize(`PF2E_ENCOUNTER_FORGE.Flow.ConditionJoin.${joinMode}.any`, joinMode === "operators" ? "OR" : localize("PF2E_ENCOUNTER_FORGE.Flow.ConditionJoin.any", "OR"))} `
+    : ` ${localize(`PF2E_ENCOUNTER_FORGE.Flow.ConditionJoin.${joinMode}.all`, joinMode === "operators" ? "AND" : localize("PF2E_ENCOUNTER_FORGE.Flow.ConditionJoin.all", "AND"))} `;
   return conditions.map((condition) => {
     const field = String(condition?.field ?? condition?.path ?? "");
     const operator = String(condition?.operator ?? "eq");
@@ -139,6 +146,22 @@ function conditionSummary(trigger, { phases = [], objectives = [], groups = [] }
     if (FLOW_GROUP_CONTEXT_FIELDS.includes(field)) {
       const id = trigger?.conditionGroupId ?? null;
       if (id) fieldLabel += ` [${groupNames.get(String(id)) ?? id}]`;
+    }
+    if (FLOW_PARTICIPANT_CONTEXT_FIELDS.includes(field)) {
+      const id = condition?.participantId ?? null;
+      if (id) fieldLabel += ` [${participantNames.get(String(id)) ?? id}]`;
+    }
+    if (FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS.includes(field)) {
+      const id = condition?.groupId ?? trigger?.conditionGroupId ?? null;
+      const mode = String(condition?.groupMatchMode ?? "any");
+      let qualifier = localize(`PF2E_ENCOUNTER_FORGE.Flow.GroupMatch.${mode}`, mode);
+      if (mode === "atLeast") qualifier += ` ${Math.max(1, Number(condition?.groupMatchCount ?? 1) || 1)}`;
+      if (id) fieldLabel += ` [${groupNames.get(String(id)) ?? id} · ${qualifier}]`;
+    }
+    if (FLOW_BOOLEAN_CONDITION_FIELDS.includes(field)) {
+      value = condition?.value === true || String(condition?.value) === "true"
+        ? localize("PF2E_ENCOUNTER_FORGE.Flow.Boolean.true", "Yes")
+        : localize("PF2E_ENCOUNTER_FORGE.Flow.Boolean.false", "No");
     }
     const negated = condition?.negate === true ? `${localize("PF2E_ENCOUNTER_FORGE.Flow.Not", "NOT")} ` : "";
     return `${negated}${fieldLabel} ${localize(`PF2E_ENCOUNTER_FORGE.Flow.Operator.${operator}`, operator)} ${value}`.trim();
@@ -346,30 +369,58 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         targetOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectTarget", "Select target"), selected: !action.targetId }, ...targetOptions.map((entry) => ({ ...entry, selected: action.targetId === entry.value }))]
       };
     });
-    const triggers = (draft.triggers ?? []).map((trigger) => ({
+    const conditionLogicDisplayMode = getConditionLogicDisplayMode();
+    const triggers = (draft.triggers ?? []).map((trigger) => {
+      const authoredConditions = trigger.conditions ?? [];
+      const usesObjectiveConditionContext = authoredConditions.some((condition) => FLOW_OBJECTIVE_CONTEXT_FIELDS.includes(String(condition?.field ?? condition?.path ?? "")));
+      const usesGroupConditionContext = authoredConditions.some((condition) => FLOW_GROUP_CONTEXT_FIELDS.includes(String(condition?.field ?? condition?.path ?? "")));
+      return {
       ...trigger,
       enabledChecked: trigger.enabled !== false,
       onceChecked: trigger.once !== false,
       confirmChecked: trigger.confirm !== false && trigger.automatic !== true,
-      conditionSummary: conditionSummary(trigger, { phases: phaseChoices, objectives: objectiveChoices, groups: groupChoices }),
+      usesObjectiveConditionContext,
+      usesGroupConditionContext,
+      conditionSummary: conditionSummary(trigger, { phases: phaseChoices, objectives: objectiveChoices, groups: groupChoices, participants: participantChoices, displayMode: conditionLogicDisplayMode }),
       eventOptions: FLOW_EVENT_TYPES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.Event.${value}`, value), selected: String(trigger.event ?? "") === value })),
       activePhaseOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.AnyPhase", "Any phase"), selected: !trigger.activePhaseId }, ...phaseChoices.map((entry) => ({ ...entry, selected: trigger.activePhaseId === entry.value }))],
       participantOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.AnyParticipant", "Any participant"), selected: !trigger.participantId }, ...participantChoices.map((entry) => ({ ...entry, selected: trigger.participantId === entry.value }))],
       objectiveOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.AnyObjective", "Any objective"), selected: !trigger.objectiveId }, ...objectiveChoices.map((entry) => ({ ...entry, selected: trigger.objectiveId === entry.value }))],
-      conditionModeOptions: FLOW_CONDITION_MODES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ConditionMode.${value}`, value), selected: String(trigger.conditionMode ?? "all") === value })),
+      conditionModeOptions: FLOW_CONDITION_MODES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ConditionMode.${conditionLogicDisplayMode}.${value}`, value === "all" ? "AND" : "OR"), selected: String(trigger.conditionMode ?? "all") === value })),
       conditionObjectiveOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.NoConditionObjective", "No objective context"), selected: !trigger.conditionObjectiveId }, ...objectiveChoices.map((entry) => ({ ...entry, selected: trigger.conditionObjectiveId === entry.value }))],
       conditionGroupOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.NoConditionGroup", "No group context"), selected: !trigger.conditionGroupId }, ...groupChoices.map((entry) => ({ ...entry, selected: trigger.conditionGroupId === entry.value }))],
-      conditions: (trigger.conditions ?? []).map((condition, conditionIndex) => ({
-        ...condition,
-        conditionIndex,
-        negateChecked: condition.negate === true,
-        isPhaseContext: String(condition.field ?? condition.path ?? "") === "currentPhaseId",
-        phaseValueOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectPhase", "Select phase"), selected: !condition.value }, ...phaseChoices.map((entry) => ({ ...entry, selected: String(condition.value ?? "") === entry.value }))],
-        fieldOptions: FLOW_CONDITION_FIELDS.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ConditionField.${value}`, value), selected: String(condition.field ?? condition.path ?? "") === value })),
-        operatorOptions: FLOW_OPERATORS.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.Operator.${value}`, value), selected: String(condition.operator ?? "eq") === value }))
-      })),
+      conditions: (trigger.conditions ?? []).map((condition, conditionIndex) => {
+        const field = String(condition.field ?? condition.path ?? "");
+        const isParticipantContext = FLOW_PARTICIPANT_CONTEXT_FIELDS.includes(field);
+        const isGroupParticipantContext = FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS.includes(field);
+        const isBooleanContext = FLOW_BOOLEAN_CONDITION_FIELDS.includes(field);
+        const operatorValues = isBooleanContext ? ["eq", "neq"] : FLOW_OPERATORS;
+        const groupMatchMode = FLOW_GROUP_MATCH_MODES.includes(String(condition.groupMatchMode ?? "any")) ? String(condition.groupMatchMode ?? "any") : "any";
+        return {
+          ...condition,
+          conditionIndex,
+          negateChecked: condition.negate === true,
+          isPhaseContext: field === "currentPhaseId",
+          isParticipantContext,
+          isGroupParticipantContext,
+          isBooleanContext,
+          isGroupMatchCount: groupMatchMode === "atLeast",
+          groupMatchCountValue: Math.max(1, Number(condition.groupMatchCount ?? 1) || 1),
+          phaseValueOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectPhase", "Select phase"), selected: !condition.value }, ...phaseChoices.map((entry) => ({ ...entry, selected: String(condition.value ?? "") === entry.value }))],
+          participantContextOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectConditionParticipant", "Select participant"), selected: !condition.participantId }, ...participantChoices.map((entry) => ({ ...entry, selected: String(condition.participantId ?? "") === entry.value }))],
+          groupContextOptions: [{ value: "", label: localize("PF2E_ENCOUNTER_FORGE.Flow.SelectConditionGroup", "Select group"), selected: !(condition.groupId ?? trigger.conditionGroupId) }, ...groupChoices.map((entry) => ({ ...entry, selected: String(condition.groupId ?? trigger.conditionGroupId ?? "") === entry.value }))],
+          groupMatchModeOptions: FLOW_GROUP_MATCH_MODES.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.GroupMatch.${value}`, value), selected: groupMatchMode === value })),
+          booleanValueOptions: [
+            { value: "true", label: localize("PF2E_ENCOUNTER_FORGE.Flow.Boolean.true", "Yes"), selected: condition.value === true || String(condition.value) === "true" },
+            { value: "false", label: localize("PF2E_ENCOUNTER_FORGE.Flow.Boolean.false", "No"), selected: condition.value === false || String(condition.value) === "false" }
+          ],
+          fieldOptions: FLOW_CONDITION_FIELDS.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.ConditionField.${value}`, value), selected: field === value })),
+          operatorOptions: operatorValues.map((value) => ({ value, label: localize(`PF2E_ENCOUNTER_FORGE.Flow.Operator.${value}`, value), selected: String(condition.operator ?? "eq") === value }))
+        };
+      }),
       actionOptions: flowActions.map((action) => ({ id: action.id, label: action.name || action.id, checked: (trigger.actions ?? trigger.actionIds ?? []).includes(action.id) }))
-    }));
+      };
+    });
     const phases = (draft.phases ?? []).map((phase, index, rows) => ({ ...phase, index, initial: index === 0, canMoveUp: index > 0, canMoveDown: index < rows.length - 1 }));
     const objectives = (draft.objectives ?? []).map((objective) => ({ ...objective, targetValue: Number.isFinite(Number(objective.target)) ? Number(objective.target) : 1 }));
     const flowReport = analyzeEncounterFlow(draft);
@@ -659,10 +710,15 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         const conditionField = String(readCondition("field") ?? "").trim();
         if (!conditionField) continue;
         const rawValue = String(readCondition("value") ?? "").trim();
+        const isBoolean = FLOW_BOOLEAN_CONDITION_FIELDS.includes(conditionField);
         trigger.conditions.push({
           field: conditionField,
           operator: String(readCondition("operator") ?? "eq"),
-          value: numericConditionFields.has(conditionField) && rawValue !== "" && Number.isFinite(Number(rawValue)) ? Number(rawValue) : rawValue,
+          value: isBoolean ? rawValue === "true" : (numericConditionFields.has(conditionField) && rawValue !== "" && Number.isFinite(Number(rawValue)) ? Number(rawValue) : rawValue),
+          participantId: FLOW_PARTICIPANT_CONTEXT_FIELDS.includes(conditionField) ? (String(readCondition("participantId") ?? "").trim() || null) : null,
+          groupId: FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS.includes(conditionField) ? (String(readCondition("groupId") ?? "").trim() || null) : null,
+          groupMatchMode: FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS.includes(conditionField) && FLOW_GROUP_MATCH_MODES.includes(String(readCondition("groupMatchMode") ?? "any")) ? String(readCondition("groupMatchMode") ?? "any") : null,
+          groupMatchCount: FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS.includes(conditionField) && String(readCondition("groupMatchMode") ?? "any") === "atLeast" ? asInteger(readCondition("groupMatchCount"), 1, { min: 1, max: 999 }) : null,
           negate: Boolean(conditionRow.querySelector('[data-trigger-condition-field="negate"]')?.checked)
         });
       }
@@ -696,8 +752,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
 
     refreshOptions('[data-flow-action-field="phaseId"], [data-trigger-field="activePhaseId"]', phases);
     refreshOptions('[data-flow-action-field="objectiveId"], [data-trigger-field="objectiveId"], [data-trigger-field="conditionObjectiveId"]', objectives);
-    refreshOptions('[data-trigger-field="participantId"]', participants);
-    refreshOptions('[data-participant-field="groupId"], [data-trigger-field="conditionGroupId"]', groups);
+    refreshOptions('[data-trigger-field="participantId"], [data-trigger-condition-field="participantId"]', participants);
+    refreshOptions('[data-participant-field="groupId"], [data-trigger-field="conditionGroupId"], [data-trigger-condition-field="groupId"]', groups);
     for (const row of root.querySelectorAll('.encounter-forge-flow-action-row[data-flow-action-id]')) {
       const mode = row.querySelector('[data-flow-action-field="targetMode"]')?.value;
       const labels = mode === "group" ? groups : participants;
@@ -971,7 +1027,13 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     if (!id) return;
     const next = clone(this.draft);
     next.participants = (next.participants ?? []).filter((entry) => entry.id !== id);
-    for (const trigger of next.triggers ?? []) if (trigger.participantId === id) trigger.participantId = null;
+    for (const trigger of next.triggers ?? []) {
+      if (trigger.participantId === id) trigger.participantId = null;
+      for (const condition of trigger.conditions ?? []) if (condition.participantId === id) condition.participantId = null;
+    }
+    for (const action of next.actions ?? []) {
+      if (String(action.targetMode ?? "participant") === "participant" && action.targetId === id) action.targetId = null;
+    }
     this.draft = next;
     await this.#renderFresh();
   }
@@ -993,7 +1055,10 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const next = clone(this.draft);
     next.groups = (next.groups ?? []).filter((entry) => entry.id !== id);
     for (const participant of next.participants ?? []) if (participant.groupId === id) participant.groupId = null;
-    for (const trigger of next.triggers ?? []) if (trigger.conditionGroupId === id) trigger.conditionGroupId = null;
+    for (const trigger of next.triggers ?? []) {
+      if (trigger.conditionGroupId === id) trigger.conditionGroupId = null;
+      for (const condition of trigger.conditions ?? []) if (condition.groupId === id) condition.groupId = null;
+    }
     this.draft = next;
     await this.#renderFresh();
   }

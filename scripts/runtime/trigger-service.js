@@ -1,3 +1,4 @@
+import { FLOW_GROUP_MATCH_MODES, FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS, FLOW_PARTICIPANT_CONTEXT_FIELDS } from "../engine/encounter-flow.js";
 import { RuntimeService } from "./base-service.js";
 
 function getPath(object, path) {
@@ -29,21 +30,19 @@ function participantRows(instance, groupId = null) {
   return rows.filter((entry) => String(entry?.groupId ?? "") === String(groupId));
 }
 
+function projectedParticipantState(entry, event = null) {
+  if (String(entry?.id ?? "") !== String(event?.participantId ?? "")) return String(entry?.state ?? "");
+  if (event?.type === "participant.defeated") return "defeated";
+  if (event?.type === "participant.restored") return "ready";
+  if (event?.type === "participant.tokenDeleted") return "removed";
+  return String(entry?.state ?? "");
+}
+
 function participantCounts(instance, groupId = null, event = null) {
   const rows = participantRows(instance, groupId);
-  const projectedState = (entry) => {
-    if (String(entry?.id ?? "") !== String(event?.participantId ?? "")) return String(entry?.state ?? "");
-    if (event?.type === "participant.defeated") return "defeated";
-    if (event?.type === "participant.restored") return "ready";
-    if (event?.type === "participant.tokenDeleted") return "removed";
-    return String(entry?.state ?? "");
-  };
-  const defeated = rows.filter((entry) => projectedState(entry) === "defeated").length;
-  const removed = rows.filter((entry) => projectedState(entry) === "removed").length;
+  const defeated = rows.filter((entry) => projectedParticipantState(entry, event) === "defeated").length;
+  const removed = rows.filter((entry) => projectedParticipantState(entry, event) === "removed").length;
   const remaining = Math.max(0, rows.length - defeated - removed);
-  // "Active" is intentionally encounter-semantic, not a Foundry document status.
-  // Restored/ready participants and any older materialized/prepared state still count
-  // as available to the encounter until they are defeated or removed.
   const active = remaining;
   return { total: rows.length, defeated, removed, remaining, active };
 }
@@ -78,7 +77,84 @@ function resolveConditionValue(field, { event, instance, trigger }) {
   }
 }
 
-export function matchesTriggerConditions(trigger, event, instance = null) {
+function participantContextValue(field, snapshot, event = null) {
+  const sameParticipant = String(snapshot?.id ?? "") === String(event?.participantId ?? "");
+  const eventHasHp = sameParticipant && [event?.hpValue, event?.hpMax, event?.hpPercent].some((value) => Number.isFinite(Number(value)));
+  const hp = eventHasHp
+    ? {
+        value: Number.isFinite(Number(event?.hpValue)) ? Number(event.hpValue) : snapshot?.hp?.value ?? null,
+        max: Number.isFinite(Number(event?.hpMax)) ? Number(event.hpMax) : snapshot?.hp?.max ?? null,
+        percent: Number.isFinite(Number(event?.hpPercent)) ? Number(event.hpPercent) : snapshot?.hp?.percent ?? null
+      }
+    : (snapshot?.hp ?? {});
+  let state = String(snapshot?.state ?? "");
+  if (sameParticipant) {
+    if (event?.type === "participant.defeated") state = "defeated";
+    else if (event?.type === "participant.restored") state = "ready";
+    else if (event?.type === "participant.tokenDeleted") state = "removed";
+  }
+  switch (field) {
+    case "participantHpValue": return Number.isFinite(Number(hp?.value)) ? Number(hp.value) : null;
+    case "participantHpMax": return Number.isFinite(Number(hp?.max)) ? Number(hp.max) : null;
+    case "participantHpPercent": return Number.isFinite(Number(hp?.percent)) ? Number(hp.percent) : null;
+    case "participantHpBelowMax": {
+      const value = Number(hp?.value);
+      const max = Number(hp?.max);
+      return Number.isFinite(value) && Number.isFinite(max) && max > 0 ? value < max : null;
+    }
+    case "participantAtFullHp": {
+      const value = Number(hp?.value);
+      const max = Number(hp?.max);
+      return Number.isFinite(value) && Number.isFinite(max) && max > 0 ? value >= max : null;
+    }
+    case "participantDefeated": return state === "defeated";
+    case "participantActive": return !["defeated", "removed"].includes(state);
+    default: return null;
+  }
+}
+
+async function participantConditionMatches(condition, { event, instance, participants }) {
+  const referenceId = String(condition?.participantId ?? "").trim();
+  if (!referenceId) return false;
+  let snapshots = [];
+  if (participants?.snapshotsForReference) snapshots = await participants.snapshotsForReference(referenceId);
+  else {
+    const rows = (instance?.participants ?? []).filter((entry) => String(entry?.id ?? "") === referenceId || String(entry?.templateId ?? "") === referenceId);
+    snapshots = rows.map((entry) => ({ ...entry, hp: entry?.hp ?? entry?.runtime?.hp ?? {} }));
+  }
+  if (!snapshots.length) return false;
+  const field = String(condition?.field ?? condition?.path ?? "").trim();
+  const operator = String(condition?.operator ?? "eq");
+  return snapshots.some((snapshot) => compare(participantContextValue(field, snapshot, event), operator, condition?.value));
+}
+
+function groupParticipantField(field) {
+  return String(field ?? "").replace(/^groupParticipant/, "participant");
+}
+
+async function groupParticipantConditionMatches(condition, trigger, { event, instance, participants }) {
+  const groupId = String(condition?.groupId ?? trigger?.conditionGroupId ?? "").trim();
+  if (!groupId) return false;
+  let snapshots = [];
+  if (participants?.snapshotsForGroup) snapshots = await participants.snapshotsForGroup(groupId);
+  else {
+    const rows = (instance?.participants ?? []).filter((entry) => String(entry?.groupId ?? "") === groupId);
+    snapshots = rows.map((entry) => ({ ...entry, hp: entry?.hp ?? entry?.runtime?.hp ?? {} }));
+  }
+  if (!snapshots.length) return false;
+  const field = groupParticipantField(condition?.field ?? condition?.path ?? "");
+  const operator = String(condition?.operator ?? "eq");
+  const matched = snapshots.filter((snapshot) => compare(participantContextValue(field, snapshot, event), operator, condition?.value)).length;
+  const mode = FLOW_GROUP_MATCH_MODES.includes(String(condition?.groupMatchMode ?? "any")) ? String(condition?.groupMatchMode ?? "any") : "any";
+  if (mode === "all") return matched === snapshots.length;
+  if (mode === "atLeast") {
+    const required = Math.max(1, Math.trunc(Number(condition?.groupMatchCount ?? 1) || 1));
+    return matched >= required;
+  }
+  return matched >= 1;
+}
+
+export async function matchesTriggerConditions(trigger, event, instance = null, { participants = null } = {}) {
   if (trigger?.activePhaseId && trigger.activePhaseId !== instance?.currentPhaseId) return false;
   if (trigger?.participantId) {
     const eventParticipant = (instance?.participants ?? []).find((entry) => String(entry?.id ?? "") === String(event?.participantId ?? ""));
@@ -92,20 +168,28 @@ export function matchesTriggerConditions(trigger, event, instance = null) {
   const conditions = Array.isArray(trigger?.conditions) ? trigger.conditions : [];
   if (!conditions.length) return true;
   const mode = String(trigger?.conditionMode ?? "all") === "any" ? "any" : "all";
-  const results = conditions.map((condition) => {
+  const results = [];
+  for (const condition of conditions) {
     const field = String(condition?.field ?? condition?.path ?? "").trim();
-    const result = compare(resolveConditionValue(field, { event, instance, trigger }), String(condition?.operator ?? "eq"), condition?.value);
-    return condition?.negate === true ? !result : result;
-  });
+    const result = FLOW_PARTICIPANT_CONTEXT_FIELDS.includes(field)
+      ? await participantConditionMatches(condition, { event, instance, participants })
+      : FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS.includes(field)
+        ? await groupParticipantConditionMatches(condition, trigger, { event, instance, participants })
+        : compare(resolveConditionValue(field, { event, instance, trigger }), String(condition?.operator ?? "eq"), condition?.value);
+    results.push(condition?.negate === true ? !result : result);
+    if (mode === "any" && results.at(-1)) return true;
+    if (mode === "all" && !results.at(-1)) return false;
+  }
   return mode === "any" ? results.some(Boolean) : results.every(Boolean);
 }
 
 export class TriggerService extends RuntimeService {
-  constructor({ bus = null, getInstance = () => null, getBlueprint = () => null, enabled = () => true, onTrigger = null } = {}) {
+  constructor({ bus = null, getInstance = () => null, getBlueprint = () => null, participants = null, enabled = () => true, onTrigger = null } = {}) {
     super("triggers");
     this.bus = bus;
     this.getInstance = getInstance;
     this.getBlueprint = getBlueprint;
+    this.participants = participants;
     this.enabled = enabled;
     this.onTrigger = onTrigger;
     this.unsubscribe = null;
@@ -137,10 +221,16 @@ export class TriggerService extends RuntimeService {
       if (trigger?.enabled === false) continue;
       const once = trigger?.once !== false;
       if (once && (fired.has(trigger.id) || this.inFlight.has(trigger.id))) continue;
-      if (!matchesEvent(trigger, event) || !matchesTriggerConditions(trigger, event, instance)) continue;
-      matches.push(trigger);
+      if (!matchesEvent(trigger, event)) continue;
+
+      // Reserve one-shot triggers before any async participant snapshot lookup. Foundry can
+      // deliver several document hooks for one transition in the same tick; without this
+      // early reservation, each hook could pass the condition gate before the first one
+      // reaches onTrigger.
       if (once) this.inFlight.add(trigger.id);
       try {
+        if (!await matchesTriggerConditions(trigger, event, instance, { participants: this.participants })) continue;
+        matches.push(trigger);
         await this.onTrigger?.(trigger, event);
       } finally {
         if (once) this.inFlight.delete(trigger.id);

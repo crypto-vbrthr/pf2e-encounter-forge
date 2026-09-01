@@ -76,6 +76,9 @@ export function initializeEncounterForgeUi() {
   Hooks.on("renderActorDirectory", injectEncounterForgeButton);
   Hooks.on("renderSidebarTab", injectEncounterForgeButton);
   Hooks.on("renderApplicationV2", injectEncounterForgeButton);
+  Hooks.on("pf2eEncounterForgeConditionLogicDisplayChanged", () => {
+    if (app) app.render({ force: true });
+  });
 
   const current = document.querySelector("#actors, .actors-directory");
   if (current) injectEncounterForgeButton({ tabName: "actors" }, current);

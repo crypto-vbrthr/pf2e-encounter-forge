@@ -166,6 +166,43 @@ test("interactive Scene deployment delegates placement and persists manually cho
   assert.deepEqual(instance.participants.map((entry) => entry.runtime.placement.x), [150, 275, 400, 525]);
 });
 
+
+
+test("interactive Scene deployment reconciles returned Tokens by participant flag instead of return order", async () => {
+  const bp = blueprint();
+  const instance = createEncounterInstance(bp, { actorMode: "per-type", sceneUuid: "Scene.scene-1" });
+  const actors = [actor("boss"), actor("guard")];
+  assignActors(instance, actors);
+  const h = sceneHarness();
+  const interactivePlacement = {
+    async place({ scene, sources }) {
+      const created = sources.map((source, index) => ({
+        id: `manual-${index + 1}`,
+        uuid: `Scene.scene-1.Token.manual-${index + 1}`,
+        documentName: "Token",
+        parent: scene,
+        actorId: source.actorId,
+        x: 100 + index * 10,
+        y: 200 + index * 10,
+        rotation: index * 15,
+        flags: structuredClone(source.flags),
+        async update() {}
+      }));
+      return [created[1], created[2], created[3], created[0]];
+    }
+  };
+  const service = new SceneDeploymentService({ interactivePlacement });
+
+  await service.deploy(instance, { scene: h.scene, actors, placementMode: "interactive" });
+
+  assert.equal(instance.participants[0].id, "boss");
+  assert.equal(instance.participants[0].tokenUuid, "Scene.scene-1.Token.manual-1");
+  assert.equal(instance.participants[1].tokenUuid, "Scene.scene-1.Token.manual-2");
+  assert.equal(instance.participants[2].tokenUuid, "Scene.scene-1.Token.manual-3");
+  assert.equal(instance.participants[3].tokenUuid, "Scene.scene-1.Token.manual-4");
+  assert.deepEqual(instance.participants.map((entry) => entry.runtime.placement.rotation), [0, 15, 30, 45]);
+});
+
 test("optional Combat preparation adds opponent Tokens and existing PC Tokens without starting combat", async () => {
   const combats = [];
   class FakeCombat {

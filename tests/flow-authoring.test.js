@@ -164,7 +164,7 @@ test("flow analysis rejects trigger references to missing objectives", () => {
   assert(flow.errors.some((entry) => entry.code === "FLOW_TRIGGER_OBJECTIVE"));
 });
 
-test("advanced conditions support AND, OR, and per-condition NOT against Encounter context", () => {
+test("advanced conditions support AND, OR, and per-condition NOT against Encounter context", async () => {
   const instance = {
     currentPhaseId: "opening",
     runtimeVariables: { round: 4, turn: 1 },
@@ -187,11 +187,11 @@ test("advanced conditions support AND, OR, and per-condition NOT against Encount
       { field: "currentPhaseId", operator: "eq", value: "opening" }
     ]
   };
-  assert.equal(matchesTriggerConditions(all, event, instance), true);
-  assert.equal(matchesTriggerConditions(any, event, instance), true);
+  assert.equal(await matchesTriggerConditions(all, event, instance), true);
+  assert.equal(await matchesTriggerConditions(any, event, instance), true);
 });
 
-test("objective context conditions can inspect persistent objective state on unrelated events", () => {
+test("objective context conditions can inspect persistent objective state on unrelated events", async () => {
   const instance = {
     currentPhaseId: "opening",
     runtimeVariables: { round: 2, turn: 0 },
@@ -205,10 +205,10 @@ test("objective context conditions can inspect persistent objective state on unr
       { field: "objectiveStateCurrent", operator: "eq", value: "active" }
     ]
   };
-  assert.equal(matchesTriggerConditions(trigger, { type: "combat.roundEnded", round: 2 }, instance), true);
+  assert.equal(await matchesTriggerConditions(trigger, { type: "combat.roundEnded", round: 2 }, instance), true);
 });
 
-test("group count conditions include the participant state transition carried by the current event", () => {
+test("group count conditions include the participant state transition carried by the current event", async () => {
   const instance = {
     participants: [
       { id: "cultist-1", templateId: "cultist", groupId: "ritualists", state: "defeated" },
@@ -227,7 +227,7 @@ test("group count conditions include the participant state transition carried by
     ]
   };
   const event = { type: "participant.defeated", participantId: "cultist-2" };
-  assert.equal(matchesTriggerConditions(trigger, event, instance), true, "template participant filters should match concrete quantity-expanded participants and group counts should include the new defeat");
+  assert.equal(await matchesTriggerConditions(trigger, event, instance), true, "template participant filters should match concrete quantity-expanded participants and group counts should include the new defeat");
 });
 
 test("flow analysis requires context references and warns about contradictory ALL conditions", () => {
@@ -248,4 +248,95 @@ test("flow analysis requires context references and warns about contradictory AL
   const flow = analyzeEncounterFlow(blueprint);
   assert(flow.errors.some((entry) => entry.code === "FLOW_CONDITION_GROUP_REQUIRED"));
   assert(flow.warnings.some((entry) => entry.code === "FLOW_CONDITION_CONTRADICTION"));
+});
+
+
+test("participant-state conditions can inspect different creatures than the event participant", async () => {
+  const instance = {
+    participants: [
+      { id: "a", templateId: "a", state: "ready" },
+      { id: "b", templateId: "b", state: "ready" },
+      { id: "c", templateId: "c", state: "ready" }
+    ],
+    objectives: {},
+    runtimeVariables: {}
+  };
+  const snapshots = new Map([
+    ["b", [{ id: "b", state: "ready", hp: { value: 7, max: 10, percent: 70 } }]],
+    ["c", [{ id: "c", state: "ready", hp: { value: 10, max: 10, percent: 100 } }]]
+  ]);
+  const participants = { async snapshotsForReference(id) { return snapshots.get(id) ?? []; } };
+  const trigger = {
+    participantId: "a",
+    conditionMode: "any",
+    conditions: [
+      { field: "participantHpBelowMax", participantId: "b", operator: "eq", value: true },
+      { field: "participantHpBelowMax", participantId: "c", operator: "eq", value: true }
+    ]
+  };
+  const event = { type: "participant.hpChanged", participantId: "a", hpValue: 9, hpMax: 10, hpPercent: 90 };
+  assert.equal(await matchesTriggerConditions(trigger, event, instance, { participants }), true);
+});
+
+test("participant-state condition validation requires a live participant reference", () => {
+  const blueprint = createEncounterBlueprint({
+    participants: [{ id: "a", name: "A", source: { type: "document", uuid: "Actor.a" } }],
+    triggers: [{
+      id: "watch-a",
+      event: "participant.hpChanged",
+      conditions: [{ field: "participantHpBelowMax", operator: "eq", value: true }]
+    }]
+  });
+  const flow = analyzeEncounterFlow(blueprint);
+  assert(flow.errors.some((entry) => entry.code === "FLOW_CONDITION_PARTICIPANT_REQUIRED"));
+
+  blueprint.triggers[0].conditions[0].participantId = "missing";
+  const missing = analyzeEncounterFlow(blueprint);
+  assert(missing.errors.some((entry) => entry.code === "FLOW_CONDITION_PARTICIPANT_REFERENCE"));
+});
+
+test("group-member HP conditions support any, all, and at-least-N evaluation", async () => {
+  const instance = {
+    participants: [
+      { id: "a", templateId: "a", groupId: "boss", state: "ready" },
+      { id: "b", templateId: "b", groupId: "defenders", state: "ready" },
+      { id: "c", templateId: "c", groupId: "defenders", state: "ready" }
+    ],
+    objectives: {},
+    runtimeVariables: {}
+  };
+  const snapshots = [
+    { id: "b", groupId: "defenders", state: "ready", hp: { value: 4, max: 10, percent: 40 } },
+    { id: "c", groupId: "defenders", state: "ready", hp: { value: 8, max: 10, percent: 80 } }
+  ];
+  const participants = { async snapshotsForGroup(id) { return id === "defenders" ? snapshots : []; } };
+  const event = { type: "participant.hpChanged", participantId: "a", hpValue: 9, hpMax: 10, hpPercent: 90 };
+  const condition = { field: "groupParticipantHpPercent", groupId: "defenders", operator: "lte", value: 50 };
+
+  assert.equal(await matchesTriggerConditions({ participantId: "a", conditions: [{ ...condition, groupMatchMode: "any" }] }, event, instance, { participants }), true);
+  assert.equal(await matchesTriggerConditions({ participantId: "a", conditions: [{ ...condition, groupMatchMode: "all" }] }, event, instance, { participants }), false);
+  assert.equal(await matchesTriggerConditions({ participantId: "a", conditions: [{ ...condition, groupMatchMode: "atLeast", groupMatchCount: 2 }] }, event, instance, { participants }), false);
+
+  snapshots[1].hp = { value: 5, max: 10, percent: 50 };
+  assert.equal(await matchesTriggerConditions({ participantId: "a", conditions: [{ ...condition, groupMatchMode: "all" }] }, event, instance, { participants }), true);
+  assert.equal(await matchesTriggerConditions({ participantId: "a", conditions: [{ ...condition, groupMatchMode: "atLeast", groupMatchCount: 2 }] }, event, instance, { participants }), true);
+});
+
+test("group-member state condition validation requires a valid group and positive at-least count", () => {
+  const blueprint = createEncounterBlueprint({
+    groups: [{ id: "defenders", name: "Defenders" }],
+    triggers: [{
+      id: "watch-group",
+      event: "participant.hpChanged",
+      conditions: [{ field: "groupParticipantHpPercent", operator: "lte", value: 50, groupMatchMode: "atLeast", groupMatchCount: 0 }]
+    }]
+  });
+  let flow = analyzeEncounterFlow(blueprint);
+  assert(flow.errors.some((entry) => entry.code === "FLOW_CONDITION_GROUP_PARTICIPANT_REQUIRED"));
+  assert(flow.errors.some((entry) => entry.code === "FLOW_CONDITION_GROUP_MATCH_COUNT"));
+
+  blueprint.triggers[0].conditions[0].groupId = "missing";
+  blueprint.triggers[0].conditions[0].groupMatchCount = 1;
+  flow = analyzeEncounterFlow(blueprint);
+  assert(flow.errors.some((entry) => entry.code === "FLOW_CONDITION_GROUP_PARTICIPANT_REFERENCE"));
 });

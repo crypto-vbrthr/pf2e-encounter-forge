@@ -86,6 +86,7 @@ export class EncounterRuntime {
         bus: this.bus,
         getInstance,
         getBlueprint,
+        participants,
         enabled: () => this.instance?.status === "active",
         onTrigger: (trigger, event) => this.#handleTrigger(trigger, event)
       }),

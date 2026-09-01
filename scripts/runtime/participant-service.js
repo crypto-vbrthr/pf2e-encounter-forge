@@ -71,6 +71,29 @@ export class ParticipantService extends RuntimeService {
   }
 
 
+
+  findByReference(referenceId) {
+    const instance = this.getInstance();
+    const id = String(referenceId ?? "").trim();
+    if (!instance || !id) return [];
+    return (instance.participants ?? []).filter((entry) => String(entry?.id ?? "") === id || String(entry?.templateId ?? "") === id);
+  }
+
+  async snapshotsForReference(referenceId) {
+    return this.snapshots(this.findByReference(referenceId));
+  }
+
+  findByGroup(groupId) {
+    const instance = this.getInstance();
+    const id = String(groupId ?? "").trim();
+    if (!instance || !id) return [];
+    return (instance.participants ?? []).filter((entry) => String(entry?.groupId ?? "") === id);
+  }
+
+  async snapshotsForGroup(groupId) {
+    return this.snapshots(this.findByGroup(groupId));
+  }
+
   async resolveActors(target = {}) {
     const instance = this.getInstance();
     if (!instance) return [];

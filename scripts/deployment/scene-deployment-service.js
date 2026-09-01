@@ -166,6 +166,24 @@ async function tokenSourceForActor(actor, { participant, instance, scene = null,
   return source;
 }
 
+
+function tokenParticipantId(token) {
+  return token?.flags?.[MODULE_ID]?.participant?.participantId
+    ?? token?._source?.flags?.[MODULE_ID]?.participant?.participantId
+    ?? null;
+}
+
+function tokensByParticipantId(tokens = [], placements = []) {
+  const expectedIds = new Set(placements.map((entry) => String(entry?.participant?.id ?? "")).filter(Boolean));
+  const mapped = new Map();
+  for (const token of tokens) {
+    const participantId = String(tokenParticipantId(token) ?? "").trim();
+    if (!participantId || !expectedIds.has(participantId) || mapped.has(participantId)) continue;
+    mapped.set(participantId, token);
+  }
+  return mapped;
+}
+
 function playerCharacterTokens(scene, excludedIds = new Set()) {
   return collectionContents(scene?.tokens).filter((token) => {
     if (!token?.id || excludedIds.has(token.id)) return false;
@@ -223,9 +241,15 @@ export class SceneDeploymentService {
         throw new EncounterForgeError("Scene token creation returned an unexpected number of Tokens.", { code: "SCENE_TOKEN_COUNT_MISMATCH" });
       }
 
+      // Foundry's interactive TokenLayer is not required to return created Token
+      // documents in the same order as the submitted sources. Every source is stamped
+      // with the Encounter participant id, so reconcile by that stable flag first.
+      // Falling back to array order preserves compatibility with lightweight mocks and
+      // older Foundry/provider implementations that do not expose flags on the result.
+      const tokenMap = tokensByParticipantId(tokens, placements);
       for (let index = 0; index < placements.length; index += 1) {
         const participant = placements[index].participant;
-        const token = tokens[index];
+        const token = tokenMap.get(String(participant.id)) ?? tokens[index];
         participant.tokenUuid = documentUuid(token, `Scene.${scene.id}.Token`);
         participant.state = "ready";
         participant.runtime ??= {};

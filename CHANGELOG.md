@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.1.0-alpha.11.2.4 - Interactive Token Participant Mapping Fix
+
+### Fixed
+- Fixed interactive/manual Scene deployment assuming that Foundry returns created Token documents in the same order as the submitted Token sources. Foundry may return them in a different order, which could cross-wire a participant's stored `tokenUuid` with another creature's Token.
+- Deployment now reconciles returned Tokens through the stable Encounter participant id already stamped into each Token flag, with array order retained only as a compatibility fallback. This keeps live HP/state conditions, Director participant snapshots, and participant-specific Runtime targeting attached to the correct Token.
+- Added a regression test that deliberately returns manually placed Tokens in a shuffled order and verifies that every Encounter participant still receives the correct Token UUID and placement data.
+
+### Clarified
+- Group-member conditions evaluate every concrete Encounter participant assigned to the selected tactical group. A Blueprint entry with quantity 2 contributes two concrete members, and any other participant assigned to that same group is included as well.
+
+## 0.1.0-alpha.11.2.3 - Group Member State Conditions & Context Clarity
+
+### Added
+- Added **group-member state conditions** for current/max HP, HP percentage, HP below maximum, full HP, defeated state, and active state. Each such condition selects its own tactical group.
+- Group-member conditions have an explicit evaluation mode: **At least one**, **All**, or **At least X** members must satisfy the comparison. This supports patterns such as “Burgel's HP changes AND all Defenders are at 50% HP or less.”
+- Added public `api.flow.groupParticipantContextFields` and `api.flow.groupMatchModes` metadata. The previously documented participant/boolean condition metadata is now exposed as well.
+
+### Changed
+- Objective and shared Group context selectors are now shown only when at least one authored condition actually uses that context. Event-payload conditions such as `HP %` no longer display unrelated Objective/Group selectors beside them.
+- Group-member HP/state conditions use a per-condition Group selector, so different conditions in the same Trigger can inspect different groups.
+- The readable **When:** preview includes both the selected group and its evaluation mode.
+- Trigger condition rows remain width-safe with responsive layouts for participant and group-member contexts.
+
+## 0.1.0-alpha.11.2.2 - Configurable Condition Logic Labels
+
+### Added
+- Added a client-side **Condition logic display** module setting. Each GM/user can choose whether Trigger combination choices are written out (`All must match` / `At least one must match`) or shown as the compact logical operators `AND` / `OR`.
+- The preference is presentation-only and is not stored in Encounter Blueprints. Changing it rerenders an open Encounter Forge window immediately.
+- The readable Trigger condition preview follows the selected operator style as well, using `AND` / `OR` in compact mode.
+
+## 0.1.0-alpha.11.2.1 - Blueprint Width & Trigger Condition Layout Fix
+
+### Fixed
+- Fixed participant-state Trigger conditions forcing the Encounter Blueprint pane wider than its container.
+- Reworked Trigger condition rows into a responsive two-line grid with zero-minimum columns instead of fixed rem-based minimum widths.
+- Added explicit min/max-width containment for Flow controls, entry cards, lists, and Blueprint editor sections so long selects cannot create horizontal layout overflow.
+
+## 0.1.0-alpha.11.2 - Participant State Conditions
+
+### Added
+- Trigger conditions can now inspect a **specific participant other than the participant that emitted the event**. Each participant-state condition owns its own participant reference, so OR expressions such as “Creature B has lost HP OR Creature C has lost HP” are directly authorable while a Trigger remains scoped to Creature A's HP-change event.
+- Added participant-context fields for current HP, maximum HP, HP percentage, HP below maximum, full HP, defeated state, and active state. Boolean participant conditions use explicit Yes/No values in the editor.
+- Participant-state conditions resolve live Token/Actor snapshots through `ParticipantService`; native PF2e HP remains owned by the Actor and is not duplicated into Encounter Instance persistence. Quantity-expanded participant templates use ANY-member semantics for an individual condition.
+- `api.flow` now exposes `participantContextFields` and `booleanConditionFields`.
+
+### Changed
+- Flow analysis requires every participant-state condition to reference an existing Blueprint participant and reports stale/missing references before saving.
+- Removing a participant also clears condition references and participant-targeted action references that pointed at it.
+- One-shot Trigger reservation now happens before asynchronous participant snapshot evaluation, preserving duplicate-hook protection while live participant conditions are evaluated.
+
 ## 0.1.0-alpha.11.1 - Flow Entry Visual Separation
 
 ### Changed
