@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-rc.1 - First Release Candidate
+
+### Changed
+- Promoted the reviewed `0.1.0-alpha.13.8` codebase to the first release candidate without introducing new gameplay or authoring features.
+- Release metadata, module constants, package metadata, and the GitHub release download target now identify `0.1.0-rc.1`.
+- Feature development is frozen for the 0.1.0 release line during RC validation; changes from this point should be limited to bug fixes, compatibility fixes, migration safety, and release-documentation corrections.
+
+### Validation
+- RC.1 retains the complete Director/Runtime hardening, Blueprint snapshot/archive lifecycle, Scene-bound Encounter filtering, prepared-Instance deduplication, and reviewed Forge integration contracts from `0.1.0-alpha.13.8`.
+- Full automated test and JavaScript syntax validation is required before packaging the RC artifact.
+
 ## 0.1.0-alpha.13.8 - RC Hardening Review
 
 ### Fixed

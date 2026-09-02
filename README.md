@@ -23,6 +23,12 @@ Suggestions and feature requests are equally welcome. Even small ideas can lead 
 **Open an issue here:** https://github.com/crypto-vbrthr/pf2e-encounter-forge/issues
 
 
+## 0.1.0-rc.1 — First Release Candidate
+
+This is the first release candidate for Encounter Forge 0.1.0. It promotes the fully reviewed `0.1.0-alpha.13.8` codebase without adding new features. The Director/Runtime lifecycle, persistent Blueprint snapshots, Blueprint archive, Scene-bound Encounter filtering, prepared-Instance deduplication, historical Instance handling, and cross-Forge integration contracts are now considered feature-complete for the 0.1.0 release.
+
+During the RC phase, development is intentionally frozen to bug fixes, compatibility corrections, migration safety, and release-documentation fixes. If Foundry smoke testing reveals no regressions, this RC is intended to become the basis of the final 0.1.0 release.
+
 ## 0.1.0-alpha.13.8 — RC Hardening Review
 
 This build hardens the Director/Runtime lifecycle before the first release candidate. On world ready, legacy Runtime Instances that predate frozen Blueprint snapshots are now migrated even when they are merely prepared or already completed, as long as their source Blueprint still exists. Public Instance deletion is Runtime-safe and cleans stale Scene/Combat routing references while leaving deployed Actors and Tokens untouched.
