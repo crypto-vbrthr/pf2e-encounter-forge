@@ -259,3 +259,29 @@ test("prepared Instance deduplication does not reuse a stale Blueprint snapshot 
     globalThis.fromUuid = previousFromUuid;
   }
 });
+
+test("Scene-bound Blueprint deployment always uses the bound Scene and rejects another Scene", async () => {
+  const previousFromUuid = globalThis.fromUuid;
+  const boundScene = { id: "bound", uuid: "Scene.bound", name: "Bound Arena", documentName: "Scene" };
+  const otherScene = { id: "other", uuid: "Scene.other", name: "Other Arena", documentName: "Scene" };
+  globalThis.fromUuid = async (uuid) => uuid === boundScene.uuid ? boundScene : uuid === otherScene.uuid ? otherScene : null;
+  try {
+    const bp = createEncounterBlueprint({
+      ...blueprint(),
+      sceneBinding: { sceneId: boundScene.id, sceneUuid: boundScene.uuid, sceneName: boundScene.name }
+    });
+    const h = harness();
+    const result = await h.deployment.deploy(bp, { actorMode: "per-type", placeTokens: false });
+    assert.equal(result.scene, boundScene);
+    assert.equal(result.instance.deployment.sceneUuid, boundScene.uuid);
+
+    const rejected = harness();
+    await assert.rejects(
+      () => rejected.deployment.deploy(bp, { actorMode: "per-type", sceneUuid: otherScene.uuid, placeTokens: false }),
+      (error) => error?.code === "BLUEPRINT_SCENE_MISMATCH"
+    );
+    assert.equal(rejected.factory.actors.length, 0);
+  } finally {
+    globalThis.fromUuid = previousFromUuid;
+  }
+});

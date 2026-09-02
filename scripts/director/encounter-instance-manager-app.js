@@ -1,5 +1,6 @@
 import { MODULE_ID } from "../constants.js";
 import { EncounterDeploymentDialogApp } from "../ui/deployment-dialog-app.js";
+import { blueprintVisibleOnScene, currentSceneId, currentSceneName, instanceVisibleOnScene } from "../utils/scene-binding.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -69,13 +70,15 @@ export class EncounterInstanceManagerApp extends HandlebarsApplicationMixin(Appl
     main: { template: `modules/${MODULE_ID}/templates/encounter-instance-manager-app.hbs` }
   };
 
-  constructor({ selectedInstanceId = null, ...options } = {}) {
+  constructor({ selectedInstanceId = null, sceneFiltered = false, ...options } = {}) {
     super(options);
     this.selectedInstanceId = selectedInstanceId;
+    this.sceneFiltered = Boolean(sceneFiltered);
   }
 
-  async setSelectedInstance(instanceId = null) {
-    this.selectedInstanceId = instanceId;
+  async setContext({ selectedInstanceId = null, sceneFiltered = false } = {}) {
+    this.selectedInstanceId = selectedInstanceId;
+    this.sceneFiltered = Boolean(sceneFiltered);
     if (this.element) await this.render({ force: true });
     return this;
   }
@@ -91,7 +94,7 @@ export class EncounterInstanceManagerApp extends HandlebarsApplicationMixin(Appl
       if (blueprintId) liveCounts.set(blueprintId, (liveCounts.get(blueprintId) ?? 0) + 1);
     }
     return (api?.blueprints?.list?.() ?? [])
-      .filter((entry) => !entry?.data?.metadata?.archivedAt)
+      .filter((entry) => !entry?.data?.metadata?.archivedAt && (!this.sceneFiltered || blueprintVisibleOnScene(entry?.data ?? {}, currentSceneId())))
       .map((entry) => {
         const blueprint = clone(entry?.data ?? {});
         const participantCount = (blueprint.participants ?? []).reduce((sum, participant) => sum + Math.max(1, Number(participant?.quantity) || 1), 0);
@@ -102,6 +105,7 @@ export class EncounterInstanceManagerApp extends HandlebarsApplicationMixin(Appl
           name: String(blueprint.name ?? blueprint.id ?? localize("PF2E_ENCOUNTER_FORGE.Editor.Untitled", "Untitled Encounter")),
           participantCount,
           phaseCount: blueprint.phases?.length ?? 0,
+          sceneName: String(blueprint.sceneBinding?.sceneName ?? "").trim() || null,
           liveInstanceCount: liveCounts.get(String(blueprint.id ?? "")) ?? 0,
           canCreate: participantCount > 0 && !hasExampleParticipants,
           needsParticipants: participantCount <= 0,
@@ -114,7 +118,8 @@ export class EncounterInstanceManagerApp extends HandlebarsApplicationMixin(Appl
   #rows() {
     const api = getApi();
     const runtimeStatus = api?.runtime?.status?.() ?? {};
-    const rows = (api?.instances?.list?.() ?? []).map((entry) => {
+    const sourceRows = (api?.instances?.list?.() ?? []).filter((entry) => !this.sceneFiltered || instanceVisibleOnScene(entry, { api, sceneId: currentSceneId() }));
+    const rows = sourceRows.map((entry) => {
       const instance = clone(entry?.data ?? {});
       const blueprint = blueprintEntry(api, instance);
       const snapshot = instance.blueprint?.snapshot && typeof instance.blueprint.snapshot === "object" ? instance.blueprint.snapshot : null;
@@ -175,6 +180,8 @@ export class EncounterInstanceManagerApp extends HandlebarsApplicationMixin(Appl
         { count: completedCount },
         `${completedCount} completed instance(s)`
       ),
+      sceneFiltered: this.sceneFiltered,
+      currentSceneName: currentSceneName() ?? localize("PF2E_ENCOUNTER_FORGE.InstanceManager.UnknownScene", "Current Scene"),
       orphanSummary: format(
         "PF2E_ENCOUNTER_FORGE.InstanceManager.OrphanCount",
         { count: orphanCount },

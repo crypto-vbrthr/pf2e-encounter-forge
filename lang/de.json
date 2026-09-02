@@ -639,5 +639,17 @@
   "PF2E_ENCOUNTER_FORGE.Notifications.RestoreFromArchiveFailed": "Der Encounter-Blueprint konnte nicht aus dem Archiv geholt werden.",
   "PF2E_ENCOUNTER_FORGE.Director.ReadOnlyNotice": "Diese abgeschlossene Encounter-Instanz ist schreibgeschützt. Nutze „Abschluss rückgängig machen“, bevor du Phasen, Ziele, Entscheidungen oder geplante Aktionen änderst.",
   "PF2E_ENCOUNTER_FORGE.InstanceManager.SnapshotOnly": "Blueprint-Snapshot",
-  "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintSnapshotAvailable": "Der ursprüngliche Blueprint existiert nicht mehr. Diese Instanz enthält jedoch ihren eigenen Blueprint-Snapshot und kann weiterhin sicher im Director geöffnet werden."
+  "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintSnapshotAvailable": "Der ursprüngliche Blueprint existiert nicht mehr. Diese Instanz enthält jedoch ihren eigenen Blueprint-Snapshot und kann weiterhin sicher im Director geöffnet werden.",
+  "PF2E_ENCOUNTER_FORGE.Fields.SceneBinding": "Kartenbindung",
+  "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingAny": "Alle Karten (ungebunden)",
+  "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingCurrent": "aktuelle Karte",
+  "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingMissing": "Karte fehlt",
+  "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingHint": "Optional: Bindet diesen Blueprint an eine bestimmte Karte. Der Director bietet ihn dann nur an, wenn diese Karte gerade geöffnet ist.",
+  "PF2E_ENCOUNTER_FORGE.Library.SceneShort": "Karte",
+  "PF2E_ENCOUNTER_FORGE.Deployment.BoundSceneHint": "Dieser Blueprint ist an eine bestimmte Karte gebunden. Die Zielkarte kann beim Deployment nicht geändert werden.",
+  "PF2E_ENCOUNTER_FORGE.Deployment.BoundSceneMissingHint": "Die an diesen Blueprint gebundene Karte existiert nicht mehr. Weise im Blueprint zuerst eine neue Karte zu oder löse die Bindung.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.BoundSceneMissing": "Die an diesen Encounter-Blueprint gebundene Karte existiert nicht mehr. Weise vor dem Deployment eine neue Karte zu.",
+  "PF2E_ENCOUNTER_FORGE.Director.NoSceneEncounter": "Auf der aktuellen Karte ist kein vorbereiteter/laufender Encounter und kein aktiver Encounter-Blueprint verfügbar.",
+  "PF2E_ENCOUNTER_FORGE.InstanceManager.SceneFilter": "Director-Auswahl für Karte:",
+  "PF2E_ENCOUNTER_FORGE.InstanceManager.UnknownScene": "Aktuelle Karte"
 }

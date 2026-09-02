@@ -1,6 +1,7 @@
 import { MODULE_ID } from "../constants.js";
 import { EncounterDirectorApp } from "./encounter-director-app.js";
 import { openEncounterInstanceManager } from "./encounter-instance-manager-ui.js";
+import { blueprintVisibleOnScene, currentSceneId, instanceVisibleOnScene } from "../utils/scene-binding.js";
 
 let app = null;
 
@@ -28,7 +29,9 @@ function byRecency(rows) {
 
 
 export function findEncounterDirectorCandidates() {
-  const rows = byRecency(instanceEntries());
+  const api = getApi();
+  const sceneId = currentSceneId();
+  const rows = byRecency(instanceEntries()).filter((entry) => instanceVisibleOnScene(entry, { api, sceneId }));
   const live = rows.filter((entry) => ["active", "paused", "prepared"].includes(entry.data?.status));
   if (live.length) return live;
   return rows.filter((entry) => ["completed", "aborted"].includes(entry.data?.status));
@@ -46,20 +49,26 @@ function candidateHasBlueprint(entry) {
 }
 
 function activeBlueprintEntries() {
-  return (getApi()?.blueprints?.list?.() ?? []).filter((entry) => !entry?.data?.metadata?.archivedAt);
+  const sceneId = currentSceneId();
+  return (getApi()?.blueprints?.list?.() ?? []).filter((entry) => !entry?.data?.metadata?.archivedAt && blueprintVisibleOnScene(entry?.data ?? {}, sceneId));
 }
 
 function runtimeBoundDirectorId() {
-  const status = getApi()?.runtime?.status?.() ?? {};
+  const api = getApi();
+  const status = api?.runtime?.status?.() ?? {};
   const id = status.activeInstanceId ?? null;
-  return id && ["active", "paused"].includes(status.instanceStatus) ? id : null;
+  if (!id || !["active", "paused"].includes(status.instanceStatus)) return null;
+  const entry = api?.instances?.get?.(id) ?? null;
+  return instanceVisibleOnScene(entry, { api, sceneId: currentSceneId() }) ? id : null;
 }
 
 export function findPreferredEncounterInstanceId() {
   const api = getApi();
   const runtimeStatus = api?.runtime?.status?.() ?? {};
   const runtimeId = runtimeStatus.activeInstanceId ?? null;
-  if (runtimeId && ["active", "paused", "prepared"].includes(runtimeStatus.instanceStatus)) return runtimeId;
+  const sceneId = currentSceneId();
+  const runtimeEntry = runtimeId ? api?.instances?.get?.(runtimeId) ?? null : null;
+  if (runtimeId && ["active", "paused", "prepared"].includes(runtimeStatus.instanceStatus) && instanceVisibleOnScene(runtimeEntry, { api, sceneId })) return runtimeId;
 
   // A completed Runtime binding must not pin the Director forever. A newly deployed
   // prepared Instance on the current Combat/Scene should win immediately.
@@ -67,22 +76,22 @@ export function findPreferredEncounterInstanceId() {
   const combatRef = game.combat?.flags?.[MODULE_ID]?.encounter?.instanceUuid ?? game.combat?.flags?.[MODULE_ID]?.encounter?.instanceId ?? null;
   if (combatRef) {
     const combatEntry = api?.instances?.get?.(combatRef) ?? null;
-    if (["active", "paused", "prepared"].includes(combatEntry?.data?.status)) return combatEntry.data.id;
-    if (combatEntry?.data?.status === "completed") completedCombatCandidate = combatEntry.data.id;
+    if (["active", "paused", "prepared"].includes(combatEntry?.data?.status) && instanceVisibleOnScene(combatEntry, { api, sceneId })) return combatEntry.data.id;
+    if (combatEntry?.data?.status === "completed" && instanceVisibleOnScene(combatEntry, { api, sceneId })) completedCombatCandidate = combatEntry.data.id;
   }
 
   const scene = globalThis.canvas?.scene ?? game.scenes?.active ?? null;
   const refs = Object.values(scene?.flags?.[MODULE_ID]?.instances ?? {}).map((entry) => entry?.instanceUuid).filter(Boolean);
-  const sceneEntries = refs.map((ref) => api?.instances?.get?.(ref)).filter(Boolean);
+  const sceneEntries = refs.map((ref) => api?.instances?.get?.(ref)).filter((entry) => Boolean(entry) && instanceVisibleOnScene(entry, { api, sceneId }));
   const sortedSceneEntries = byRecency(sceneEntries);
   const scenePreferred = sortedSceneEntries.find((entry) => ["active", "paused", "prepared"].includes(entry.data?.status));
   if (scenePreferred) return scenePreferred.data.id;
 
-  const sortedGlobalEntries = byRecency(instanceEntries());
+  const sortedGlobalEntries = byRecency(instanceEntries()).filter((entry) => instanceVisibleOnScene(entry, { api, sceneId }));
   const globalPreferred = sortedGlobalEntries.find((entry) => ["active", "paused", "prepared"].includes(entry.data?.status));
   if (globalPreferred) return globalPreferred.data.id;
 
-  if (runtimeId && runtimeStatus.instanceStatus === "completed") return runtimeId;
+  if (runtimeId && runtimeStatus.instanceStatus === "completed" && instanceVisibleOnScene(runtimeEntry, { api, sceneId })) return runtimeId;
   if (completedCombatCandidate) return completedCombatCandidate;
   return sortedSceneEntries.find((entry) => entry.data?.status === "completed")?.data?.id
     ?? sortedGlobalEntries.find((entry) => entry.data?.status === "completed")?.data?.id
@@ -104,7 +113,7 @@ export async function openEncounterDirector(instanceOrId = null) {
     else {
       const candidates = findEncounterDirectorCandidates();
       if (candidates.length > 1 || (candidates.length === 1 && !candidateHasBlueprint(candidates[0]))) {
-        return openEncounterInstanceManager({ selectedInstanceId: app?.instanceId ?? null });
+        return openEncounterInstanceManager({ selectedInstanceId: app?.instanceId ?? null, sceneFiltered: true });
       }
       id = candidates[0]?.data?.id ?? findPreferredEncounterInstanceId();
     }
@@ -113,9 +122,9 @@ export async function openEncounterDirector(instanceOrId = null) {
   if (!id) {
     const blueprints = activeBlueprintEntries();
     if (blueprints.length) {
-      return openEncounterInstanceManager({ selectedInstanceId: app?.instanceId ?? null });
+      return openEncounterInstanceManager({ selectedInstanceId: app?.instanceId ?? null, sceneFiltered: true });
     }
-    ui.notifications.warn(localize("PF2E_ENCOUNTER_FORGE.Director.NoInstance", "No prepared or running Encounter Instance is available."));
+    ui.notifications.warn(localize("PF2E_ENCOUNTER_FORGE.Director.NoSceneEncounter", "No prepared or running Encounter or active Blueprint is available on the current Scene."));
     return null;
   }
   if (!app) {

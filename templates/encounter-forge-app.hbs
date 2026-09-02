@@ -35,7 +35,7 @@
           <div class="encounter-forge-blueprint-row {{#if selected}}selected{{/if}}" data-blueprint-id="{{id}}">
             <button type="button" class="encounter-forge-blueprint-select" data-action="selectBlueprint" data-blueprint-id="{{id}}">
               <span class="encounter-forge-blueprint-name">{{name}}</span>
-              <span class="encounter-forge-blueprint-meta">{{localize "PF2E_ENCOUNTER_FORGE.Library.PartyShort"}} {{partySize}} × {{partyLevel}} · {{threat}}</span>
+              <span class="encounter-forge-blueprint-meta">{{localize "PF2E_ENCOUNTER_FORGE.Library.PartyShort"}} {{partySize}} × {{partyLevel}} · {{threat}}{{#if sceneName}} · {{localize "PF2E_ENCOUNTER_FORGE.Library.SceneShort"}}: {{sceneName}}{{/if}}</span>
             </button>
             <button type="button" class="encounter-forge-blueprint-archive" data-action="archiveBlueprint" data-blueprint-id="{{id}}"
                     data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.Archive" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Controls.Archive"}}">
@@ -63,7 +63,7 @@
           <div class="encounter-forge-blueprint-row archived {{#if selected}}selected{{/if}}" data-blueprint-id="{{id}}">
             <button type="button" class="encounter-forge-blueprint-select" data-action="selectBlueprint" data-blueprint-id="{{id}}">
               <span class="encounter-forge-blueprint-name">{{name}}</span>
-              <span class="encounter-forge-blueprint-meta">{{localize "PF2E_ENCOUNTER_FORGE.Library.PartyShort"}} {{partySize}} × {{partyLevel}} · {{threat}}</span>
+              <span class="encounter-forge-blueprint-meta">{{localize "PF2E_ENCOUNTER_FORGE.Library.PartyShort"}} {{partySize}} × {{partyLevel}} · {{threat}}{{#if sceneName}} · {{localize "PF2E_ENCOUNTER_FORGE.Library.SceneShort"}}: {{sceneName}}{{/if}}</span>
             </button>
             <button type="button" class="encounter-forge-blueprint-archive restore" data-action="restoreBlueprint" data-blueprint-id="{{id}}"
                     data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.RestoreArchive" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Controls.RestoreArchive"}}">
@@ -190,6 +190,17 @@
         <label>
           <span>{{localize "PF2E_ENCOUNTER_FORGE.Fields.Budget"}}</span>
           <input type="number" name="threatBudget" min="0" step="1" value="{{draft.threatBudget}}" placeholder="—" data-blueprint-field>
+        </label>
+
+        <label class="wide">
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Fields.SceneBinding"}}</span>
+          <select name="sceneBindingId" data-blueprint-field>
+            <option value="">{{localize "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingAny"}}</option>
+            {{#each sceneBindingOptions}}
+              <option value="{{id}}" {{#if selected}}selected{{/if}}>{{name}}{{#if active}} · {{localize "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingCurrent"}}{{/if}}{{#if missing}} · {{localize "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingMissing"}}{{/if}}</option>
+            {{/each}}
+          </select>
+          <small>{{localize "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingHint"}}</small>
         </label>
 
         <label class="wide">

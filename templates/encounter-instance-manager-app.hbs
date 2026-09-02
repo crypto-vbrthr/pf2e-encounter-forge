@@ -8,6 +8,13 @@
     <button type="button" data-action="refresh" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.Refresh"><i class="fa-solid fa-rotate"></i></button>
   </header>
 
+  {{#if sceneFiltered}}
+    <div class="encounter-instance-manager-scene-filter">
+      <i class="fa-solid fa-map-location-dot"></i>
+      <span>{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.SceneFilter"}} <strong>{{currentSceneName}}</strong></span>
+    </div>
+  {{/if}}
+
   <div class="encounter-instance-manager-toolbar">
     {{#if hasCompleted}}
       <span class="encounter-instance-manager-completed-summary"><i class="fa-solid fa-flag-checkered"></i> {{completedSummary}}</span>
@@ -39,6 +46,7 @@
                 <div class="encounter-instance-manager-meta">
                   <span><i class="fa-solid fa-users"></i> {{participantCount}} {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Participants"}}</span>
                   <span><i class="fa-solid fa-layer-group"></i> {{phaseCount}} {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Phases"}}</span>
+                  {{#if sceneName}}<span><i class="fa-solid fa-map"></i> {{sceneName}}</span>{{/if}}
                 </div>
                 {{#if needsParticipants}}<p class="encounter-instance-manager-warning">{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintNeedsParticipants"}}</p>{{/if}}
                 {{#if hasExampleParticipants}}<p class="encounter-instance-manager-warning">{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintHasExamples"}}</p>{{/if}}

@@ -1,3 +1,11 @@
+## 0.1.0-alpha.13.7
+
+- Added optional Scene binding for Encounter Blueprints.
+- Scene-bound Blueprints and their Runtime Instances are offered by Director only while the bound Scene is currently viewed.
+- Director selection uses a Scene-filtered Instance Manager, while the explicit management view remains global.
+- Deployment locks Scene-bound Blueprints to their configured Scene and rejects mismatched API deployments.
+- Scene binding is shown in the Blueprint library and Instance Manager; missing bound Scenes can be repaired or unbound in the editor.
+
 # Changelog
 
 ## 0.1.0-alpha.13.6 - Snapshot Stability, Read-Only History & Blueprint Archive

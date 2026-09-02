@@ -262,7 +262,11 @@ When manual Token placement starts, the deployment dialog is closed as before an
 
 This patch improves the live Director participant overview while retaining the Runtime/Director MVP from alpha.7. The **Encounter Forge** remains the planning workshop, the **Encounter Director** is now the GM-facing live control desk, and the **Encounter Runtime** is the authoritative background orchestration layer that watches Foundry/PF2e state and persists encounter-specific state.
 
-### Encounter Director
+### Scene-bound Encounters
+
+Encounter Blueprints can optionally be bound to a specific Foundry Scene. Unbound Blueprints remain globally available. A bound Blueprint and Runtime Instances created from it are offered by Encounter Director only while the GM is viewing that Scene. The deployment dialog also locks a bound Blueprint to its configured Scene, reducing accidental preparation on the wrong map.
+
+## Encounter Director
 
 The Director is a separate ApplicationV2 window and can be opened from:
 

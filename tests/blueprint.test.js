@@ -107,3 +107,15 @@ test("Blueprint archive metadata survives normalization and can be cleared again
   const restored = createEncounterBlueprint({ ...archived, metadata: { ...archived.metadata, archivedAt: null } });
   assert.equal(restored.metadata.archivedAt, null);
 });
+
+test("Blueprint Scene binding survives normalization and can be cleared", () => {
+  const bound = createEncounterBlueprint({
+    id: "scene-bound",
+    name: "Scene Bound",
+    sceneBinding: { sceneId: "crypt", sceneUuid: "Scene.crypt", sceneName: "Old Crypt" }
+  });
+  assert.deepEqual(bound.sceneBinding, { sceneId: "crypt", sceneUuid: "Scene.crypt", sceneName: "Old Crypt" });
+  assert.equal(validateEncounterBlueprint(bound).valid, true);
+  const restored = createEncounterBlueprint({ ...bound, sceneBinding: null });
+  assert.equal(restored.sceneBinding, null);
+});

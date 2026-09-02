@@ -13,6 +13,19 @@ function normalizeTokenDisplay(value = {}) {
   };
 }
 
+function normalizeSceneBinding(value = null) {
+  if (!value || typeof value !== "object") return null;
+  const uuid = String(value.sceneUuid ?? "").trim();
+  const uuidMatch = /^Scene\.([^.]+)(?:\.|$)/.exec(uuid);
+  const sceneId = String(value.sceneId ?? uuidMatch?.[1] ?? "").trim();
+  if (!sceneId) return null;
+  return {
+    sceneId,
+    sceneUuid: uuid || `Scene.${sceneId}`,
+    sceneName: String(value.sceneName ?? "").trim() || null
+  };
+}
+
 function normalizeParticipant(participant = {}, index = 0) {
   const id = asId(participant.id, `participant-${index + 1}`);
   return {
@@ -42,6 +55,7 @@ export function createEncounterBlueprint(input = {}) {
     id: asId(input.id, randomId("blueprint")),
     name: String(input.name ?? "New Encounter").trim() || "New Encounter",
     description: String(input.description ?? ""),
+    sceneBinding: normalizeSceneBinding(input.sceneBinding),
     party: {
       level: Number.isInteger(input.party?.level) ? input.party.level : 1,
       size: Number.isInteger(input.party?.size) ? Math.max(1, input.party.size) : 4
@@ -96,6 +110,7 @@ export function validateEncounterBlueprint(value) {
   if (value.schemaVersion !== BLUEPRINT_SCHEMA_VERSION) errors.push({ code: "SCHEMA_VERSION", path: "schemaVersion", message: `Expected blueprint schema ${BLUEPRINT_SCHEMA_VERSION}.` });
   if (!String(value.id ?? "").trim()) errors.push({ code: "MISSING_ID", path: "id", message: "Blueprint id is required." });
   if (!String(value.name ?? "").trim()) errors.push({ code: "MISSING_NAME", path: "name", message: "Blueprint name is required." });
+  if (value.sceneBinding !== null && value.sceneBinding !== undefined && !String(value.sceneBinding?.sceneId ?? "").trim()) errors.push({ code: "SCENE_BINDING", path: "sceneBinding.sceneId", message: "Scene-bound Blueprints require a Scene id." });
   if (!Number.isInteger(value.party?.level)) errors.push({ code: "PARTY_LEVEL", path: "party.level", message: "Party level must be an integer." });
   if (!Number.isInteger(value.party?.size) || value.party.size < 1) errors.push({ code: "PARTY_SIZE", path: "party.size", message: "Party size must be a positive integer." });
 

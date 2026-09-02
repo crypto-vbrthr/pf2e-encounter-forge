@@ -13,13 +13,21 @@
     <div class="encounter-deployment-form-grid">
       <label class="wide">
         <span>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.SceneLabel"}}</span>
-        <select name="sceneUuid" data-scene-select>
+        <select name="sceneUuid" data-scene-select {{#if sceneLocked}}disabled{{/if}}>
           <option value="">{{localize "PF2E_ENCOUNTER_FORGE.Deployment.NoScene"}}</option>
           {{#each scenes}}
-            <option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}{{#if active}} · {{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActiveScene"}}{{/if}}</option>
+            <option value="{{uuid}}" {{#if selected}}selected{{/if}}>{{name}}{{#if active}} · {{localize "PF2E_ENCOUNTER_FORGE.Deployment.ActiveScene"}}{{/if}}{{#if missing}} · {{localize "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingMissing"}}{{/if}}</option>
           {{/each}}
         </select>
-        <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.SceneHint"}}</small>
+        {{#if sceneLocked}}
+          {{#if bindingSceneMissing}}
+            <small class="encounter-forge-warning">{{localize "PF2E_ENCOUNTER_FORGE.Deployment.BoundSceneMissingHint"}}</small>
+          {{else}}
+            <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.BoundSceneHint"}}</small>
+          {{/if}}
+        {{else}}
+          <small>{{localize "PF2E_ENCOUNTER_FORGE.Deployment.SceneHint"}}</small>
+        {{/if}}
       </label>
 
       <label class="wide">
@@ -131,7 +139,7 @@
     <button type="button" data-action="cancel" class="secondary">
       <i class="fa-solid fa-xmark"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Cancel"}}
     </button>
-    <button type="button" data-action="deploy" class="primary" {{#if deploying}}disabled{{/if}}>
+    <button type="button" data-action="deploy" class="primary" {{#if deploymentBlocked}}disabled{{else}}{{#if deploying}}disabled{{/if}}{{/if}}>
       <i class="fa-solid fa-people-arrows"></i> {{localize "PF2E_ENCOUNTER_FORGE.Deployment.Deploy"}}
     </button>
   </footer>

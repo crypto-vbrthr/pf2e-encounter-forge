@@ -639,5 +639,17 @@
   "PF2E_ENCOUNTER_FORGE.Notifications.RestoreFromArchiveFailed": "The Encounter Blueprint could not be restored from archive.",
   "PF2E_ENCOUNTER_FORGE.Director.ReadOnlyNotice": "This completed Encounter Instance is read-only. Use Undo completion before changing phases, objectives, decisions, or scheduled actions.",
   "PF2E_ENCOUNTER_FORGE.InstanceManager.SnapshotOnly": "Blueprint snapshot",
-  "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintSnapshotAvailable": "The original Blueprint no longer exists, but this Instance retains its own Blueprint snapshot and can still be opened safely in the Director."
+  "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintSnapshotAvailable": "The original Blueprint no longer exists, but this Instance retains its own Blueprint snapshot and can still be opened safely in the Director.",
+  "PF2E_ENCOUNTER_FORGE.Fields.SceneBinding": "Scene binding",
+  "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingAny": "All Scenes (unbound)",
+  "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingCurrent": "current Scene",
+  "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingMissing": "Scene missing",
+  "PF2E_ENCOUNTER_FORGE.Fields.SceneBindingHint": "Optional: bind this Blueprint to a specific Scene. Encounter Director will then offer it only while that Scene is currently viewed.",
+  "PF2E_ENCOUNTER_FORGE.Library.SceneShort": "Scene",
+  "PF2E_ENCOUNTER_FORGE.Deployment.BoundSceneHint": "This Blueprint is bound to a specific Scene. Its deployment Scene cannot be changed here.",
+  "PF2E_ENCOUNTER_FORGE.Deployment.BoundSceneMissingHint": "The Scene bound to this Blueprint no longer exists. Rebind the Blueprint or remove the binding before deployment.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.BoundSceneMissing": "The Scene bound to this Encounter Blueprint no longer exists. Rebind it before deployment.",
+  "PF2E_ENCOUNTER_FORGE.Director.NoSceneEncounter": "No prepared/running Encounter or active Encounter Blueprint is available on the current Scene.",
+  "PF2E_ENCOUNTER_FORGE.InstanceManager.SceneFilter": "Director selection for Scene:",
+  "PF2E_ENCOUNTER_FORGE.InstanceManager.UnknownScene": "Current Scene"
 }

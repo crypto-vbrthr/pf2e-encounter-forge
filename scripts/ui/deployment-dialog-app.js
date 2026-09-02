@@ -21,6 +21,17 @@ function sceneRows() {
     .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name, game.i18n?.lang));
 }
 
+function blueprintSceneBinding(blueprint = {}) {
+  const binding = blueprint?.sceneBinding;
+  const id = String(binding?.sceneId ?? "").trim();
+  if (!id) return null;
+  return {
+    sceneId: id,
+    sceneUuid: String(binding?.sceneUuid ?? `Scene.${id}`).trim() || `Scene.${id}`,
+    sceneName: String(binding?.sceneName ?? id).trim() || id
+  };
+}
+
 export class EncounterDeploymentDialogApp extends HandlebarsApplicationMixin(ApplicationV2) {
   static DEFAULT_OPTIONS = {
     id: "pf2e-encounter-forge-deployment-dialog",
@@ -52,15 +63,24 @@ export class EncounterDeploymentDialogApp extends HandlebarsApplicationMixin(App
 
   async _prepareContext() {
     const scenes = sceneRows();
-    const active = scenes.find((scene) => scene.active) ?? scenes[0] ?? null;
+    const binding = blueprintSceneBinding(this.blueprint);
+    const boundScene = binding ? scenes.find((scene) => scene.id === binding.sceneId) ?? null : null;
+    const active = boundScene ?? scenes.find((scene) => scene.active) ?? scenes[0] ?? null;
+    const displayScenes = binding && !boundScene
+      ? [{ id: binding.sceneId, uuid: binding.sceneUuid, name: binding.sceneName, active: false, missing: true }, ...scenes]
+      : scenes;
     const folders = new ActorFolderService().options();
     const templateCount = this.blueprint?.participants?.length ?? 0;
     const participantCount = (this.blueprint?.participants ?? []).reduce((sum, participant) => sum + Math.max(1, Number(participant.quantity) || 1), 0);
 
     return {
       blueprint: this.blueprint,
-      scenes: scenes.map((scene) => ({ ...scene, selected: scene.uuid === active?.uuid })),
+      scenes: displayScenes.map((scene) => ({ ...scene, selected: scene.uuid === active?.uuid || Boolean(binding && scene.id === binding.sceneId) })),
       hasScenes: scenes.length > 0,
+      sceneLocked: Boolean(binding),
+      bindingSceneMissing: Boolean(binding && !boundScene),
+      bindingSceneName: binding?.sceneName ?? null,
+      deploymentBlocked: Boolean(binding && !boundScene),
       folders,
       templateCount,
       participantCount,
@@ -127,6 +147,11 @@ export class EncounterDeploymentDialogApp extends HandlebarsApplicationMixin(App
 
   static async deploy() {
     if (this.deploying) return;
+    const binding = blueprintSceneBinding(this.blueprint);
+    if (binding && !collectionContents(game.scenes).some((scene) => String(scene?.id ?? "") === binding.sceneId)) {
+      ui.notifications.warn(localize("PF2E_ENCOUNTER_FORGE.Notifications.BoundSceneMissing", "The Scene bound to this Encounter Blueprint no longer exists. Rebind the Blueprint before deployment."));
+      return;
+    }
     const root = this.element;
     if (!(root instanceof HTMLElement)) return;
     const read = (name) => root.querySelector(`[name="${name}"]`);

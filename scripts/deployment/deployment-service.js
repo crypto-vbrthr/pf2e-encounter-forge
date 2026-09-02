@@ -47,6 +47,20 @@ function sceneKey(value) {
   return key || null;
 }
 
+function sceneIdKey(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return null;
+  const match = /^Scene\.([^.]+)(?:\.|$)/.exec(text);
+  return match?.[1] ?? text;
+}
+
+function boundSceneUuid(blueprint = {}) {
+  const binding = blueprint?.sceneBinding;
+  const id = String(binding?.sceneId ?? "").trim();
+  if (!id) return null;
+  return String(binding?.sceneUuid ?? `Scene.${id}`).trim() || `Scene.${id}`;
+}
+
 function instanceTimestamp(instance) {
   return String(instance?.metadata?.modifiedAt ?? instance?.metadata?.createdAt ?? "");
 }
@@ -155,7 +169,12 @@ export class EncounterDeploymentService {
     }
 
     const actorMode = ACTOR_MODES.includes(options.actorMode) ? options.actorMode : "per-type";
-    const scene = await resolveScene(options.sceneUuid ?? null);
+    const blueprintSceneUuid = boundSceneUuid(blueprint);
+    const requestedSceneUuid = sceneKey(options.sceneUuid);
+    if (blueprintSceneUuid && requestedSceneUuid && sceneIdKey(blueprintSceneUuid) !== sceneIdKey(requestedSceneUuid)) {
+      throw new EncounterForgeError("This Encounter Blueprint is bound to a different Scene.", { code: "BLUEPRINT_SCENE_MISMATCH" });
+    }
+    const scene = await resolveScene(blueprintSceneUuid ?? requestedSceneUuid);
 
     // Normal Blueprint deployment is idempotent for a prepared playthrough on
     // the same Scene. Repeated clicks in the editor must not silently create

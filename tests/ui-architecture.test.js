@@ -549,7 +549,19 @@ test("Blueprint archive separates consumed encounters from Director preparation 
   assert.match(publicApi, /restore:\s*\(idOrUuid\)/);
   assert.match(directorUi, /activeBlueprintEntries/);
   assert.match(directorUi, /!entry\?\.data\?\.metadata\?\.archivedAt/);
-  assert.match(managerApp, /filter\(\(entry\) => !entry\?\.data\?\.metadata\?\.archivedAt\)/);
+  assert.match(managerApp, /!entry\?\.data\?\.metadata\?\.archivedAt/);
+});
+
+test("Scene-bound Blueprints are authored in the editor and filtered by Director on the current Scene", () => {
+  const directorUi = fs.readFileSync(new URL("../scripts/director/encounter-director-ui.js", import.meta.url), "utf8");
+  const managerApp = fs.readFileSync(new URL("../scripts/director/encounter-instance-manager-app.js", import.meta.url), "utf8");
+  const deploymentService = fs.readFileSync(new URL("../scripts/deployment/deployment-service.js", import.meta.url), "utf8");
+  const editorTemplate = fs.readFileSync(new URL("../templates/encounter-forge-app.hbs", import.meta.url), "utf8");
+  assert.match(editorTemplate, /name="sceneBindingId"/);
+  assert.match(directorUi, /blueprintVisibleOnScene/);
+  assert.match(directorUi, /instanceVisibleOnScene/);
+  assert.match(managerApp, /sceneFiltered/);
+  assert.match(deploymentService, /BLUEPRINT_SCENE_MISMATCH/);
 });
 
 test("Director final-state controls are read-only and snapshot-backed Instances remain openable after Blueprint deletion", () => {

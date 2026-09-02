@@ -139,6 +139,30 @@ function currentSceneDocument() {
     ?? null;
 }
 
+function sceneBindingOptions(binding = null) {
+  const currentId = String(currentSceneDocument()?.id ?? "");
+  const boundId = String(binding?.sceneId ?? "").trim();
+  const rows = collectionContents(globalThis.game?.scenes).map((scene) => ({
+    id: String(scene?.id ?? ""),
+    uuid: String(scene?.uuid ?? (scene?.id ? `Scene.${scene.id}` : "")),
+    name: String(scene?.name ?? scene?.id ?? "Scene"),
+    active: String(scene?.id ?? "") === currentId,
+    selected: String(scene?.id ?? "") === boundId,
+    missing: false
+  })).filter((entry) => entry.id);
+  if (boundId && !rows.some((entry) => entry.id === boundId)) {
+    rows.unshift({
+      id: boundId,
+      uuid: String(binding?.sceneUuid ?? `Scene.${boundId}`),
+      name: String(binding?.sceneName ?? boundId),
+      active: false,
+      selected: true,
+      missing: true
+    });
+  }
+  return rows.sort((a, b) => Number(b.selected) - Number(a.selected) || Number(b.active) - Number(a.active) || a.name.localeCompare(b.name, globalThis.game?.i18n?.lang));
+}
+
 function currentSceneRegions() {
   const scene = currentSceneDocument();
   const embedded = scene?.regions ?? scene?.getEmbeddedCollection?.("Region") ?? null;
@@ -531,7 +555,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         selected: entry.id === this.selectedBlueprintId,
         partyLevel: entry.party?.level ?? 1,
         partySize: entry.party?.size ?? 4,
-        threat: localize(`PF2E_ENCOUNTER_FORGE.Threat.${entry.threat?.target ?? "moderate"}`, entry.threat?.target ?? "moderate")
+        threat: localize(`PF2E_ENCOUNTER_FORGE.Threat.${entry.threat?.target ?? "moderate"}`, entry.threat?.target ?? "moderate"),
+        sceneName: String(entry.sceneBinding?.sceneName ?? "").trim() || null
       })),
       archivedBlueprints: this.blueprints.filter(isBlueprintArchived).map((entry) => ({
         id: entry.id,
@@ -539,7 +564,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         selected: entry.id === this.selectedBlueprintId,
         partyLevel: entry.party?.level ?? 1,
         partySize: entry.party?.size ?? 4,
-        threat: localize(`PF2E_ENCOUNTER_FORGE.Threat.${entry.threat?.target ?? "moderate"}`, entry.threat?.target ?? "moderate")
+        threat: localize(`PF2E_ENCOUNTER_FORGE.Threat.${entry.threat?.target ?? "moderate"}`, entry.threat?.target ?? "moderate"),
+        sceneName: String(entry.sceneBinding?.sceneName ?? "").trim() || null
       })),
       hasBlueprints: this.blueprints.some((entry) => !isBlueprintArchived(entry)),
       hasArchivedBlueprints: this.blueprints.some(isBlueprintArchived),
@@ -602,7 +628,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         value,
         label: localize(`PF2E_ENCOUNTER_FORGE.Threat.${value}`, value),
         selected: draft.threat?.target === value
-      }))
+      })),
+      sceneBindingOptions: sceneBindingOptions(draft.sceneBinding)
     };
   }
 
@@ -825,6 +852,17 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     const next = clone(this.draft);
     next.name = String(value("name") ?? next.name ?? "").trim();
     next.description = String(value("description") ?? next.description ?? "");
+    const sceneBindingId = String(value("sceneBindingId") ?? "").trim();
+    if (!sceneBindingId) next.sceneBinding = null;
+    else {
+      const scene = collectionContents(globalThis.game?.scenes).find((entry) => String(entry?.id ?? "") === sceneBindingId) ?? null;
+      const existing = next.sceneBinding && String(next.sceneBinding.sceneId ?? "") === sceneBindingId ? next.sceneBinding : null;
+      next.sceneBinding = {
+        sceneId: sceneBindingId,
+        sceneUuid: String(scene?.uuid ?? existing?.sceneUuid ?? `Scene.${sceneBindingId}`),
+        sceneName: String(scene?.name ?? existing?.sceneName ?? sceneBindingId)
+      };
+    }
     next.party ??= {};
     next.party.level = asInteger(value("partyLevel"), next.party.level ?? 1, { min: 1, max: 20 });
     next.party.size = asInteger(value("partySize"), next.party.size ?? 4, { min: 1, max: 12 });

@@ -685,7 +685,7 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
 
 
   static async manageInstances() {
-    await getApi()?.ui?.openInstanceManager?.({ selectedInstanceId: this.instanceId });
+    await getApi()?.ui?.openInstanceManager?.({ selectedInstanceId: this.instanceId, sceneFiltered: false });
   }
 
   static async viewScene() {
