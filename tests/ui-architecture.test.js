@@ -560,6 +560,7 @@ test("Scene-bound Blueprints are authored in the editor and filtered by Director
   assert.match(editorTemplate, /name="sceneBindingId"/);
   assert.match(directorUi, /blueprintVisibleOnScene/);
   assert.match(directorUi, /instanceVisibleOnScene/);
+  assert.match(directorUi, /Hooks\.on\("canvasReady", handleDirectorSceneChange\)/);
   assert.match(managerApp, /sceneFiltered/);
   assert.match(deploymentService, /BLUEPRINT_SCENE_MISMATCH/);
 });

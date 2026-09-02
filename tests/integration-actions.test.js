@@ -78,6 +78,19 @@ test("runtime integration action delegates Affliction Forge application", async 
   assert.equal(calls[0].options.source.encounterInstanceId, "encounter-i");
 });
 
+test("Affliction Forge controller bundles report the concrete applied-controller count", async () => {
+  const service = new ActionService({
+    participants,
+    getInstance: () => ({ id: "encounter-i" }),
+    integrations: integrations({
+      afflictionForge: { engine: { applyDefinition: async () => ({ controllers: [{ id: "a" }, { id: "b" }, { id: "c" }] }) } }
+    })
+  });
+  const result = await service.execute({ id: "aff-bundle", type: "affliction.apply", definition: { id: "plague" }, targetMode: "all" });
+  assert.equal(result.handled, true);
+  assert.equal(result.resultCount, 3);
+});
+
 test("Loot Forge action creates a reward Actor in the Encounter Actor folder and remembers it", async () => {
   const updates = [];
   const actor = { uuid: "Actor.loot", name: "Reward", async update(changes) { updates.push(changes); } };

@@ -62,6 +62,26 @@ function runtimeBoundDirectorId() {
   return instanceVisibleOnScene(entry, { api, sceneId: currentSceneId() }) ? id : null;
 }
 
+async function handleDirectorSceneChange() {
+  if (!game.user?.isGM || !app?.instanceId || !app?.element) return;
+  const api = getApi();
+  const entry = api?.instances?.get?.(app.instanceId) ?? null;
+  if (entry?.data && instanceVisibleOnScene(entry, { api, sceneId: currentSceneId() })) return;
+
+  const previous = app;
+  app = null;
+  try { await previous?.close?.(); }
+  catch (error) { console.warn(`${MODULE_ID} | Could not close Scene-incompatible Encounter Director.`, error); }
+
+  // Scene-bound Encounters must disappear as soon as the GM changes maps. If the
+  // destination Scene has another runnable Encounter or Blueprint, move the Director
+  // there automatically. Otherwise leave it closed without a noisy warning.
+  if (findEncounterDirectorCandidates().length || activeBlueprintEntries().length) {
+    try { await openEncounterDirector(); }
+    catch (error) { console.error(`${MODULE_ID} | Could not reopen Encounter Director after Scene change.`, error); }
+  }
+}
+
 export function findPreferredEncounterInstanceId() {
   const api = getApi();
   const runtimeStatus = api?.runtime?.status?.() ?? {};
@@ -190,6 +210,7 @@ export function initializeEncounterDirectorUi() {
   Hooks.on("renderApplicationV2", injectDirectorButton);
   Hooks.on("renderChatMessage", injectDecisionChatControls);
   Hooks.on("renderChatMessageHTML", injectDecisionChatControls);
+  Hooks.on("canvasReady", handleDirectorSceneChange);
   const current = document.querySelector("#combat, .combat-sidebar, .combat-tracker");
   if (current) injectDirectorButton({ tabName: "combat" }, current);
   console.info(`${MODULE_ID} | Encounter Director UI integration initialized.`);

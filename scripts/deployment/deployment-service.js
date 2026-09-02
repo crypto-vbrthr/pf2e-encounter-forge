@@ -68,8 +68,14 @@ function instanceTimestamp(instance) {
 function blueprintRuntimeFingerprint(blueprint) {
   if (!blueprint || typeof blueprint !== "object") return null;
   const payload = deepClone(blueprint);
-  // Repository bookkeeping and archive state do not change the deployed Encounter rules.
-  delete payload.metadata;
+  // Repository timestamps and archive state do not change the deployed Encounter.
+  // Keep all other metadata because add-ons may store deployment-relevant extension
+  // data there and such changes must invalidate prepared-instance reuse.
+  if (payload.metadata && typeof payload.metadata === "object") {
+    delete payload.metadata.createdAt;
+    delete payload.metadata.modifiedAt;
+    delete payload.metadata.archivedAt;
+  }
   return JSON.stringify(payload);
 }
 

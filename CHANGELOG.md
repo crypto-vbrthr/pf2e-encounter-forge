@@ -1,12 +1,28 @@
-## 0.1.0-alpha.13.7
+# Changelog
 
+## 0.1.0-alpha.13.8 - RC Hardening Review
+
+### Fixed
+- World-ready Runtime restoration now eagerly freezes a Blueprint snapshot into every legacy snapshot-less Instance whose source Blueprint still exists, including prepared and completed historical Instances. This closes the migration gap where a legacy Instance could otherwise become unrecoverable if its Blueprint was deleted before the Runtime was started.
+- Public `api.instances.delete(...)` is now Runtime-safe. Deleting the currently bound Instance stops Runtime first and removes stale Scene/Combat routing references while intentionally preserving deployed Actors and Tokens.
+- Legacy orphan Instances without a Blueprint snapshot now fall back to their concrete deployment Scene for Director filtering instead of appearing globally on every map.
+- An open Scene-bound Encounter Director now reacts to Foundry `canvasReady`: switching away from its bound map closes the stale Director view and, when appropriate, offers the runnable Encounter context for the newly viewed Scene. Global/unbound Encounters remain visible across Scene changes.
+- Bulk deletion of completed Encounters now decides whether to reopen Director from the current Scene's remaining Instances/Blueprints instead of being distracted by content bound to other maps.
+- Prepared-Instance deduplication now ignores only volatile Blueprint bookkeeping (`createdAt`, `modifiedAt`, `archivedAt`) while retaining extension metadata such as `metadata.notes`. Add-on metadata changes therefore create the fresh prepared Instance they require.
+- Affliction Forge Runtime actions now report the number of returned Affliction controllers when the integration returns its controller-bundle result shape.
+
+### Validation
+- Completed an RC-focused integration contract review against the supplied Creature Forge, NPC Forge, Aura Forge, Affliction Forge, Critical/Effect Forge, Item Forge, and Loot Forge builds. No blocking API mismatches were found.
+- Added regression coverage for eager legacy snapshot migration, deployment-Scene fallback for legacy orphans, metadata-aware deduplication, safe Instance deletion/routing cleanup, Affliction controller counts, and Director Scene-change handling.
+
+## 0.1.0-alpha.13.7 - Scene-Bound Encounter Blueprints
+
+### Added
 - Added optional Scene binding for Encounter Blueprints.
 - Scene-bound Blueprints and their Runtime Instances are offered by Director only while the bound Scene is currently viewed.
 - Director selection uses a Scene-filtered Instance Manager, while the explicit management view remains global.
 - Deployment locks Scene-bound Blueprints to their configured Scene and rejects mismatched API deployments.
 - Scene binding is shown in the Blueprint library and Instance Manager; missing bound Scenes can be repaired or unbound in the editor.
-
-# Changelog
 
 ## 0.1.0-alpha.13.6 - Snapshot Stability, Read-Only History & Blueprint Archive
 
@@ -19,7 +35,7 @@
 ### Fixed
 - Prepared-Instance deduplication now compares the stored Blueprint snapshot with the current encounter content. Editing a Blueprint and deploying it again no longer reuses a stale prepared Instance.
 - Snapshot-backed historical Instances remain openable in Encounter Director even after their original Blueprint is deleted. Only legacy Instances without either source Blueprint or snapshot are considered orphaned.
-- Completed and aborted Encounter Instances are now read-only in the Director. Phase changes, objective changes, decisions, and scheduled-action controls remain locked until the GM explicitly reopens the Encounter. Runtime mutations are guarded as well, including changes arriving through document hooks.
+- Completed and aborted Encounter Instances are now read-only in the Director. Phase changes, objective changes, decisions, and scheduled-action controls remain locked in final states; completed Encounters can be explicitly reopened before further play. Runtime mutations are guarded as well, including changes arriving through document hooks.
 - Deleting all completed Instances while viewing one of them now returns to normal Director selection when active Blueprints still exist instead of closing into an empty state.
 
 ### Changed

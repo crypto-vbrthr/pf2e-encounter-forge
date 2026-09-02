@@ -23,9 +23,19 @@ Suggestions and feature requests are equally welcome. Even small ideas can lead 
 **Open an issue here:** https://github.com/crypto-vbrthr/pf2e-encounter-forge/issues
 
 
+## 0.1.0-alpha.13.8 — RC Hardening Review
+
+This build hardens the Director/Runtime lifecycle before the first release candidate. On world ready, legacy Runtime Instances that predate frozen Blueprint snapshots are now migrated even when they are merely prepared or already completed, as long as their source Blueprint still exists. Public Instance deletion is Runtime-safe and cleans stale Scene/Combat routing references while leaving deployed Actors and Tokens untouched.
+
+Scene organization is stricter too. Legacy orphan Instances fall back to their deployment Scene instead of appearing globally, and an open Scene-bound Director follows Foundry map changes: leaving the bound Scene removes that Encounter from view and can hand off to the destination Scene's available Encounter context. Prepared-Instance deduplication now preserves add-on/extension metadata when deciding whether a Blueprint revision is still the same deployment. The supplied Forge integration contracts were reviewed again with no blocking API mismatch found.
+
+## 0.1.0-alpha.13.7 — Scene-Bound Encounter Blueprints
+
+Encounter Blueprints may optionally be bound to one Foundry Scene. Bound Blueprints and their Instances appear in normal Director selection only while that Scene is being viewed, while unbound Encounters remain global. The explicit **Manage Instances** view stays global for maintenance. Deployment of a bound Blueprint is locked to its configured Scene, and missing Scene references remain visible in the editor so they can be repaired or removed.
+
 ## 0.1.0-alpha.13.6 — Stable Instance Snapshots & Blueprint Archive
 
-Every concrete Encounter Instance now carries a frozen snapshot of the Blueprint it was deployed from. Later Blueprint edits therefore affect only future deployments, while an existing playthrough keeps its original phases, participants, triggers, and actions. Snapshot-backed historical Instances can still be inspected in the Director even if their source Blueprint has since been deleted. Completed and aborted Instances are read-only until explicitly reopened.
+Every concrete Encounter Instance now carries a frozen snapshot of the Blueprint it was deployed from. Later Blueprint edits therefore affect only future deployments, while an existing playthrough keeps its original phases, participants, triggers, and actions. Snapshot-backed historical Instances can still be inspected in the Director even if their source Blueprint has since been deleted. Completed and aborted Instances are read-only final states; completed Encounters can be explicitly reopened before further play.
 
 Used Encounter Blueprints can now be moved into an **Archive** from the Encounter Forge library and restored later. Archived Blueprints remain available as reference material but are intentionally hidden from Director preparation and from the Instance Manager's new-run choices, and they cannot be deployed until restored. Prepared-Instance deduplication also compares actual Blueprint content, so editing a Blueprint before deploying it again creates the required fresh Instance instead of reusing stale preparation data.
 

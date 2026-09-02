@@ -260,6 +260,41 @@ test("prepared Instance deduplication does not reuse a stale Blueprint snapshot 
   }
 });
 
+test("prepared Instance deduplication keeps extension metadata but ignores archive bookkeeping", async () => {
+  const previousFromUuid = globalThis.fromUuid;
+  const scene = { id: "scene-metadata", uuid: "Scene.scene-metadata", name: "Metadata Arena", documentName: "Scene" };
+  globalThis.fromUuid = async (uuid) => uuid === scene.uuid ? scene : null;
+  try {
+    const original = createEncounterBlueprint({
+      ...blueprint(),
+      metadata: { notes: { addonRule: "alpha" } }
+    });
+    const existing = createEncounterInstance(original, { id: "prepared-metadata", sceneUuid: scene.uuid });
+
+    const archivedOnly = createEncounterBlueprint({
+      ...original,
+      id: original.id,
+      metadata: { ...original.metadata, createdAt: original.metadata.createdAt, archivedAt: "2026-09-02T08:00:00.000Z" }
+    });
+    const sameRuntime = harness({ existingInstances: [existing] });
+    const reused = await sameRuntime.deployment.deploy(archivedOnly, { sceneUuid: scene.uuid, actorMode: "per-type" });
+    assert.equal(reused.reusedPrepared, true, "archive bookkeeping alone must not invalidate a prepared deployment");
+
+    const extensionChanged = createEncounterBlueprint({
+      ...original,
+      id: original.id,
+      metadata: { ...original.metadata, createdAt: original.metadata.createdAt, notes: { addonRule: "beta" } }
+    });
+    const changedRuntime = harness({ existingInstances: [existing] });
+    const fresh = await changedRuntime.deployment.deploy(extensionChanged, { sceneUuid: scene.uuid, actorMode: "per-type", placeTokens: false });
+    assert.notEqual(fresh.instance.id, existing.id);
+    assert.equal(fresh.reusedPrepared, undefined);
+    assert.equal(changedRuntime.factory.actors.length, 2, "extension metadata changes must create a fresh deployment");
+  } finally {
+    globalThis.fromUuid = previousFromUuid;
+  }
+});
+
 test("Scene-bound Blueprint deployment always uses the bound Scene and rejects another Scene", async () => {
   const previousFromUuid = globalThis.fromUuid;
   const boundScene = { id: "bound", uuid: "Scene.bound", name: "Bound Arena", documentName: "Scene" };

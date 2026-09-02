@@ -123,6 +123,23 @@ test("runtime restore ignores merely prepared Instances but restores paused/acti
   assert.equal(runtime.status().instanceStatus, "paused");
 });
 
+test("runtime restore eagerly snapshots legacy prepared Instances even when no Runtime is restored", async () => {
+  const { blueprint, instance } = runtimeFixture();
+  delete instance.blueprint.snapshot;
+  delete instance.blueprint.modifiedAt;
+  const repos = repositories(blueprint, instance);
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null });
+
+  const result = await runtime.restore();
+
+  assert.equal(result.restored, false);
+  assert.equal(result.reason, "no-instance");
+  assert.equal(result.migratedSnapshots, 1);
+  assert.equal(repos.read().blueprint.snapshot.id, blueprint.id);
+  assert.equal(repos.read().blueprint.snapshot.name, blueprint.name);
+  assert.equal(repos.read().blueprint.modifiedAt, blueprint.metadata.modifiedAt);
+});
+
 test("EventService normalizes relevant Combat and Combatant hooks into Encounter events", async () => {
   const callbacks = new Map();
   const hooksRef = {

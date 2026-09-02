@@ -20,3 +20,15 @@ test("Instance visibility follows the frozen Blueprint Scene binding snapshot", 
   assert.equal(instanceVisibleOnScene({ data: instance }, { sceneId: "s1" }), true);
   assert.equal(instanceVisibleOnScene({ data: instance }, { sceneId: "s2" }), false);
 });
+
+test("legacy orphan Instance visibility falls back to its concrete deployment Scene", () => {
+  const legacy = {
+    id: "legacy-run",
+    blueprint: { id: "missing-blueprint", uuid: null },
+    deployment: { sceneUuid: "Scene.s1" }
+  };
+  const api = { blueprints: { get: () => null } };
+  assert.equal(instanceVisibleOnScene({ data: legacy }, { api, sceneId: "s1" }), true);
+  assert.equal(instanceVisibleOnScene({ data: legacy }, { api, sceneId: "s2" }), false);
+  assert.equal(instanceVisibleOnScene({ data: legacy }, { api, sceneId: null }), false);
+});

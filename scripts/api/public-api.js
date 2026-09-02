@@ -14,6 +14,7 @@ import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } fro
 import { analyzeEncounterFlow, FLOW_ACTION_TIMING_MODES, FLOW_ACTION_TYPES, FLOW_BOOLEAN_CONDITION_FIELDS, FLOW_CONDITION_FIELDS, FLOW_CONDITION_MODES, FLOW_EVENT_TYPES, FLOW_GROUP_MATCH_MODES, FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS, FLOW_OPERATORS, FLOW_PARTICIPANT_CONTEXT_FIELDS, FLOW_REGION_CONDITION_FIELDS, FLOW_REGION_EVENT_TYPES, FLOW_REGION_TOKEN_SCOPES, FLOW_TARGET_MODES } from "../engine/encounter-flow.js";
 import { isIntegrationEnabled, setIntegrationEnabled } from "../integrations/integration-settings.js";
 import { createExampleEncounterBlueprint, isExampleEncounterBlueprint } from "../examples/index.js";
+import { deleteEncounterInstance } from "../persistence/instance-lifecycle.js";
 
 export function createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, deployment, runtime } = {}) {
   const setBlueprintArchived = async (idOrUuid, archived) => {
@@ -57,7 +58,7 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       list: () => instanceRepository.list(),
       get: (idOrUuid) => instanceRepository.get(idOrUuid),
       save: (value, options = {}) => instanceRepository.save(assertEncounterInstance(value), options),
-      delete: (idOrUuid) => instanceRepository.delete(idOrUuid),
+      delete: (idOrUuid) => deleteEncounterInstance(idOrUuid, { instanceRepository, runtime }),
       ensureFolder: () => instanceRepository.ensureFolder()
     }),
 

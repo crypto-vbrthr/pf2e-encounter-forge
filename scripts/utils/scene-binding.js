@@ -47,6 +47,10 @@ export function instanceBlueprintForSceneFilter(instance = {}, api = null) {
 export function instanceVisibleOnScene(entryOrInstance = {}, { api = null, sceneId = currentSceneId() } = {}) {
   const instance = entryOrInstance?.data ?? entryOrInstance ?? {};
   const blueprint = instanceBlueprintForSceneFilter(instance, api);
-  if (!blueprint) return true;
+  if (!blueprint) {
+    const deploymentSceneId = sceneIdFromUuid(instance?.deployment?.sceneUuid);
+    if (!deploymentSceneId) return true;
+    return Boolean(sceneId) && String(sceneId) === deploymentSceneId;
+  }
   return blueprintVisibleOnScene(blueprint, sceneId);
 }

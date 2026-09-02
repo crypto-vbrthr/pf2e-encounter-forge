@@ -1,5 +1,6 @@
 import { MODULE_ID } from "../constants.js";
 import { hpChangeDetected } from "../utils/change-paths.js";
+import { blueprintVisibleOnScene, currentSceneId, instanceVisibleOnScene } from "../utils/scene-binding.js";
 
 const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api;
 
@@ -675,8 +676,9 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       this.instanceId = null;
       this.snapshot = null;
       await this.close();
-      const hasInstances = (api.instances?.list?.() ?? []).length > 0;
-      const hasAvailableBlueprints = (api.blueprints?.list?.() ?? []).some((entry) => !entry?.data?.metadata?.archivedAt);
+      const sceneId = currentSceneId();
+      const hasInstances = (api.instances?.list?.() ?? []).some((entry) => instanceVisibleOnScene(entry, { api, sceneId }));
+      const hasAvailableBlueprints = (api.blueprints?.list?.() ?? []).some((entry) => !entry?.data?.metadata?.archivedAt && blueprintVisibleOnScene(entry?.data ?? {}, sceneId));
       if (hasInstances || hasAvailableBlueprints) await api.ui?.openDirector?.();
       return;
     }

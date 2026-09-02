@@ -103,7 +103,10 @@ export class ActionService extends RuntimeService {
       source: { moduleId: MODULE_ID, encounterInstanceId: this.getInstance()?.id ?? null, actionId: action.id ?? null },
       encounterContext: clone(context ?? {})
     });
-    return { handled: true, integration: "afflictionForge", targetCount: targets.length, resultCount: Array.isArray(result) ? result.length : (result ? 1 : 0) };
+    const resultCount = Array.isArray(result)
+      ? result.length
+      : (Array.isArray(result?.controllers) ? result.controllers.length : (result ? 1 : 0));
+    return { handled: true, integration: "afflictionForge", targetCount: targets.length, resultCount };
   }
 
   async #lootCreate(action) {

@@ -358,6 +358,24 @@ export class EncounterRuntime {
       ?? null;
   }
 
+  async #migrateLegacyBlueprintSnapshots() {
+    const entries = this.instanceRepository?.list?.() ?? [];
+    let migrated = 0;
+    for (const entry of entries) {
+      const current = entry?.data;
+      if (!current || current.blueprint?.snapshot) continue;
+      const blueprint = this.#blueprintFor(current);
+      if (!blueprint) continue;
+      const next = deepClone(current);
+      next.blueprint ??= {};
+      next.blueprint.snapshot = deepClone(blueprint);
+      next.blueprint.modifiedAt = blueprint.metadata?.modifiedAt ?? next.blueprint.modifiedAt ?? null;
+      await this.instanceRepository.save(next, { create: false });
+      migrated += 1;
+    }
+    return migrated;
+  }
+
   async #persist({ emit = true, reason = "update" } = {}) {
     if (!this.instance) return null;
     ensureRuntimeShape(this.instance);
@@ -812,13 +830,14 @@ export class EncounterRuntime {
 
   async restore({ force = false } = {}) {
     if (!force && !this.authority.isAuthoritative()) return { restored: false, reason: "not-authoritative", status: this.status() };
+    const migratedSnapshots = await this.#migrateLegacyBlueprintSnapshots();
     const candidates = this.instanceRepository?.list?.() ?? [];
     const active = candidates
       .filter((entry) => ["active", "paused"].includes(entry.data?.status))
       .sort((a, b) => String(b.data?.metadata?.modifiedAt ?? "").localeCompare(String(a.data?.metadata?.modifiedAt ?? "")))[0];
-    if (!active) return { restored: false, reason: "no-instance", status: this.status() };
+    if (!active) return { restored: false, reason: "no-instance", migratedSnapshots, status: this.status() };
     await this.start(active.data, { force: true });
-    return { restored: true, instanceId: active.data.id, status: this.status() };
+    return { restored: true, instanceId: active.data.id, migratedSnapshots, status: this.status() };
   }
 
   enableBootstrapHooks() {
