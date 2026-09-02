@@ -627,5 +627,6 @@
   "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintNeedsParticipants": "Dieser Blueprint benötigt mindestens einen Teilnehmer, bevor eine Instanz vorbereitet werden kann.",
   "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintHasExamples": "Ersetze zuerst die Beispiel-Teilnehmer durch echte Encounter-Teilnehmer.",
   "PF2E_ENCOUNTER_FORGE.Notifications.InstancePreparedFromBlueprint": "Neue Encounter-Instanz aus '{name}' vorbereitet.",
-  "PF2E_ENCOUNTER_FORGE.Notifications.BlueprintMissing": "Der Encounter-Blueprint ist nicht mehr verfügbar."
+  "PF2E_ENCOUNTER_FORGE.Notifications.BlueprintMissing": "Der Encounter-Blueprint ist nicht mehr verfügbar.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.PreparedInstanceReused": "Für '{name}' existiert auf dieser Szene bereits eine vorbereitete Encounter-Instanz. Die vorhandene Instanz wird weiterverwendet. Eine zusätzliche Durchführung kannst du ausdrücklich über Instanzen verwalten → Neue Instanz anlegen."
 }

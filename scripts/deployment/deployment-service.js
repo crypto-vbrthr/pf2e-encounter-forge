@@ -41,6 +41,30 @@ async function resolveScene(sceneUuid) {
   throw new EncounterForgeError(`Scene '${sceneUuid}' was not found.`, { code: "SCENE_NOT_FOUND" });
 }
 
+
+function sceneKey(value) {
+  const key = String(value ?? "").trim();
+  return key || null;
+}
+
+function instanceTimestamp(instance) {
+  return String(instance?.metadata?.modifiedAt ?? instance?.metadata?.createdAt ?? "");
+}
+
+function newestPreparedInstance(entries, blueprintId, sceneUuid) {
+  const expectedBlueprintId = String(blueprintId ?? "").trim();
+  const expectedScene = sceneKey(sceneUuid);
+  if (!expectedBlueprintId) return null;
+  return [...(entries ?? [])]
+    .filter((entry) => {
+      const instance = entry?.data ?? {};
+      return instance.status === "prepared"
+        && String(instance.blueprint?.id ?? "").trim() === expectedBlueprintId
+        && sceneKey(instance.deployment?.sceneUuid) === expectedScene;
+    })
+    .sort((a, b) => instanceTimestamp(b?.data).localeCompare(instanceTimestamp(a?.data)))[0] ?? null;
+}
+
 function runtimeParticipantsForTemplate(instance, templateId) {
   return (instance.participants ?? []).filter((participant) => participant.templateId === templateId);
 }
@@ -113,6 +137,29 @@ export class EncounterDeploymentService {
 
     const actorMode = ACTOR_MODES.includes(options.actorMode) ? options.actorMode : "per-type";
     const scene = await resolveScene(options.sceneUuid ?? null);
+
+    // Normal Blueprint deployment is idempotent for a prepared playthrough on
+    // the same Scene. Repeated clicks in the editor must not silently create
+    // another Runtime Instance (and another set of Actors/Tokens) for the same
+    // preparation. The Instance Manager's explicit "New Instance" action can
+    // opt out with forceNewInstance when the GM really wants another run.
+    if (options.forceNewInstance !== true) {
+      const existing = newestPreparedInstance(this.instanceRepository?.list?.() ?? [], blueprint.id, scene?.uuid ?? options.sceneUuid ?? null);
+      if (existing?.data) {
+        return {
+          instance: deepClone(existing.data),
+          document: existing.document ?? null,
+          actors: [],
+          folder: null,
+          folderCreated: false,
+          scene,
+          tokens: [],
+          combat: null,
+          reusedPrepared: true
+        };
+      }
+    }
+
     const folderTarget = await this.folderService.resolveTarget({
       folderId: options.actorFolderId ?? null,
       createSubfolder: options.createSubfolder !== false,

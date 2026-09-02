@@ -627,5 +627,6 @@
   "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintNeedsParticipants": "This Blueprint needs at least one participant before an Instance can be prepared.",
   "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintHasExamples": "Replace the example participants with real Encounter participants first.",
   "PF2E_ENCOUNTER_FORGE.Notifications.InstancePreparedFromBlueprint": "New Encounter Instance prepared from '{name}'.",
-  "PF2E_ENCOUNTER_FORGE.Notifications.BlueprintMissing": "The Encounter Blueprint is no longer available."
+  "PF2E_ENCOUNTER_FORGE.Notifications.BlueprintMissing": "The Encounter Blueprint is no longer available.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.PreparedInstanceReused": "A prepared Encounter Instance for '{name}' already exists on this Scene. The existing Instance is reused. To create an additional run explicitly, use Manage Instances → New Instance."
 }

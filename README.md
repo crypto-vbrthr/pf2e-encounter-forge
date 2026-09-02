@@ -23,6 +23,10 @@ Suggestions and feature requests are equally welcome. Even small ideas can lead 
 **Open an issue here:** https://github.com/crypto-vbrthr/pf2e-encounter-forge/issues
 
 
+## 0.1.0-alpha.13.5 — Prepared Instance Deduplication
+
+Deploying the same Blueprint to the same Scene repeatedly from the Encounter editor now reuses the newest matching `prepared` Runtime Instance instead of producing duplicate Instances and duplicate deployment documents. If a GM intentionally wants another playthrough of the same Blueprint on that Scene, **Manage Instances → New Instance** remains the explicit path and forces a fresh deployment. API callers can likewise opt in with `forceNewInstance: true`.
+
 ## 0.1.0-alpha.13.4 — Blueprint-to-Instance Director Recovery
 
 Encounter Director now treats saved Blueprints as valid sources when no Runtime Instance exists. The Instance Manager lists persistent Blueprints alongside stored Runtime Instances and can prepare a fresh Instance through the normal deployment workflow, then opens it directly in the Director. This prevents deleting historical/prepared Runtime data from leaving the Director at a dead end while the Encounter Blueprint still exists.

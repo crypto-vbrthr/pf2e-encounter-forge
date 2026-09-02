@@ -220,7 +220,7 @@ export class EncounterInstanceManagerApp extends HandlebarsApplicationMixin(Appl
           managerElement.setAttribute("aria-hidden", "true");
         }
         try {
-          const result = await api?.deployment?.deploy?.(blueprint, { ...options, blueprintUuid });
+          const result = await api?.deployment?.deploy?.(blueprint, { ...options, blueprintUuid, forceNewInstance: true });
           if (!result) return false;
           if (!interactive && options.viewScene && result.scene?.view) await result.scene.view();
           ui.notifications.info(format(

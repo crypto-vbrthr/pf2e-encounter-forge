@@ -1746,6 +1746,13 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         try {
           const result = await api?.deployment?.deploy?.(persisted.blueprint, { ...options, blueprintUuid });
           if (!result) return false;
+          if (result.reusedPrepared) {
+            ui.notifications.info(game.i18n.format?.("PF2E_ENCOUNTER_FORGE.Notifications.PreparedInstanceReused", {
+              name: result.instance?.name ?? persisted.blueprint?.name ?? persisted.blueprint?.id
+            }) ?? `A prepared Instance of '${result.instance?.name ?? persisted.blueprint?.name ?? persisted.blueprint?.id}' already exists on this Scene and was reused.`);
+            if (!interactive && options.viewScene && result.scene?.view) await result.scene.view();
+            return result;
+          }
           const actorCount = result.actors?.length ?? 0;
           const tokenCount = result.tokens?.length ?? 0;
           const folderName = result.folder?.name ?? localize("PF2E_ENCOUNTER_FORGE.Deployment.ActorRoot", "Actor Directory root");

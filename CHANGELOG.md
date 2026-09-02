@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.0-alpha.13.5 - Prepared Instance Deduplication
+
+### Fixed
+- Repeated deployment of the same Encounter Blueprint to the same Scene no longer silently creates another `prepared` Runtime Instance with another set of materialized Actors/Tokens. The newest matching prepared Instance is reused instead.
+- Duplicate prevention runs before Actor-folder resolution and participant materialization, so a repeated editor deployment is a true no-op rather than partially creating deployment documents.
+- The Blueprint editor reports that the existing prepared Instance was reused instead of showing a misleading zero-Actor deployment summary.
+
+### Changed
+- **Manage Instances → New Instance** is now the explicit opt-out from deduplication. That action passes `forceNewInstance: true`, allowing the GM to intentionally prepare another playthrough of the same Blueprint on the same Scene.
+- Public deployment callers can use the same `forceNewInstance: true` option when an intentional duplicate preparation is required.
+
 ## 0.1.0-alpha.13.4 - Blueprint-to-Instance Director Recovery
 
 ### Fixed

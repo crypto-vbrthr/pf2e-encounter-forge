@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createEncounterBlueprint } from "../scripts/model/encounter-blueprint.js";
+import { createEncounterInstance } from "../scripts/model/encounter-instance.js";
 import { EncounterDeploymentService } from "../scripts/deployment/deployment-service.js";
 import { ActorFolderService } from "../scripts/deployment/folder-service.js";
 
@@ -38,7 +39,7 @@ function blueprint() {
   });
 }
 
-function harness({ actorMode = "per-type", failAt = null, sceneDeployment = null } = {}) {
+function harness({ actorMode = "per-type", failAt = null, sceneDeployment = null, existingInstances = [] } = {}) {
   const factory = actorFactory();
   let call = 0;
   const participantSources = {
@@ -49,16 +50,22 @@ function harness({ actorMode = "per-type", failAt = null, sceneDeployment = null
     }
   };
   const saved = [];
+  const storedEntries = existingInstances.map((instance) => ({
+    document: { uuid: `JournalEntry.runtime-${instance.id}` },
+    data: structuredClone(instance)
+  }));
   const instanceRepository = {
+    list() { return storedEntries.map((entry) => ({ document: entry.document, data: structuredClone(entry.data) })); },
     async save(instance) {
       saved.push(structuredClone(instance));
       return { document: { uuid: `JournalEntry.runtime-${instance.id}` }, data: structuredClone(instance) };
     }
   };
   const folder = { id: "folder-enc", name: "Storm Shrine", update: async () => {}, delete: async () => {} };
-  const folderService = { resolveTarget: async () => ({ folder, created: true }) };
+  let folderResolveCalls = 0;
+  const folderService = { resolveTarget: async () => { folderResolveCalls += 1; return { folder, created: true }; } };
   const deployment = new EncounterDeploymentService({ participantSources, instanceRepository, folderService, sceneDeployment, gameRef: { user: { isGM: true } } });
-  return { deployment, factory, saved, folder, actorMode };
+  return { deployment, factory, saved, folder, actorMode, get folderResolveCalls() { return folderResolveCalls; } };
 }
 
 test("per-type deployment creates one World Actor per participant template and shares it across runtime participants", async () => {
@@ -165,6 +172,59 @@ test("deployment delegates selected Scene preparation and persists concrete Toke
     assert.equal(result.instance.deployment.tokenUuids[0], tokens[0].uuid);
     assert.equal(result.instance.deployment.combatUuid, combat.uuid);
     assert.equal(calls[1].type, "stamp");
+  } finally {
+    globalThis.fromUuid = previousFromUuid;
+  }
+});
+
+
+test("repeated Blueprint deployment on the same Scene reuses the newest prepared Instance before materialization", async () => {
+  const previousFromUuid = globalThis.fromUuid;
+  const scene = { id: "scene-1", uuid: "Scene.scene-1", name: "Arena", documentName: "Scene" };
+  globalThis.fromUuid = async (uuid) => uuid === scene.uuid ? scene : null;
+  try {
+    const bp = blueprint();
+    const older = createEncounterInstance(bp, { id: "prepared-old", sceneUuid: scene.uuid });
+    older.metadata.modifiedAt = "2026-08-29T12:00:00.000Z";
+    const newer = createEncounterInstance(bp, { id: "prepared-new", sceneUuid: scene.uuid });
+    newer.metadata.modifiedAt = "2026-08-29T13:00:00.000Z";
+    const h = harness({ existingInstances: [older, newer] });
+
+    const result = await h.deployment.deploy(bp, { sceneUuid: scene.uuid, actorMode: "per-type" });
+
+    assert.equal(result.reusedPrepared, true);
+    assert.equal(result.instance.id, "prepared-new");
+    assert.equal(result.scene, scene);
+    assert.equal(h.factory.actors.length, 0, "deduplication must happen before participant materialization");
+    assert.equal(h.folderResolveCalls, 0, "deduplication must happen before Actor-folder creation/resolution");
+    assert.equal(h.saved.length, 0);
+  } finally {
+    globalThis.fromUuid = previousFromUuid;
+  }
+});
+
+test("prepared Instance deduplication is Scene-specific and explicit forceNewInstance creates another run", async () => {
+  const previousFromUuid = globalThis.fromUuid;
+  const sceneA = { id: "scene-a", uuid: "Scene.scene-a", name: "Arena A", documentName: "Scene" };
+  const sceneB = { id: "scene-b", uuid: "Scene.scene-b", name: "Arena B", documentName: "Scene" };
+  globalThis.fromUuid = async (uuid) => uuid === sceneA.uuid ? sceneA : uuid === sceneB.uuid ? sceneB : null;
+  try {
+    const bp = blueprint();
+    const existing = createEncounterInstance(bp, { id: "prepared-a", sceneUuid: sceneA.uuid });
+
+    const differentScene = harness({ existingInstances: [existing] });
+    const resultB = await differentScene.deployment.deploy(bp, { sceneUuid: sceneB.uuid, actorMode: "per-type", placeTokens: false });
+    assert.notEqual(resultB.instance.id, existing.id);
+    assert.equal(resultB.reusedPrepared, undefined);
+    assert.equal(differentScene.factory.actors.length, 2);
+    assert.equal(differentScene.saved.length, 1);
+
+    const forced = harness({ existingInstances: [existing] });
+    const forcedResult = await forced.deployment.deploy(bp, { sceneUuid: sceneA.uuid, actorMode: "per-type", placeTokens: false, forceNewInstance: true });
+    assert.notEqual(forcedResult.instance.id, existing.id);
+    assert.equal(forcedResult.reusedPrepared, undefined);
+    assert.equal(forced.factory.actors.length, 2);
+    assert.equal(forced.saved.length, 1);
   } finally {
     globalThis.fromUuid = previousFromUuid;
   }

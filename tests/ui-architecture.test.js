@@ -532,4 +532,6 @@ test("Director falls back to Blueprint preparation when no stored Instance exist
   assert.match(instanceManagerSource, /api\?\.ui\?\.openDirector/);
   assert.match(instanceManagerTemplate, /data-action="createInstance"/);
   assert.match(instanceManagerTemplate, /data-blueprint-id="\{\{id\}\}"/);
+  assert.match(instanceManagerSource, /forceNewInstance:\s*true/);
+  assert.match(appSource, /PreparedInstanceReused/);
 });
