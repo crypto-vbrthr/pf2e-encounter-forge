@@ -1,0 +1,101 @@
+<div class="encounter-instance-manager-shell">
+  <header class="encounter-instance-manager-header">
+    <div>
+      <div class="encounter-forge-kicker">{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Kicker"}}</div>
+      <h1>{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Title"}}</h1>
+      <p>{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Hint"}}</p>
+    </div>
+    <button type="button" data-action="refresh" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.Refresh"><i class="fa-solid fa-rotate"></i></button>
+  </header>
+
+  <div class="encounter-instance-manager-toolbar">
+    {{#if hasCompleted}}
+      <span class="encounter-instance-manager-completed-summary"><i class="fa-solid fa-flag-checkered"></i> {{completedSummary}}</span>
+      <button type="button" data-action="purgeCompleted" class="danger"><i class="fa-solid fa-trash-can"></i> {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.PurgeCompleted"}}</button>
+    {{/if}}
+    {{#if hasOrphans}}
+      <span class="encounter-instance-manager-orphan-summary"><i class="fa-solid fa-link-slash"></i> {{orphanSummary}}</span>
+      <button type="button" data-action="purgeOrphans" class="danger"><i class="fa-solid fa-broom"></i> {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.PurgeOrphans"}}</button>
+    {{/if}}
+  </div>
+
+  <div class="encounter-instance-manager-content">
+    {{#if hasBlueprints}}
+      <section class="encounter-instance-manager-section">
+        <div class="encounter-instance-manager-section-heading">
+          <div>
+            <h2>{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintsTitle"}}</h2>
+            <p>{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintsHint"}}</p>
+          </div>
+        </div>
+        <div class="encounter-instance-manager-blueprint-list">
+          {{#each blueprints}}
+            <article class="encounter-instance-manager-row blueprint">
+              <div class="encounter-instance-manager-main">
+                <div class="encounter-instance-manager-title-row">
+                  <strong>{{name}}</strong>
+                  {{#if liveInstanceCount}}<span class="encounter-instance-manager-tag current"><i class="fa-solid fa-clapperboard"></i> {{liveInstanceCount}} {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.PreparedInstances"}}</span>{{/if}}
+                </div>
+                <div class="encounter-instance-manager-meta">
+                  <span><i class="fa-solid fa-users"></i> {{participantCount}} {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Participants"}}</span>
+                  <span><i class="fa-solid fa-layer-group"></i> {{phaseCount}} {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Phases"}}</span>
+                </div>
+                {{#if needsParticipants}}<p class="encounter-instance-manager-warning">{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintNeedsParticipants"}}</p>{{/if}}
+                {{#if hasExampleParticipants}}<p class="encounter-instance-manager-warning">{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintHasExamples"}}</p>{{/if}}
+              </div>
+              <div class="encounter-instance-manager-actions">
+                <button type="button" data-action="createInstance" data-blueprint-id="{{id}}" class="primary" {{#unless canCreate}}disabled{{/unless}}>
+                  <i class="fa-solid fa-plus"></i> {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.NewInstance"}}
+                </button>
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      </section>
+    {{/if}}
+
+    <section class="encounter-instance-manager-section">
+      <div class="encounter-instance-manager-section-heading">
+        <div>
+          <h2>{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.StoredTitle"}}</h2>
+          <p>{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.StoredHint"}}</p>
+        </div>
+      </div>
+      {{#if hasInstances}}
+        <div class="encounter-instance-manager-list">
+          {{#each instances}}
+            <article class="encounter-instance-manager-row {{#if current}}current{{/if}} {{#if orphaned}}orphaned{{/if}}" data-status="{{status}}">
+              <div class="encounter-instance-manager-main">
+                <div class="encounter-instance-manager-title-row">
+                  <strong>{{name}}</strong>
+                  <span class="encounter-director-status" data-status="{{status}}">{{statusLabel}}</span>
+                  {{#if runtimeBound}}<span class="encounter-instance-manager-tag current"><i class="fa-solid fa-circle-play"></i> {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.RuntimeBound"}}</span>{{/if}}
+                  {{#if orphaned}}<span class="encounter-instance-manager-tag orphan"><i class="fa-solid fa-link-slash"></i> {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Orphaned"}}</span>{{/if}}
+                </div>
+                <div class="encounter-instance-manager-meta">
+                  <span><i class="fa-solid fa-diagram-project"></i> {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Blueprint"}}: {{blueprintName}}</span>
+                  {{#if sceneName}}<span><i class="fa-solid fa-map"></i> {{sceneName}}</span>{{/if}}
+                  {{#if modifiedAt}}<span><i class="fa-regular fa-clock"></i> {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Modified"}}: {{modifiedAt}}</span>{{/if}}
+                </div>
+                {{#if orphaned}}<p class="encounter-instance-manager-warning">{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintMissing"}}</p>{{/if}}
+              </div>
+              <div class="encounter-instance-manager-actions">
+                <button type="button" data-action="openInstance" data-instance-id="{{id}}" class="primary" {{#unless canOpen}}disabled{{/unless}}>
+                  <i class="fa-solid fa-clapperboard"></i> {{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.Open"}}
+                </button>
+                <button type="button" data-action="deleteInstance" data-instance-id="{{id}}" class="icon-only danger" data-tooltip="PF2E_ENCOUNTER_FORGE.InstanceManager.Delete">
+                  <i class="fa-solid fa-trash"></i>
+                </button>
+              </div>
+            </article>
+          {{/each}}
+        </div>
+      {{else}}
+        <div class="encounter-instance-manager-empty compact">
+          <i class="fa-solid fa-box-open"></i>
+          <p>{{localize "PF2E_ENCOUNTER_FORGE.InstanceManager.NoInstances"}}</p>
+        </div>
+      {{/if}}
+    </section>
+  </div>
+</div>

@@ -13,6 +13,10 @@ const deploymentTemplate = fs.readFileSync(new URL("../templates/deployment-dial
 const flowSource = fs.readFileSync(new URL("../scripts/engine/encounter-flow.js", import.meta.url), "utf8");
 const css = fs.readFileSync(new URL("../styles/encounter-forge.css", import.meta.url), "utf8");
 
+const directorUiSource = fs.readFileSync(new URL("../scripts/director/encounter-director-ui.js", import.meta.url), "utf8");
+const instanceManagerSource = fs.readFileSync(new URL("../scripts/director/encounter-instance-manager-app.js", import.meta.url), "utf8");
+const instanceManagerTemplate = fs.readFileSync(new URL("../templates/encounter-instance-manager-app.hbs", import.meta.url), "utf8");
+
 test("Encounter Forge installs a GM Actor Directory launcher with Foundry 14 fallbacks", () => {
   assert.match(uiSource, /renderActorDirectory/);
   assert.match(uiSource, /renderSidebarTab/);
@@ -490,4 +494,42 @@ test("Linked Trigger action checkboxes keep their labels visually attached", () 
   assert.match(css, /encounter-forge-trigger-actions-list input\[type="checkbox"\]/);
   assert.match(css, /width:\s*1rem\s*!important/);
   assert.match(css, /encounter-forge-trigger-actions-list label[\s\S]*display:\s*inline-flex\s*!important/);
+});
+
+test("Encounter Director asks the GM to choose when multiple runnable Instances exist and exposes Instance cleanup", () => {
+  const directorUi = fs.readFileSync(new URL("../scripts/director/encounter-director-ui.js", import.meta.url), "utf8");
+  const directorApp = fs.readFileSync(new URL("../scripts/director/encounter-director-app.js", import.meta.url), "utf8");
+  const directorTemplate = fs.readFileSync(new URL("../templates/encounter-director-app.hbs", import.meta.url), "utf8");
+  const managerApp = fs.readFileSync(new URL("../scripts/director/encounter-instance-manager-app.js", import.meta.url), "utf8");
+  const managerTemplate = fs.readFileSync(new URL("../templates/encounter-instance-manager-app.hbs", import.meta.url), "utf8");
+  assert.match(directorUi, /findEncounterDirectorCandidates/);
+  assert.match(directorUi, /candidates\.length > 1/);
+  assert.match(directorUi, /openEncounterInstanceManager/);
+  assert.match(directorTemplate, /data-action="manageInstances"/);
+  assert.match(directorTemplate, /data-action="purgeCompletedInstances"/);
+  assert.match(directorApp, /purgeCompletedInstances/);
+  assert.match(directorApp, /status === "completed"/);
+  assert.match(directorApp, /CompletedInstancesDeleted/);
+  assert.match(directorApp, /openInstanceManager/);
+  assert.match(managerTemplate, /data-action="openInstance"/);
+  assert.match(managerTemplate, /data-action="deleteInstance"/);
+  assert.match(managerTemplate, /data-action="purgeOrphans"/);
+  assert.match(managerTemplate, /data-action="purgeCompleted"/);
+  assert.match(managerApp, /purgeCompleted/);
+  assert.match(managerApp, /blueprintEntry/);
+  assert.match(managerApp, /orphaned/);
+  assert.match(managerApp, /api\.instances\?\.delete/);
+  assert.match(managerApp, /api\.runtime\?\.stop/);
+});
+
+
+test("Director falls back to Blueprint preparation when no stored Instance exists", () => {
+  assert.match(directorUiSource, /blueprints\?\.list\?\.\(\)/);
+  assert.match(directorUiSource, /openEncounterInstanceManager/);
+  assert.match(instanceManagerSource, /EncounterDeploymentDialogApp/);
+  assert.match(instanceManagerSource, /static async createInstance/);
+  assert.match(instanceManagerSource, /api\?\.deployment\?\.deploy/);
+  assert.match(instanceManagerSource, /api\?\.ui\?\.openDirector/);
+  assert.match(instanceManagerTemplate, /data-action="createInstance"/);
+  assert.match(instanceManagerTemplate, /data-blueprint-id="\{\{id\}\}"/);
 });

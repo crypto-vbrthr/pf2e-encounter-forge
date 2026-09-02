@@ -1,5 +1,6 @@
 import { MODULE_ID } from "../constants.js";
 import { EncounterDirectorApp } from "./encounter-director-app.js";
+import { openEncounterInstanceManager } from "./encounter-instance-manager-ui.js";
 
 let app = null;
 
@@ -23,6 +24,30 @@ function instanceEntries() {
 
 function byRecency(rows) {
   return [...rows].sort((a, b) => String(b.data?.metadata?.modifiedAt ?? b.data?.metadata?.createdAt ?? "").localeCompare(String(a.data?.metadata?.modifiedAt ?? a.data?.metadata?.createdAt ?? "")));
+}
+
+
+export function findEncounterDirectorCandidates() {
+  const rows = byRecency(instanceEntries());
+  const live = rows.filter((entry) => ["active", "paused", "prepared"].includes(entry.data?.status));
+  if (live.length) return live;
+  return rows.filter((entry) => ["completed", "aborted"].includes(entry.data?.status));
+}
+
+
+function candidateHasBlueprint(entry) {
+  const api = getApi();
+  const reference = entry?.data?.blueprint ?? {};
+  return Boolean(
+    api?.blueprints?.get?.(reference.uuid ?? reference.id)
+    ?? api?.blueprints?.get?.(reference.id)
+  );
+}
+
+function runtimeBoundDirectorId() {
+  const status = getApi()?.runtime?.status?.() ?? {};
+  const id = status.activeInstanceId ?? null;
+  return id && ["active", "paused"].includes(status.instanceStatus) ? id : null;
 }
 
 export function findPreferredEncounterInstanceId() {
@@ -64,8 +89,27 @@ export async function openEncounterDirector(instanceOrId = null) {
     ui.notifications.warn(localize("PF2E_ENCOUNTER_FORGE.Notifications.GMOnly", "Only the GM can open Encounter Director."));
     return null;
   }
-  const id = typeof instanceOrId === "string" ? instanceOrId : instanceOrId?.id ?? findPreferredEncounterInstanceId();
+
+  const explicitId = typeof instanceOrId === "string" ? instanceOrId : instanceOrId?.id ?? null;
+  let id = explicitId;
+
   if (!id) {
+    const runtimeId = runtimeBoundDirectorId();
+    if (runtimeId) id = runtimeId;
+    else {
+      const candidates = findEncounterDirectorCandidates();
+      if (candidates.length > 1 || (candidates.length === 1 && !candidateHasBlueprint(candidates[0]))) {
+        return openEncounterInstanceManager({ selectedInstanceId: app?.instanceId ?? null });
+      }
+      id = candidates[0]?.data?.id ?? findPreferredEncounterInstanceId();
+    }
+  }
+
+  if (!id) {
+    const blueprints = getApi()?.blueprints?.list?.() ?? [];
+    if (blueprints.length) {
+      return openEncounterInstanceManager({ selectedInstanceId: app?.instanceId ?? null });
+    }
     ui.notifications.warn(localize("PF2E_ENCOUNTER_FORGE.Director.NoInstance", "No prepared or running Encounter Instance is available."));
     return null;
   }

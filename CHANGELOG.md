@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.1.0-alpha.13.4 - Blueprint-to-Instance Director Recovery
+
+### Fixed
+- Opening Encounter Director no longer dead-ends with **No Encounter Instance available** after all stored Runtime Instances were deleted while Encounter Blueprints still exist.
+- The Encounter Instance Manager now also lists persistent Encounter Blueprints and can prepare a fresh Runtime Instance from any valid Blueprint through the normal deployment dialog.
+- A freshly deployed Instance is opened automatically in Encounter Director. Multiple Blueprints therefore remain an explicit GM choice instead of being selected silently.
+- Blueprint-driven preparation still uses the normal deployment workflow so participant Actors, Scene Tokens, Combat preparation, and Runtime references are created consistently rather than producing an unusable bare Instance.
+
+## 0.1.0-alpha.13.3 - Completed Encounter Cleanup
+
+### Added
+- Encounter Director now offers **Delete completed** whenever completed Encounter Instances exist, with the current count shown directly on the button.
+- The cleanup action removes all stored Instances whose status is exactly `completed` after one confirmation. Prepared, active, paused, aborted, and orphaned non-completed Instances are left untouched.
+- The Encounter Instance Manager exposes the same bulk cleanup action for storage maintenance.
+- If the currently displayed completed Instance is part of the cleanup, Encounter Director closes that stale view and immediately returns to normal Director selection for any remaining Encounter Instances.
+- Bulk cleanup preserves deployed Actors and Tokens, matching individual Instance deletion behavior.
+
+## 0.1.0-alpha.13.2 - Director Instance Selection & Cleanup
+
+### Added
+- Opening Encounter Director now asks the GM which Encounter Instance to load when multiple prepared/runnable Instances are available instead of silently choosing one by recency or Scene context. A currently active or paused Runtime still opens directly.
+- Added an Encounter Instance Manager showing stored prepared, active, paused, completed, and aborted Runtime Instances with Blueprint, Scene, status, and modification metadata.
+- The Director toolbar now exposes **Manage Instances** so historical Runtime data can be reviewed and cleaned up at any time.
+- Instances whose referenced Blueprint no longer exists are clearly marked as **orphaned**. They cannot be opened in the Director, can be deleted individually, and can be removed in bulk with **Delete orphaned**.
+- Deleting an Instance removes only the stored Runtime Journal entry. Deployed Actors and Tokens are intentionally preserved. If the deleted Instance is currently bound to Encounter Runtime, the Runtime is stopped first.
+- Public UI API now exposes `api.ui.openInstanceManager(...)`.
+
+### Changed
+- Director auto-selection now treats multiple live/prepared Instances as ambiguous and defers to the GM. Historical Instances are used as fallback only when no live/prepared Instance exists.
+
 ## 0.1.0-alpha.13.1 - Live Region Picker & Trigger Checkbox Layout
 
 ### Fixed

@@ -8,6 +8,7 @@ import {
 import { ActorFolderService } from "../deployment/folder-service.js";
 import { openEncounterForge } from "../ui/encounter-forge-ui.js";
 import { findPreferredEncounterInstanceId, openEncounterDirector } from "../director/encounter-director-ui.js";
+import { openEncounterInstanceManager } from "../director/encounter-instance-manager-ui.js";
 import { detectCurrentParty } from "../engine/party-analyzer.js";
 import { analyzeEncounterBudget, targetBudgetForThreat, xpForCreatureLevel } from "../engine/encounter-budget.js";
 import { analyzeEncounterFlow, FLOW_ACTION_TIMING_MODES, FLOW_ACTION_TYPES, FLOW_BOOLEAN_CONDITION_FIELDS, FLOW_CONDITION_FIELDS, FLOW_CONDITION_MODES, FLOW_EVENT_TYPES, FLOW_GROUP_MATCH_MODES, FLOW_GROUP_PARTICIPANT_CONTEXT_FIELDS, FLOW_OPERATORS, FLOW_PARTICIPANT_CONTEXT_FIELDS, FLOW_REGION_CONDITION_FIELDS, FLOW_REGION_EVENT_TYPES, FLOW_REGION_TOKEN_SCOPES, FLOW_TARGET_MODES } from "../engine/encounter-flow.js";
@@ -108,6 +109,7 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
     ui: Object.freeze({
       open: () => openEncounterForge(),
       openDirector: (instanceOrId = null) => openEncounterDirector(instanceOrId),
+      openInstanceManager: (options = {}) => openEncounterInstanceManager(options),
       preferredDirectorInstanceId: () => findPreferredEncounterInstanceId()
     }),
 

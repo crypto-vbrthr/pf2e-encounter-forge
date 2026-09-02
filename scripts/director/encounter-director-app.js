@@ -84,7 +84,9 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       runAction: EncounterDirectorApp.runAction,
       runScheduledActionNow: EncounterDirectorApp.runScheduledActionNow,
       cancelScheduledAction: EncounterDirectorApp.cancelScheduledAction,
-      viewScene: EncounterDirectorApp.viewScene
+      viewScene: EncounterDirectorApp.viewScene,
+      manageInstances: EncounterDirectorApp.manageInstances,
+      purgeCompletedInstances: EncounterDirectorApp.purgeCompletedInstances
     }
   };
 
@@ -426,6 +428,7 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
     }));
     const logs = [...(instance.log ?? [])].slice(-80).reverse().map((entry) => ({ ...clone(entry), time: logTime(entry.at) }));
     const status = instance.status ?? "prepared";
+    const completedInstanceCount = (getApi()?.instances?.list?.() ?? []).filter((entry) => entry?.data?.status === "completed").length;
     return {
       missing: false,
       instance,
@@ -439,6 +442,9 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       isCompleted: status === "completed",
       canComplete: ["active", "paused"].includes(status),
       canReopen: status === "completed",
+      completedInstanceCount,
+      hasCompletedInstances: completedInstanceCount > 0,
+      completedInstanceSummary: format("PF2E_ENCOUNTER_FORGE.Director.CompletedInstanceCount", { count: completedInstanceCount }, `${completedInstanceCount} completed Encounter Instance(s)`),
       runtimeBound: snapshot.runtimeBound,
       authoritative: snapshot.authoritative,
       round: Number(instance.runtimeVariables?.round ?? 0),
@@ -618,6 +624,60 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
     await this.#ensureBound();
     await getApi()?.runtime?.cancelScheduledAction?.(id);
     await this.#refreshAndRender(true);
+  }
+
+
+  static async purgeCompletedInstances() {
+    const api = getApi();
+    if (!api) return;
+    const rows = (api.instances?.list?.() ?? []).filter((entry) => entry?.data?.status === "completed");
+    if (!rows.length) {
+      ui.notifications.info(localize("PF2E_ENCOUNTER_FORGE.Notifications.NoCompletedInstances", "There are no completed Encounter Instances to delete."));
+      return;
+    }
+
+    const DialogV2 = foundry.applications?.api?.DialogV2;
+    const prompt = format(
+      "PF2E_ENCOUNTER_FORGE.Director.PurgeCompletedPrompt",
+      { count: rows.length },
+      `Delete all ${rows.length} completed Encounter Instance(s)? This removes only stored Runtime Instances; deployed Actors and Tokens are not deleted.`
+    );
+    const confirmed = DialogV2?.confirm
+      ? await DialogV2.confirm({
+          window: { title: localize("PF2E_ENCOUNTER_FORGE.Director.PurgeCompletedTitle", "Delete Completed Encounters") },
+          content: `<p>${prompt}</p>`,
+          modal: true,
+          rejectClose: false
+        })
+      : (globalThis.confirm?.(prompt) ?? false);
+    if (!confirmed) return;
+
+    const ids = new Set(rows.map((entry) => String(entry?.data?.id ?? "")).filter(Boolean));
+    const currentDeleted = ids.has(String(this.instanceId ?? ""));
+    const runtimeStatus = api.runtime?.status?.() ?? {};
+    if (ids.has(String(runtimeStatus.activeInstanceId ?? ""))) await api.runtime?.stop?.();
+
+    let deleted = 0;
+    for (const id of ids) if (await api.instances?.delete?.(id)) deleted += 1;
+    ui.notifications.info(format(
+      "PF2E_ENCOUNTER_FORGE.Notifications.CompletedInstancesDeleted",
+      { count: deleted },
+      `${deleted} completed Encounter Instance(s) deleted.`
+    ));
+
+    if (currentDeleted) {
+      this.instanceId = null;
+      this.snapshot = null;
+      await this.close();
+      if ((api.instances?.list?.() ?? []).length) await api.ui?.openDirector?.();
+      return;
+    }
+    await this.#refreshAndRender(true);
+  }
+
+
+  static async manageInstances() {
+    await getApi()?.ui?.openInstanceManager?.({ selectedInstanceId: this.instanceId });
   }
 
   static async viewScene() {

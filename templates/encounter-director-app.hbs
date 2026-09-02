@@ -37,6 +37,10 @@
       {{#if hasScene}}
         <button type="button" data-action="viewScene"><i class="fa-solid fa-map-location-dot"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.ViewScene"}}</button>
       {{/if}}
+      <button type="button" data-action="manageInstances"><i class="fa-solid fa-box-archive"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.ManageInstances"}}</button>
+      {{#if hasCompletedInstances}}
+        <button type="button" data-action="purgeCompletedInstances" class="danger" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.PurgeCompletedHint"><i class="fa-solid fa-trash-can"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.PurgeCompleted"}} ({{completedInstanceCount}})</button>
+      {{/if}}
     </div>
 
     <div class="encounter-director-body">

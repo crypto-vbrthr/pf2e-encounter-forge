@@ -23,6 +23,10 @@ Suggestions and feature requests are equally welcome. Even small ideas can lead 
 **Open an issue here:** https://github.com/crypto-vbrthr/pf2e-encounter-forge/issues
 
 
+## 0.1.0-alpha.13.4 — Blueprint-to-Instance Director Recovery
+
+Encounter Director now treats saved Blueprints as valid sources when no Runtime Instance exists. The Instance Manager lists persistent Blueprints alongside stored Runtime Instances and can prepare a fresh Instance through the normal deployment workflow, then opens it directly in the Director. This prevents deleting historical/prepared Runtime data from leaving the Director at a dead end while the Encounter Blueprint still exists.
+
 ## 0.1.0-alpha.13.1 — Live Region Picker & Trigger Layout
 
 - Foundry Regions created while Encounter Forge is open are discovered automatically and become selectable without reopening the editor.
@@ -118,6 +122,11 @@ Objective and Group context are selected by name in the Trigger editor. Current-
 Aggregate defeat/removal conditions are evaluated against the state transition carried by the current Runtime event, so the creature that was just defeated is already included in the count for that Trigger evaluation. Participant filters also understand quantity-expanded participants: a Trigger scoped to a Blueprint entry with quantity 3 can react to any of its three concrete Runtime participants.
 
 Flow analysis now catches missing context references and stale Phase/Objective/Group references, and warns about contradictory numeric ALL conditions before they become silent table-time puzzles. Add-ons can inspect the supported modes through `api.flow.conditionModes`.
+
+
+### Completed Encounter cleanup
+
+Encounter Director shows **Delete completed** whenever historical Instances with status `completed` exist. One confirmation removes every completed Runtime Instance while preserving deployed Actors and Tokens. The same bulk action is available in **Manage Instances**. Other statuses, including `aborted`, are not included.
 
 ## 0.1.0-alpha.10 — Director Manual Actions & Flow Authoring Comfort
 
