@@ -535,3 +535,33 @@ test("Director falls back to Blueprint preparation when no stored Instance exist
   assert.match(instanceManagerSource, /forceNewInstance:\s*true/);
   assert.match(appSource, /PreparedInstanceReused/);
 });
+
+test("Blueprint archive separates consumed encounters from Director preparation without deleting them", () => {
+  const directorUi = fs.readFileSync(new URL("../scripts/director/encounter-director-ui.js", import.meta.url), "utf8");
+  const managerApp = fs.readFileSync(new URL("../scripts/director/encounter-instance-manager-app.js", import.meta.url), "utf8");
+  const editorTemplate = fs.readFileSync(new URL("../templates/encounter-forge-app.hbs", import.meta.url), "utf8");
+  const publicApi = fs.readFileSync(new URL("../scripts/api/public-api.js", import.meta.url), "utf8");
+  assert.match(editorTemplate, /data-action="archiveBlueprint"/);
+  assert.match(editorTemplate, /data-action="restoreBlueprint"/);
+  assert.match(editorTemplate, /archivedBlueprints/);
+  assert.match(appSource, /metadata\?\.archivedAt/);
+  assert.match(publicApi, /archive:\s*\(idOrUuid\)/);
+  assert.match(publicApi, /restore:\s*\(idOrUuid\)/);
+  assert.match(directorUi, /activeBlueprintEntries/);
+  assert.match(directorUi, /!entry\?\.data\?\.metadata\?\.archivedAt/);
+  assert.match(managerApp, /filter\(\(entry\) => !entry\?\.data\?\.metadata\?\.archivedAt\)/);
+});
+
+test("Director final-state controls are read-only and snapshot-backed Instances remain openable after Blueprint deletion", () => {
+  const directorTemplate = fs.readFileSync(new URL("../templates/encounter-director-app.hbs", import.meta.url), "utf8");
+  const directorSource = fs.readFileSync(new URL("../scripts/director/encounter-director-app.js", import.meta.url), "utf8");
+  const managerSource = fs.readFileSync(new URL("../scripts/director/encounter-instance-manager-app.js", import.meta.url), "utf8");
+  const managerTemplate = fs.readFileSync(new URL("../templates/encounter-instance-manager-app.hbs", import.meta.url), "utf8");
+  assert.match(directorSource, /readOnly/);
+  assert.match(directorTemplate, /Director\.ReadOnlyNotice/);
+  assert.match(directorTemplate, /\{\{#unless mutable\}\}disabled\{\{\/unless\}\}/);
+  assert.match(managerSource, /snapshotAvailable/);
+  assert.match(managerSource, /detached/);
+  assert.match(managerTemplate, /InstanceManager\.SnapshotOnly/);
+  assert.match(managerTemplate, /BlueprintSnapshotAvailable/);
+});

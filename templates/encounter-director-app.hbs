@@ -44,6 +44,12 @@
     </div>
 
     <div class="encounter-director-body">
+      {{#if readOnly}}
+        <div class="encounter-director-readonly-notice">
+          <i class="fa-solid fa-lock"></i>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Director.ReadOnlyNotice"}}</span>
+        </div>
+      {{/if}}
       <section class="encounter-director-card encounter-director-overview">
         <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Director.Round"}}</span><strong>{{round}}</strong></div>
         <div><span>{{localize "PF2E_ENCOUNTER_FORGE.Director.Turn"}}</span><strong>{{turn}}</strong></div>
@@ -59,8 +65,8 @@
               <strong>{{title}}</strong>
               <p>{{message}}</p>
               <div>
-                <button type="button" data-action="acceptDecision" data-decision-id="{{id}}" class="primary"><i class="fa-solid fa-check"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Accept"}}</button>
-                <button type="button" data-action="dismissDecision" data-decision-id="{{id}}"><i class="fa-solid fa-xmark"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Dismiss"}}</button>
+                <button type="button" data-action="acceptDecision" data-decision-id="{{id}}" class="primary" {{#unless mutable}}disabled{{/unless}}><i class="fa-solid fa-check"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Accept"}}</button>
+                <button type="button" data-action="dismissDecision" data-decision-id="{{id}}" {{#unless mutable}}disabled{{/unless}}><i class="fa-solid fa-xmark"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.Dismiss"}}</button>
               </div>
             </article>
           {{/each}}
@@ -111,8 +117,8 @@
                   <small><i class="fa-regular fa-hourglass-half"></i> {{remainingLabel}}</small>
                 </div>
                 <div class="encounter-director-scheduled-controls">
-                  <button type="button" data-action="runScheduledActionNow" data-schedule-id="{{id}}" class="secondary"><i class="fa-solid fa-forward-step"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.RunNow"}}</button>
-                  <button type="button" data-action="cancelScheduledAction" data-schedule-id="{{id}}" class="icon-only danger" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.CancelScheduled"><i class="fa-solid fa-xmark"></i></button>
+                  <button type="button" data-action="runScheduledActionNow" data-schedule-id="{{id}}" class="secondary" {{#unless mutable}}disabled{{/unless}}><i class="fa-solid fa-forward-step"></i> {{localize "PF2E_ENCOUNTER_FORGE.Director.RunNow"}}</button>
+                  <button type="button" data-action="cancelScheduledAction" data-schedule-id="{{id}}" class="icon-only danger" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.CancelScheduled" {{#unless mutable}}disabled{{/unless}}><i class="fa-solid fa-xmark"></i></button>
                 </div>
               </article>
             {{/each}}
@@ -125,7 +131,7 @@
         {{#if hasPhases}}
           <div class="encounter-director-phase-list">
             {{#each phases}}
-              <button type="button" data-action="setPhase" data-phase-id="{{id}}" class="{{#if current}}current{{/if}}">
+              <button type="button" data-action="setPhase" data-phase-id="{{id}}" class="{{#if current}}current{{/if}}" {{#unless mutable}}disabled{{/unless}}>
                 {{#if current}}<i class="fa-solid fa-location-dot"></i>{{else}}<i class="fa-regular fa-circle"></i>{{/if}} {{label}}
               </button>
             {{/each}}
@@ -146,13 +152,13 @@
                   <small>{{stateLabel}}</small>
                 </div>
                 <div class="encounter-director-objective-progress">
-                  <button type="button" data-action="objectiveDown" data-objective-id="{{id}}" class="icon-only"><i class="fa-solid fa-minus"></i></button>
+                  <button type="button" data-action="objectiveDown" data-objective-id="{{id}}" class="icon-only" {{#unless mutable}}disabled{{/unless}}><i class="fa-solid fa-minus"></i></button>
                   <strong>{{progress}}{{#if hasTarget}} / {{target}}{{/if}}</strong>
-                  <button type="button" data-action="objectiveUp" data-objective-id="{{id}}" class="icon-only"><i class="fa-solid fa-plus"></i></button>
+                  <button type="button" data-action="objectiveUp" data-objective-id="{{id}}" class="icon-only" {{#unless mutable}}disabled{{/unless}}><i class="fa-solid fa-plus"></i></button>
                   {{#if complete}}
-                    <button type="button" data-action="objectiveReopen" data-objective-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.ReopenObjective"><i class="fa-solid fa-rotate-left"></i></button>
+                    <button type="button" data-action="objectiveReopen" data-objective-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.ReopenObjective" {{#unless mutable}}disabled{{/unless}}><i class="fa-solid fa-rotate-left"></i></button>
                   {{else}}
-                    <button type="button" data-action="objectiveComplete" data-objective-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.CompleteObjective"><i class="fa-solid fa-check"></i></button>
+                    <button type="button" data-action="objectiveComplete" data-objective-id="{{id}}" class="icon-only" data-tooltip="PF2E_ENCOUNTER_FORGE.Director.CompleteObjective" {{#unless mutable}}disabled{{/unless}}><i class="fa-solid fa-check"></i></button>
                   {{/if}}
                 </div>
               </div>

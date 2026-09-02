@@ -37,6 +37,10 @@
               <span class="encounter-forge-blueprint-name">{{name}}</span>
               <span class="encounter-forge-blueprint-meta">{{localize "PF2E_ENCOUNTER_FORGE.Library.PartyShort"}} {{partySize}} × {{partyLevel}} · {{threat}}</span>
             </button>
+            <button type="button" class="encounter-forge-blueprint-archive" data-action="archiveBlueprint" data-blueprint-id="{{id}}"
+                    data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.Archive" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Controls.Archive"}}">
+              <i class="fa-solid fa-box-archive"></i>
+            </button>
             <button type="button" class="encounter-forge-blueprint-delete" data-action="deleteBlueprint" data-blueprint-id="{{id}}"
                     data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.Delete" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Controls.Delete"}}">
               <i class="fa-solid fa-trash"></i>
@@ -44,10 +48,33 @@
           </div>
         {{/each}}
       {{else}}
-        <div class="encounter-forge-empty-state">
+        <div class="encounter-forge-empty-state compact">
           <i class="fa-regular fa-folder-open"></i>
-          <p>{{localize "PF2E_ENCOUNTER_FORGE.Library.Empty"}}</p>
+          <p>{{localize "PF2E_ENCOUNTER_FORGE.Library.EmptyActive"}}</p>
         </div>
+      {{/if}}
+
+      {{#if hasArchivedBlueprints}}
+        <div class="encounter-forge-library-subsection-label">
+          <i class="fa-solid fa-box-archive"></i>
+          <span>{{localize "PF2E_ENCOUNTER_FORGE.Library.ArchiveTitle"}}</span>
+        </div>
+        {{#each archivedBlueprints}}
+          <div class="encounter-forge-blueprint-row archived {{#if selected}}selected{{/if}}" data-blueprint-id="{{id}}">
+            <button type="button" class="encounter-forge-blueprint-select" data-action="selectBlueprint" data-blueprint-id="{{id}}">
+              <span class="encounter-forge-blueprint-name">{{name}}</span>
+              <span class="encounter-forge-blueprint-meta">{{localize "PF2E_ENCOUNTER_FORGE.Library.PartyShort"}} {{partySize}} × {{partyLevel}} · {{threat}}</span>
+            </button>
+            <button type="button" class="encounter-forge-blueprint-archive restore" data-action="restoreBlueprint" data-blueprint-id="{{id}}"
+                    data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.RestoreArchive" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Controls.RestoreArchive"}}">
+              <i class="fa-solid fa-box-open"></i>
+            </button>
+            <button type="button" class="encounter-forge-blueprint-delete" data-action="deleteBlueprint" data-blueprint-id="{{id}}"
+                    data-tooltip="PF2E_ENCOUNTER_FORGE.Controls.Delete" aria-label="{{localize "PF2E_ENCOUNTER_FORGE.Controls.Delete"}}">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        {{/each}}
       {{/if}}
     </div>
 
@@ -667,6 +694,15 @@
         <button type="button" data-action="duplicateBlueprint" class="secondary">
           <i class="fa-regular fa-copy"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Duplicate"}}
         </button>
+        {{#if draftArchived}}
+          <button type="button" data-action="restoreBlueprint" class="secondary" {{#unless isSaved}}disabled{{/unless}}>
+            <i class="fa-solid fa-box-open"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.RestoreArchive"}}
+          </button>
+        {{else}}
+          <button type="button" data-action="archiveBlueprint" class="secondary" {{#unless isSaved}}disabled{{/unless}}>
+            <i class="fa-solid fa-box-archive"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Archive"}}
+          </button>
+        {{/if}}
         <button type="button" data-action="deleteBlueprint" class="secondary danger" {{#unless isSaved}}disabled{{/unless}}>
           <i class="fa-solid fa-trash"></i> {{localize "PF2E_ENCOUNTER_FORGE.Controls.Delete"}}
         </button>

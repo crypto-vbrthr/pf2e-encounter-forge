@@ -67,3 +67,21 @@ test("Encounter Instance keeps participant display identity for Director fallbac
   }));
   assert.equal(unknown.participants[0].display.level, null);
 });
+
+test("Encounter Instance freezes a Blueprint snapshot for the concrete playthrough", () => {
+  const blueprint = createEncounterBlueprint({
+    id: "snapshot-source",
+    name: "Snapshot Source",
+    phases: [{ id: "opening", name: "Opening" }],
+    participants: [{ id: "guard", name: "Guard", source: { type: "document", uuid: "Actor.guard" } }]
+  });
+  const instance = createEncounterInstance(blueprint, { id: "snapshot-run" });
+  assert.equal(instance.blueprint.modifiedAt, blueprint.metadata.modifiedAt);
+  assert.deepEqual(instance.blueprint.snapshot, blueprint);
+
+  blueprint.name = "Edited Later";
+  blueprint.phases[0].name = "Edited Phase";
+  assert.equal(instance.blueprint.snapshot.name, "Snapshot Source");
+  assert.equal(instance.blueprint.snapshot.phases[0].name, "Opening");
+  assert.equal(validateEncounterInstance(instance).valid, true);
+});

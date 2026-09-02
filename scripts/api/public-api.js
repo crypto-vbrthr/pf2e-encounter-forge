@@ -16,6 +16,21 @@ import { isIntegrationEnabled, setIntegrationEnabled } from "../integrations/int
 import { createExampleEncounterBlueprint, isExampleEncounterBlueprint } from "../examples/index.js";
 
 export function createPublicApi({ integrations, participantSources, blueprintRepository, instanceRepository, deployment, runtime } = {}) {
+  const setBlueprintArchived = async (idOrUuid, archived) => {
+    const current = blueprintRepository.get(idOrUuid);
+    if (!current?.data) return null;
+    const normalized = createEncounterBlueprint({
+      ...current.data,
+      id: current.data.id,
+      metadata: {
+        ...current.data.metadata,
+        createdAt: current.data.metadata?.createdAt,
+        archivedAt: archived ? new Date().toISOString() : null
+      }
+    });
+    return blueprintRepository.save(assertEncounterBlueprint(normalized), { create: false });
+  };
+
   const api = Object.freeze({
     version: API_VERSION,
     moduleVersion: MODULE_VERSION,
@@ -29,6 +44,9 @@ export function createPublicApi({ integrations, participantSources, blueprintRep
       get: (idOrUuid) => blueprintRepository.get(idOrUuid),
       save: (value, options = {}) => blueprintRepository.save(assertEncounterBlueprint(value), options),
       delete: (idOrUuid) => blueprintRepository.delete(idOrUuid),
+      archive: (idOrUuid) => setBlueprintArchived(idOrUuid, true),
+      restore: (idOrUuid) => setBlueprintArchived(idOrUuid, false),
+      isArchived: (value) => Boolean((value?.data ?? value)?.metadata?.archivedAt),
       ensureFolder: () => blueprintRepository.ensureFolder()
     }),
 

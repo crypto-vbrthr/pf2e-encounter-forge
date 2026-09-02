@@ -91,6 +91,7 @@ export class EncounterInstanceManagerApp extends HandlebarsApplicationMixin(Appl
       if (blueprintId) liveCounts.set(blueprintId, (liveCounts.get(blueprintId) ?? 0) + 1);
     }
     return (api?.blueprints?.list?.() ?? [])
+      .filter((entry) => !entry?.data?.metadata?.archivedAt)
       .map((entry) => {
         const blueprint = clone(entry?.data ?? {});
         const participantCount = (blueprint.participants ?? []).reduce((sum, participant) => sum + Math.max(1, Number(participant?.quantity) || 1), 0);
@@ -116,11 +117,15 @@ export class EncounterInstanceManagerApp extends HandlebarsApplicationMixin(Appl
     const rows = (api?.instances?.list?.() ?? []).map((entry) => {
       const instance = clone(entry?.data ?? {});
       const blueprint = blueprintEntry(api, instance);
-      const orphaned = !blueprint?.data;
+      const snapshot = instance.blueprint?.snapshot && typeof instance.blueprint.snapshot === "object" ? instance.blueprint.snapshot : null;
+      const blueprintMissing = !blueprint?.data;
+      const snapshotAvailable = Boolean(snapshot);
+      const orphaned = blueprintMissing && !snapshotAvailable;
+      const detached = blueprintMissing && snapshotAvailable;
       const status = String(instance.status ?? "prepared");
       const createdAt = instance.metadata?.createdAt ?? null;
       const modifiedAt = instance.metadata?.modifiedAt ?? createdAt;
-      const blueprintName = String(blueprint?.data?.name ?? instance.blueprint?.id ?? localize("PF2E_ENCOUNTER_FORGE.InstanceManager.UnknownBlueprint", "Unknown Blueprint"));
+      const blueprintName = String(blueprint?.data?.name ?? snapshot?.name ?? instance.blueprint?.id ?? localize("PF2E_ENCOUNTER_FORGE.InstanceManager.UnknownBlueprint", "Unknown Blueprint"));
       return {
         id: instance.id,
         name: String(instance.name ?? blueprint?.data?.name ?? instance.id),
@@ -128,7 +133,10 @@ export class EncounterInstanceManagerApp extends HandlebarsApplicationMixin(Appl
         statusLabel: statusLabel(status),
         sceneName: String(instance.deployment?.sceneName ?? "").trim(),
         blueprintName,
+        blueprintMissing,
+        snapshotAvailable,
         orphaned,
+        detached,
         current: runtimeStatus.activeInstanceId === instance.id || this.selectedInstanceId === instance.id,
         runtimeBound: runtimeStatus.activeInstanceId === instance.id,
         historical: ["completed", "aborted"].includes(status),

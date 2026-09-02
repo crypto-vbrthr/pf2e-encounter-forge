@@ -298,12 +298,14 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
     const snapshot = this.snapshot ?? await this.#refreshSnapshot();
     if (!snapshot) return { missing: true };
     const { instance, blueprint, participants = [] } = snapshot;
+    const readOnly = ["completed", "aborted"].includes(String(instance.status ?? "prepared"));
     const groups = new Map((blueprint?.groups ?? []).map((entry) => [entry.id, entry.name ?? entry.label ?? entry.id]));
     const templates = new Map((blueprint?.participants ?? []).map((entry) => [entry.id, entry]));
     const phases = (blueprint?.phases ?? []).map((phase) => ({
       ...clone(phase),
       label: phaseLabel(phase),
-      current: phase.id === instance.currentPhaseId
+      current: phase.id === instance.currentPhaseId,
+      mutable: !readOnly
     }));
     const currentPhase = phases.find((phase) => phase.current) ?? null;
     const objectives = (blueprint?.objectives ?? []).map((definition) => {
@@ -317,7 +319,8 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
         progress: Number(state.progress ?? 0),
         target,
         hasTarget: target !== null,
-        complete: state.state === "completed"
+        complete: state.state === "completed",
+        mutable: !readOnly
       };
     });
     const templateMembers = new Map();
@@ -418,13 +421,15 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
         name: String(action.name ?? action.label ?? entry.actionId ?? entry.id),
         remaining,
         remainingLabel,
-        mode
+        mode,
+        mutable: !readOnly
       };
     });
 
     const pendingDecisions = (instance.decisions ?? []).filter((entry) => entry.status === "pending").map((entry) => ({
       ...clone(entry),
-      title: entry.title || localize("PF2E_ENCOUNTER_FORGE.Director.Decision.Title", "Encounter decision")
+      title: entry.title || localize("PF2E_ENCOUNTER_FORGE.Director.Decision.Title", "Encounter decision"),
+      mutable: !readOnly
     }));
     const logs = [...(instance.log ?? [])].slice(-80).reverse().map((entry) => ({ ...clone(entry), time: logTime(entry.at) }));
     const status = instance.status ?? "prepared";
@@ -440,6 +445,7 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       isActive: status === "active",
       isPaused: status === "paused",
       isCompleted: status === "completed",
+      readOnly,
       canComplete: ["active", "paused"].includes(status),
       canReopen: status === "completed",
       completedInstanceCount,
@@ -669,7 +675,9 @@ export class EncounterDirectorApp extends HandlebarsApplicationMixin(Application
       this.instanceId = null;
       this.snapshot = null;
       await this.close();
-      if ((api.instances?.list?.() ?? []).length) await api.ui?.openDirector?.();
+      const hasInstances = (api.instances?.list?.() ?? []).length > 0;
+      const hasAvailableBlueprints = (api.blueprints?.list?.() ?? []).some((entry) => !entry?.data?.metadata?.archivedAt);
+      if (hasInstances || hasAvailableBlueprints) await api.ui?.openDirector?.();
       return;
     }
     await this.#refreshAndRender(true);

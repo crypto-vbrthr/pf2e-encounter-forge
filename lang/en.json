@@ -628,5 +628,16 @@
   "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintHasExamples": "Replace the example participants with real Encounter participants first.",
   "PF2E_ENCOUNTER_FORGE.Notifications.InstancePreparedFromBlueprint": "New Encounter Instance prepared from '{name}'.",
   "PF2E_ENCOUNTER_FORGE.Notifications.BlueprintMissing": "The Encounter Blueprint is no longer available.",
-  "PF2E_ENCOUNTER_FORGE.Notifications.PreparedInstanceReused": "A prepared Encounter Instance for '{name}' already exists on this Scene. The existing Instance is reused. To create an additional run explicitly, use Manage Instances → New Instance."
+  "PF2E_ENCOUNTER_FORGE.Notifications.PreparedInstanceReused": "A prepared Encounter Instance for '{name}' already exists on this Scene. The existing Instance is reused. To create an additional run explicitly, use Manage Instances → New Instance.",
+  "PF2E_ENCOUNTER_FORGE.Controls.Archive": "Archive",
+  "PF2E_ENCOUNTER_FORGE.Controls.RestoreArchive": "Restore from archive",
+  "PF2E_ENCOUNTER_FORGE.Library.EmptyActive": "No active Encounter Blueprints. Archived Blueprints are listed below.",
+  "PF2E_ENCOUNTER_FORGE.Library.ArchiveTitle": "Archive",
+  "PF2E_ENCOUNTER_FORGE.Notifications.Archived": "Encounter Blueprint archived.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.ArchiveFailed": "The Encounter Blueprint could not be archived.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.RestoredFromArchive": "Encounter Blueprint restored from archive.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.RestoreFromArchiveFailed": "The Encounter Blueprint could not be restored from archive.",
+  "PF2E_ENCOUNTER_FORGE.Director.ReadOnlyNotice": "This completed Encounter Instance is read-only. Use Undo completion before changing phases, objectives, decisions, or scheduled actions.",
+  "PF2E_ENCOUNTER_FORGE.InstanceManager.SnapshotOnly": "Blueprint snapshot",
+  "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintSnapshotAvailable": "The original Blueprint no longer exists, but this Instance retains its own Blueprint snapshot and can still be opened safely in the Director."
 }

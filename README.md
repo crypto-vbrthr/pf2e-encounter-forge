@@ -23,6 +23,12 @@ Suggestions and feature requests are equally welcome. Even small ideas can lead 
 **Open an issue here:** https://github.com/crypto-vbrthr/pf2e-encounter-forge/issues
 
 
+## 0.1.0-alpha.13.6 — Stable Instance Snapshots & Blueprint Archive
+
+Every concrete Encounter Instance now carries a frozen snapshot of the Blueprint it was deployed from. Later Blueprint edits therefore affect only future deployments, while an existing playthrough keeps its original phases, participants, triggers, and actions. Snapshot-backed historical Instances can still be inspected in the Director even if their source Blueprint has since been deleted. Completed and aborted Instances are read-only until explicitly reopened.
+
+Used Encounter Blueprints can now be moved into an **Archive** from the Encounter Forge library and restored later. Archived Blueprints remain available as reference material but are intentionally hidden from Director preparation and from the Instance Manager's new-run choices, and they cannot be deployed until restored. Prepared-Instance deduplication also compares actual Blueprint content, so editing a Blueprint before deploying it again creates the required fresh Instance instead of reusing stale preparation data.
+
 ## 0.1.0-alpha.13.5 — Prepared Instance Deduplication
 
 Deploying the same Blueprint to the same Scene repeatedly from the Encounter editor now reuses the newest matching `prepared` Runtime Instance instead of producing duplicate Instances and duplicate deployment documents. If a GM intentionally wants another playthrough of the same Blueprint on that Scene, **Manage Instances → New Instance** remains the explicit path and forces a fresh deployment. API callers can likewise opt in with `forceNewInstance: true`.

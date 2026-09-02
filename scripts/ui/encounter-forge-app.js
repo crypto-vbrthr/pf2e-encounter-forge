@@ -108,6 +108,10 @@ function getApi() {
   return game.modules.get(MODULE_ID)?.api ?? null;
 }
 
+function isBlueprintArchived(value) {
+  return Boolean(value?.metadata?.archivedAt);
+}
+
 function asInteger(value, fallback, { min = Number.MIN_SAFE_INTEGER, max = Number.MAX_SAFE_INTEGER } = {}) {
   const parsed = Number.parseInt(value, 10);
   if (!Number.isFinite(parsed)) return fallback;
@@ -228,6 +232,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       selectBlueprint: EncounterForgeApp.selectBlueprint,
       saveBlueprint: EncounterForgeApp.saveBlueprint,
       duplicateBlueprint: EncounterForgeApp.duplicateBlueprint,
+      archiveBlueprint: EncounterForgeApp.archiveBlueprint,
+      restoreBlueprint: EncounterForgeApp.restoreBlueprint,
       deleteBlueprint: EncounterForgeApp.deleteBlueprint,
       refreshBlueprints: EncounterForgeApp.refreshBlueprints,
       detectParty: EncounterForgeApp.detectParty,
@@ -294,8 +300,10 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     await this.#reloadBlueprints();
     const seeded = await this.#seedInitialExampleIfNeeded();
     if (seeded) await this.#reloadBlueprints();
-    if (this.blueprints.length > 0) this.#loadBlueprint(this.blueprints[0].id);
-    else this.#resetDraft();
+    if (this.blueprints.length > 0) {
+      const preferred = this.blueprints.find((entry) => !isBlueprintArchived(entry)) ?? this.blueprints[0];
+      this.#loadBlueprint(preferred.id);
+    } else this.#resetDraft();
     this.initialized = true;
     return this;
   }
@@ -517,7 +525,7 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     }));
 
     return {
-      blueprints: this.blueprints.map((entry) => ({
+      blueprints: this.blueprints.filter((entry) => !isBlueprintArchived(entry)).map((entry) => ({
         id: entry.id,
         name: entry.name || localize("PF2E_ENCOUNTER_FORGE.Editor.Untitled", "Untitled Encounter"),
         selected: entry.id === this.selectedBlueprintId,
@@ -525,7 +533,16 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
         partySize: entry.party?.size ?? 4,
         threat: localize(`PF2E_ENCOUNTER_FORGE.Threat.${entry.threat?.target ?? "moderate"}`, entry.threat?.target ?? "moderate")
       })),
-      hasBlueprints: this.blueprints.length > 0,
+      archivedBlueprints: this.blueprints.filter(isBlueprintArchived).map((entry) => ({
+        id: entry.id,
+        name: entry.name || localize("PF2E_ENCOUNTER_FORGE.Editor.Untitled", "Untitled Encounter"),
+        selected: entry.id === this.selectedBlueprintId,
+        partyLevel: entry.party?.level ?? 1,
+        partySize: entry.party?.size ?? 4,
+        threat: localize(`PF2E_ENCOUNTER_FORGE.Threat.${entry.threat?.target ?? "moderate"}`, entry.threat?.target ?? "moderate")
+      })),
+      hasBlueprints: this.blueprints.some((entry) => !isBlueprintArchived(entry)),
+      hasArchivedBlueprints: this.blueprints.some(isBlueprintArchived),
       draft: {
         ...draft,
         threatBudget: draft.threat?.budget ?? "",
@@ -546,7 +563,8 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       participants,
       groups,
       hasParticipants: participants.length > 0,
-      canDeploy: participants.length > 0 && !hasPlaceholderParticipants,
+      draftArchived: isBlueprintArchived(draft),
+      canDeploy: participants.length > 0 && !hasPlaceholderParticipants && !isBlueprintArchived(draft),
       hasPlaceholderParticipants,
       isExample,
       hasGroups: groups.length > 0,
@@ -1808,6 +1826,52 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     }
   }
 
+  static async archiveBlueprint(_event, target) {
+    const blueprintId = String(target?.dataset?.blueprintId ?? this.selectedBlueprintId ?? "").trim();
+    if (!blueprintId) return;
+    const api = getApi();
+    if (!api?.blueprints?.archive) return;
+
+    if (blueprintId === this.selectedBlueprintId && this.isDirty) {
+      const persisted = await this.#persistDraft({ notify: false });
+      if (!persisted) return;
+    }
+
+    try {
+      await api.blueprints.archive(blueprintId);
+      await this.#reloadBlueprints();
+      this.#loadBlueprint(blueprintId);
+      ui.notifications.info(localize("PF2E_ENCOUNTER_FORGE.Notifications.Archived", "Encounter Blueprint archived."));
+      await this.#renderFresh({ preserveScroll: true });
+    } catch (error) {
+      console.error(`${MODULE_ID} | Archiving encounter blueprint failed.`, error);
+      ui.notifications.error(localize("PF2E_ENCOUNTER_FORGE.Notifications.ArchiveFailed", "Encounter Blueprint could not be archived."));
+    }
+  }
+
+  static async restoreBlueprint(_event, target) {
+    const blueprintId = String(target?.dataset?.blueprintId ?? this.selectedBlueprintId ?? "").trim();
+    if (!blueprintId) return;
+    const api = getApi();
+    if (!api?.blueprints?.restore) return;
+
+    if (blueprintId === this.selectedBlueprintId && this.isDirty) {
+      const persisted = await this.#persistDraft({ notify: false });
+      if (!persisted) return;
+    }
+
+    try {
+      await api.blueprints.restore(blueprintId);
+      await this.#reloadBlueprints();
+      this.#loadBlueprint(blueprintId);
+      ui.notifications.info(localize("PF2E_ENCOUNTER_FORGE.Notifications.RestoredFromArchive", "Encounter Blueprint restored from archive."));
+      await this.#renderFresh({ preserveScroll: true });
+    } catch (error) {
+      console.error(`${MODULE_ID} | Restoring archived encounter blueprint failed.`, error);
+      ui.notifications.error(localize("PF2E_ENCOUNTER_FORGE.Notifications.RestoreFromArchiveFailed", "Encounter Blueprint could not be restored from archive."));
+    }
+  }
+
   static async deleteBlueprint(_event, target) {
     const blueprintId = target?.dataset?.blueprintId || this.selectedBlueprintId;
     if (!blueprintId) return;
@@ -1824,8 +1888,10 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
       await api?.blueprints?.delete?.(blueprintId);
       await this.#reloadBlueprints();
       if (deletingSelected) {
-        if (this.blueprints.length > 0) this.#loadBlueprint(this.blueprints[0].id);
-        else this.#resetDraft();
+        if (this.blueprints.length > 0) {
+          const preferred = this.blueprints.find((entry) => !isBlueprintArchived(entry)) ?? this.blueprints[0];
+          this.#loadBlueprint(preferred.id);
+        } else this.#resetDraft();
       } else if (previousSelected) {
         this.#loadBlueprint(previousSelected);
       }
@@ -1843,8 +1909,10 @@ export class EncounterForgeApp extends HandlebarsApplicationMixin(ApplicationV2)
     await this.#reloadBlueprints();
     if (selected && this.#loadBlueprint(selected)) {
       // keep selected encounter after refresh
-    } else if (this.blueprints.length > 0) this.#loadBlueprint(this.blueprints[0].id);
-    else this.#resetDraft();
+    } else if (this.blueprints.length > 0) {
+      const preferred = this.blueprints.find((entry) => !isBlueprintArchived(entry)) ?? this.blueprints[0];
+      this.#loadBlueprint(preferred.id);
+    } else this.#resetDraft();
     await this.#renderFresh();
   }
 }

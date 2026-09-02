@@ -99,3 +99,11 @@ test("unknown participant Token display modes normalize to Actor inheritance", (
   assert.equal(blueprint.participants[0].tokenDisplay.displayName, null);
   assert.equal(blueprint.participants[0].tokenDisplay.displayBars, "ALWAYS");
 });
+
+test("Blueprint archive metadata survives normalization and can be cleared again", () => {
+  const archivedAt = "2026-09-02T07:30:00.000Z";
+  const archived = createEncounterBlueprint({ id: "archived", name: "Archived", metadata: { archivedAt } });
+  assert.equal(archived.metadata.archivedAt, archivedAt);
+  const restored = createEncounterBlueprint({ ...archived, metadata: { ...archived.metadata, archivedAt: null } });
+  assert.equal(restored.metadata.archivedAt, null);
+});

@@ -229,3 +229,33 @@ test("prepared Instance deduplication is Scene-specific and explicit forceNewIns
     globalThis.fromUuid = previousFromUuid;
   }
 });
+
+test("prepared Instance deduplication does not reuse a stale Blueprint snapshot after encounter content changes", async () => {
+  const previousFromUuid = globalThis.fromUuid;
+  const scene = { id: "scene-revision", uuid: "Scene.scene-revision", name: "Revision Arena", documentName: "Scene" };
+  globalThis.fromUuid = async (uuid) => uuid === scene.uuid ? scene : null;
+  try {
+    const original = blueprint();
+    const existing = createEncounterInstance(original, { id: "prepared-old-revision", sceneUuid: scene.uuid });
+    const changed = createEncounterBlueprint({
+      ...original,
+      id: original.id,
+      name: original.name,
+      participants: [
+        ...original.participants,
+        { id: "reinforcement", name: "Reinforcement", source: { type: "fake", label: "Reinforcement" }, quantity: 1 }
+      ],
+      metadata: { ...original.metadata, createdAt: original.metadata.createdAt }
+    });
+    const h = harness({ existingInstances: [existing] });
+    const result = await h.deployment.deploy(changed, { sceneUuid: scene.uuid, actorMode: "per-type", placeTokens: false });
+
+    assert.notEqual(result.instance.id, existing.id);
+    assert.equal(result.reusedPrepared, undefined);
+    assert.equal(result.instance.blueprint.snapshot.participants.length, 3);
+    assert.equal(h.factory.actors.length, 3, "changed Blueprint content must create a fresh deployment");
+    assert.equal(h.saved.length, 1);
+  } finally {
+    globalThis.fromUuid = previousFromUuid;
+  }
+});

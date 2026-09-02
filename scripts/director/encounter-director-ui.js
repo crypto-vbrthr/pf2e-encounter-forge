@@ -38,10 +38,15 @@ export function findEncounterDirectorCandidates() {
 function candidateHasBlueprint(entry) {
   const api = getApi();
   const reference = entry?.data?.blueprint ?? {};
+  if (reference.snapshot && typeof reference.snapshot === "object") return true;
   return Boolean(
     api?.blueprints?.get?.(reference.uuid ?? reference.id)
     ?? api?.blueprints?.get?.(reference.id)
   );
+}
+
+function activeBlueprintEntries() {
+  return (getApi()?.blueprints?.list?.() ?? []).filter((entry) => !entry?.data?.metadata?.archivedAt);
 }
 
 function runtimeBoundDirectorId() {
@@ -106,7 +111,7 @@ export async function openEncounterDirector(instanceOrId = null) {
   }
 
   if (!id) {
-    const blueprints = getApi()?.blueprints?.list?.() ?? [];
+    const blueprints = activeBlueprintEntries();
     if (blueprints.length) {
       return openEncounterInstanceManager({ selectedInstanceId: app?.instanceId ?? null });
     }

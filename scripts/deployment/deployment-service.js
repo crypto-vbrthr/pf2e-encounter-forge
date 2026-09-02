@@ -51,8 +51,26 @@ function instanceTimestamp(instance) {
   return String(instance?.metadata?.modifiedAt ?? instance?.metadata?.createdAt ?? "");
 }
 
-function newestPreparedInstance(entries, blueprintId, sceneUuid) {
-  const expectedBlueprintId = String(blueprintId ?? "").trim();
+function blueprintRuntimeFingerprint(blueprint) {
+  if (!blueprint || typeof blueprint !== "object") return null;
+  const payload = deepClone(blueprint);
+  // Repository bookkeeping and archive state do not change the deployed Encounter rules.
+  delete payload.metadata;
+  return JSON.stringify(payload);
+}
+
+function instanceMatchesBlueprintRevision(instance, blueprint) {
+  const snapshot = instance?.blueprint?.snapshot;
+  if (snapshot && typeof snapshot === "object") {
+    return blueprintRuntimeFingerprint(snapshot) === blueprintRuntimeFingerprint(blueprint);
+  }
+  const storedModifiedAt = String(instance?.blueprint?.modifiedAt ?? "").trim();
+  const currentModifiedAt = String(blueprint?.metadata?.modifiedAt ?? "").trim();
+  return Boolean(storedModifiedAt && currentModifiedAt && storedModifiedAt === currentModifiedAt);
+}
+
+function newestPreparedInstance(entries, blueprint, sceneUuid) {
+  const expectedBlueprintId = String(blueprint?.id ?? "").trim();
   const expectedScene = sceneKey(sceneUuid);
   if (!expectedBlueprintId) return null;
   return [...(entries ?? [])]
@@ -60,7 +78,8 @@ function newestPreparedInstance(entries, blueprintId, sceneUuid) {
       const instance = entry?.data ?? {};
       return instance.status === "prepared"
         && String(instance.blueprint?.id ?? "").trim() === expectedBlueprintId
-        && sceneKey(instance.deployment?.sceneUuid) === expectedScene;
+        && sceneKey(instance.deployment?.sceneUuid) === expectedScene
+        && instanceMatchesBlueprintRevision(instance, blueprint);
     })
     .sort((a, b) => instanceTimestamp(b?.data).localeCompare(instanceTimestamp(a?.data)))[0] ?? null;
 }
@@ -144,7 +163,7 @@ export class EncounterDeploymentService {
     // preparation. The Instance Manager's explicit "New Instance" action can
     // opt out with forceNewInstance when the GM really wants another run.
     if (options.forceNewInstance !== true) {
-      const existing = newestPreparedInstance(this.instanceRepository?.list?.() ?? [], blueprint.id, scene?.uuid ?? options.sceneUuid ?? null);
+      const existing = newestPreparedInstance(this.instanceRepository?.list?.() ?? [], blueprint, scene?.uuid ?? options.sceneUuid ?? null);
       if (existing?.data) {
         return {
           instance: deepClone(existing.data),

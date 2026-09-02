@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.0-alpha.13.6 - Snapshot Stability, Read-Only History & Blueprint Archive
+
+### Added
+- Every newly deployed Encounter Instance now freezes a full Blueprint snapshot for that concrete playthrough. Runtime and Director therefore remain stable if the source Blueprint is edited or deleted later.
+- Legacy Instances without a snapshot are upgraded opportunistically when Runtime can still resolve their source Blueprint.
+- Encounter Blueprints can now be **archived** and restored from the Encounter Forge library. Archived Blueprints stay available for reference but are excluded from Director preparation and Instance Manager **New Instance** choices until restored.
+- Public Blueprint API now exposes `archive(...)`, `restore(...)`, and `isArchived(...)`.
+
+### Fixed
+- Prepared-Instance deduplication now compares the stored Blueprint snapshot with the current encounter content. Editing a Blueprint and deploying it again no longer reuses a stale prepared Instance.
+- Snapshot-backed historical Instances remain openable in Encounter Director even after their original Blueprint is deleted. Only legacy Instances without either source Blueprint or snapshot are considered orphaned.
+- Completed and aborted Encounter Instances are now read-only in the Director. Phase changes, objective changes, decisions, and scheduled-action controls remain locked until the GM explicitly reopens the Encounter. Runtime mutations are guarded as well, including changes arriving through document hooks.
+- Deleting all completed Instances while viewing one of them now returns to normal Director selection when active Blueprints still exist instead of closing into an empty state.
+
+### Changed
+- Archived Blueprints are visually separated into an **Archive** section in Encounter Forge. They cannot be deployed while archived and can be restored with one action.
+- Blueprint metadata now records `archivedAt`, while Runtime-relevant deduplication deliberately ignores metadata-only changes such as archiving.
+
 ## 0.1.0-alpha.13.5 - Prepared Instance Deduplication
 
 ### Fixed

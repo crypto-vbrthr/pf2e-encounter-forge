@@ -66,6 +66,7 @@ export function createEncounterBlueprint(input = {}) {
     metadata: {
       createdAt: input.metadata?.createdAt ?? timestamp,
       modifiedAt: timestamp,
+      archivedAt: input.metadata?.archivedAt ?? null,
       sourceModule: input.metadata?.sourceModule ?? null,
       notes: deepClone(input.metadata?.notes ?? {})
     }

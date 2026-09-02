@@ -628,5 +628,16 @@
   "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintHasExamples": "Ersetze zuerst die Beispiel-Teilnehmer durch echte Encounter-Teilnehmer.",
   "PF2E_ENCOUNTER_FORGE.Notifications.InstancePreparedFromBlueprint": "Neue Encounter-Instanz aus '{name}' vorbereitet.",
   "PF2E_ENCOUNTER_FORGE.Notifications.BlueprintMissing": "Der Encounter-Blueprint ist nicht mehr verfügbar.",
-  "PF2E_ENCOUNTER_FORGE.Notifications.PreparedInstanceReused": "Für '{name}' existiert auf dieser Szene bereits eine vorbereitete Encounter-Instanz. Die vorhandene Instanz wird weiterverwendet. Eine zusätzliche Durchführung kannst du ausdrücklich über Instanzen verwalten → Neue Instanz anlegen."
+  "PF2E_ENCOUNTER_FORGE.Notifications.PreparedInstanceReused": "Für '{name}' existiert auf dieser Szene bereits eine vorbereitete Encounter-Instanz. Die vorhandene Instanz wird weiterverwendet. Eine zusätzliche Durchführung kannst du ausdrücklich über Instanzen verwalten → Neue Instanz anlegen.",
+  "PF2E_ENCOUNTER_FORGE.Controls.Archive": "Archivieren",
+  "PF2E_ENCOUNTER_FORGE.Controls.RestoreArchive": "Aus Archiv holen",
+  "PF2E_ENCOUNTER_FORGE.Library.EmptyActive": "Keine aktiven Encounter-Blueprints. Archivierte Blueprints stehen weiter unten.",
+  "PF2E_ENCOUNTER_FORGE.Library.ArchiveTitle": "Archiv",
+  "PF2E_ENCOUNTER_FORGE.Notifications.Archived": "Encounter-Blueprint archiviert.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.ArchiveFailed": "Der Encounter-Blueprint konnte nicht archiviert werden.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.RestoredFromArchive": "Encounter-Blueprint aus dem Archiv geholt.",
+  "PF2E_ENCOUNTER_FORGE.Notifications.RestoreFromArchiveFailed": "Der Encounter-Blueprint konnte nicht aus dem Archiv geholt werden.",
+  "PF2E_ENCOUNTER_FORGE.Director.ReadOnlyNotice": "Diese abgeschlossene Encounter-Instanz ist schreibgeschützt. Nutze „Abschluss rückgängig machen“, bevor du Phasen, Ziele, Entscheidungen oder geplante Aktionen änderst.",
+  "PF2E_ENCOUNTER_FORGE.InstanceManager.SnapshotOnly": "Blueprint-Snapshot",
+  "PF2E_ENCOUNTER_FORGE.InstanceManager.BlueprintSnapshotAvailable": "Der ursprüngliche Blueprint existiert nicht mehr. Diese Instanz enthält jedoch ihren eigenen Blueprint-Snapshot und kann weiterhin sicher im Director geöffnet werden."
 }

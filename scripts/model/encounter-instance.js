@@ -39,7 +39,9 @@ export function createEncounterInstance(blueprint, options = {}) {
     blueprint: {
       id: blueprint.id,
       uuid: options.blueprintUuid ?? null,
-      schemaVersion: blueprint.schemaVersion
+      schemaVersion: blueprint.schemaVersion,
+      modifiedAt: blueprint.metadata?.modifiedAt ?? null,
+      snapshot: deepClone(blueprint)
     },
     status: "prepared",
     deployment: {
@@ -90,6 +92,10 @@ export function validateEncounterInstance(value) {
   if (!Array.isArray(value.participants)) errors.push({ code: "PARTICIPANTS", path: "participants", message: "Instance participants must be an array." });
   if (!ACTOR_MODES.includes(value.deployment?.actorMode)) errors.push({ code: "ACTOR_MODE", path: "deployment.actorMode", message: `Unknown Actor mode '${value.deployment?.actorMode}'.` });
   if (value.deployment?.tokenUuids !== undefined && !Array.isArray(value.deployment.tokenUuids)) errors.push({ code: "TOKEN_UUIDS", path: "deployment.tokenUuids", message: "deployment.tokenUuids must be an array when present." });
+  if (value.blueprint?.snapshot !== undefined && value.blueprint.snapshot !== null) {
+    if (typeof value.blueprint.snapshot !== "object") errors.push({ code: "BLUEPRINT_SNAPSHOT", path: "blueprint.snapshot", message: "blueprint.snapshot must be an object when present." });
+    else if (String(value.blueprint.snapshot.id ?? "") !== String(value.blueprint?.id ?? "")) errors.push({ code: "BLUEPRINT_SNAPSHOT_ID", path: "blueprint.snapshot.id", message: "blueprint.snapshot.id must match blueprint.id." });
+  }
   const ids = new Set();
   for (const participant of value.participants ?? []) {
     if (!participant?.id) errors.push({ code: "PARTICIPANT_ID", path: "participants", message: "Runtime participant id is required." });

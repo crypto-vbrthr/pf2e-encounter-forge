@@ -336,6 +336,13 @@ export class EncounterRuntime {
     }
   }
 
+  #assertMutableInstance() {
+    if (!this.instance) throw new EncounterForgeError("No Encounter Instance is bound to the Runtime.", { code: "RUNTIME_NO_INSTANCE" });
+    if (["completed", "aborted"].includes(this.instance.status)) {
+      throw new EncounterForgeError("Completed or aborted Encounter Instances are read-only. Reopen the Encounter before changing Runtime state.", { code: "RUNTIME_INSTANCE_READ_ONLY" });
+    }
+  }
+
   #entry(instanceOrId) {
     if (instanceOrId && typeof instanceOrId === "object" && instanceOrId.schemaVersion) return { data: deepClone(instanceOrId), document: null };
     const key = String(instanceOrId ?? this.activeInstanceId ?? "").trim();
@@ -344,6 +351,8 @@ export class EncounterRuntime {
 
   #blueprintFor(instance) {
     if (!instance) return null;
+    const snapshot = instance.blueprint?.snapshot;
+    if (snapshot && typeof snapshot === "object") return deepClone(snapshot);
     return this.blueprintRepository?.get?.(instance.blueprint?.uuid ?? instance.blueprint?.id)?.data
       ?? this.blueprintRepository?.get?.(instance.blueprint?.id)?.data
       ?? null;
@@ -466,7 +475,7 @@ export class EncounterRuntime {
 
   async cancelScheduledAction(scheduleId, { force = false } = {}) {
     this.#assertAuthority(force);
-    if (!this.instance) throw new EncounterForgeError("No Encounter Instance is bound to the Runtime.", { code: "RUNTIME_NO_INSTANCE" });
+    this.#assertMutableInstance();
     ensureRuntimeShape(this.instance);
     const id = String(scheduleId ?? "").trim();
     const scheduled = this.instance.runtimeVariables.scheduledActions.find((entry) => entry.id === id);
@@ -481,7 +490,7 @@ export class EncounterRuntime {
 
   async executeScheduledActionNow(scheduleId, { force = false } = {}) {
     this.#assertAuthority(force);
-    if (!this.instance) throw new EncounterForgeError("No Encounter Instance is bound to the Runtime.", { code: "RUNTIME_NO_INSTANCE" });
+    this.#assertMutableInstance();
     ensureRuntimeShape(this.instance);
     const id = String(scheduleId ?? "").trim();
     const scheduled = this.instance.runtimeVariables.scheduledActions.find((entry) => entry.id === id);
@@ -518,11 +527,18 @@ export class EncounterRuntime {
     }
     this.instance = next;
     this.blueprint = this.#blueprintFor(next);
+    const migratedBlueprintSnapshot = Boolean(this.blueprint && !next.blueprint?.snapshot);
+    if (migratedBlueprintSnapshot) {
+      next.blueprint ??= {};
+      next.blueprint.snapshot = deepClone(this.blueprint);
+      next.blueprint.modifiedAt = this.blueprint.metadata?.modifiedAt ?? next.blueprint.modifiedAt ?? null;
+    }
     if (globalThis.__PF2E_ENCOUNTER_FORGE_DEBUG__ === true) console.warn("[PF2E Encounter Forge DEBUG] Runtime binding instance", { instanceId: next.id, status: next.status, deployment: next.deployment, gameCombat: this.gameRef?.combat ? { id: this.gameRef.combat.id, uuid: this.gameRef.combat.uuid, round: this.gameRef.combat.round, turn: this.gameRef.combat.turn, scene: this.gameRef.combat.scene?.id ?? this.gameRef.combat.scene ?? this.gameRef.combat.sceneId ?? null } : null });
     this.activeInstanceId = next.id;
 
     for (const service of Object.values(this.services)) await service.start();
     this.started = true;
+    if (migratedBlueprintSnapshot) await this.#persist({ emit: false, reason: "blueprint-snapshot-migration" });
     await this.bus.emit("runtime.started", { instanceId: this.activeInstanceId, status: next.status });
     await this.bus.emit("director.changed", { instanceId: this.activeInstanceId, reason: "runtime.started" });
     return this.status();
@@ -613,7 +629,7 @@ export class EncounterRuntime {
 
   async setPhase(phaseId, { force = false, reason = "manual" } = {}) {
     this.#assertAuthority(force);
-    if (!this.instance) throw new EncounterForgeError("No Encounter Instance is bound to the Runtime.", { code: "RUNTIME_NO_INSTANCE" });
+    this.#assertMutableInstance();
     const id = String(phaseId ?? "").trim();
     if (id && !this.services.phases.has(id)) throw new EncounterForgeError(`Unknown Encounter phase '${id}'.`, { code: "RUNTIME_PHASE_UNKNOWN" });
     if (this.instance.currentPhaseId === (id || null)) return this.instance.currentPhaseId;
@@ -628,7 +644,7 @@ export class EncounterRuntime {
 
   async adjustObjective(objectiveId, amount = 1, { force = false, reason = "manual" } = {}) {
     this.#assertAuthority(force);
-    if (!this.instance) throw new EncounterForgeError("No Encounter Instance is bound to the Runtime.", { code: "RUNTIME_NO_INSTANCE" });
+    this.#assertMutableInstance();
     const id = String(objectiveId ?? "").trim();
     const state = this.instance.objectives?.[id];
     if (!state) throw new EncounterForgeError(`Unknown Encounter objective '${id}'.`, { code: "RUNTIME_OBJECTIVE_UNKNOWN" });
@@ -665,6 +681,7 @@ export class EncounterRuntime {
 
   async setObjectiveState(objectiveId, state, { force = false } = {}) {
     this.#assertAuthority(force);
+    this.#assertMutableInstance();
     if (!this.instance?.objectives?.[objectiveId]) throw new EncounterForgeError(`Unknown Encounter objective '${objectiveId}'.`, { code: "RUNTIME_OBJECTIVE_UNKNOWN" });
     this.instance.objectives[objectiveId].state = String(state ?? "active");
     await this.#persist({ reason: "objective-state" });
@@ -672,7 +689,7 @@ export class EncounterRuntime {
   }
 
   async #setParticipantStateFromEvent(event, state) {
-    if (!this.instance || event?.instanceId !== this.instance.id) return;
+    if (!this.instance || event?.instanceId !== this.instance.id || ["completed", "aborted"].includes(this.instance.status)) return;
     const participant = this.instance.participants.find((entry) => entry.id === event.participantId);
     if (!participant || participant.state === state) return;
     participant.state = state;
@@ -758,7 +775,7 @@ export class EncounterRuntime {
 
   async resolveDecision(decisionId, resolution, { force = false } = {}) {
     this.#assertAuthority(force);
-    if (!this.instance) throw new EncounterForgeError("No Encounter Instance is bound to the Runtime.", { code: "RUNTIME_NO_INSTANCE" });
+    this.#assertMutableInstance();
     const decision = this.instance.decisions.find((entry) => entry.id === decisionId);
     if (!decision) throw new EncounterForgeError(`Unknown Encounter decision '${decisionId}'.`, { code: "RUNTIME_DECISION_UNKNOWN" });
     if (decision.status !== "pending") return deepClone(decision);

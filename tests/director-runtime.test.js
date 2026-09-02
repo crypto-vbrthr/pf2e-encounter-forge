@@ -587,3 +587,60 @@ test("scheduled actions do not wait for informational Chat delivery", async () =
   assert.equal(repos.read().runtimeVariables.scheduledActions[0].mode, "roundEnd");
   assert.equal(repos.read().runtimeVariables.scheduledActions[0].dueCounter, 1);
 });
+
+test("Runtime uses the Instance Blueprint snapshot even when the repository Blueprint changed later", async () => {
+  const original = createEncounterBlueprint({
+    id: "snapshot-runtime",
+    name: "Original Encounter",
+    phases: [{ id: "old-phase", name: "Old Phase" }],
+    objectives: [{ id: "old-objective", name: "Old Objective", target: 1 }]
+  });
+  const instance = createEncounterInstance(original, { id: "snapshot-runtime-instance", blueprintUuid: "JournalEntry.blueprint" });
+  const edited = createEncounterBlueprint({
+    ...original,
+    id: original.id,
+    name: "Edited Encounter",
+    phases: [{ id: "new-phase", name: "New Phase" }],
+    objectives: [{ id: "new-objective", name: "New Objective", target: 5 }],
+    metadata: { ...original.metadata, createdAt: original.metadata.createdAt }
+  });
+  const repos = repositories(edited, instance);
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null });
+  await runtime.start("snapshot-runtime-instance");
+  const inspected = await runtime.inspect("snapshot-runtime-instance");
+
+  assert.equal(inspected.blueprint.name, "Original Encounter");
+  assert.deepEqual(inspected.blueprint.phases.map((phase) => phase.id), ["old-phase"]);
+  assert.deepEqual(inspected.blueprint.objectives.map((objective) => objective.id), ["old-objective"]);
+});
+
+test("legacy Instances acquire a Blueprint snapshot when Runtime can still resolve their Blueprint", async () => {
+  const { blueprint, instance } = runtimeFixture();
+  delete instance.blueprint.snapshot;
+  delete instance.blueprint.modifiedAt;
+  const repos = repositories(blueprint, instance);
+  const runtime = new EncounterRuntime({ ...repos, integrations: {}, gameRef: gameRef(), hooksRef: null });
+  await runtime.start("instance");
+  const stored = repos.read();
+  assert.equal(stored.blueprint.snapshot.id, blueprint.id);
+  assert.equal(stored.blueprint.snapshot.name, blueprint.name);
+  assert.equal(stored.blueprint.modifiedAt, blueprint.metadata.modifiedAt);
+});
+
+test("completed Encounter Runtime state is read-only until the Encounter is reopened", async () => {
+  const { runtime, repos } = runtimeFixture();
+  await runtime.activate("instance");
+  await runtime.complete();
+
+  await assert.rejects(() => runtime.setPhase("awakening"), (error) => error?.code === "RUNTIME_INSTANCE_READ_ONLY");
+  await assert.rejects(() => runtime.adjustObjective("ritual", 1), (error) => error?.code === "RUNTIME_INSTANCE_READ_ONLY");
+  await assert.rejects(() => runtime.setObjectiveState("ritual", "completed"), (error) => error?.code === "RUNTIME_INSTANCE_READ_ONLY");
+  assert.equal(repos.read().currentPhaseId, "opening");
+  assert.equal(repos.read().objectives.ritual.progress, 0);
+
+  await runtime.reopen();
+  await runtime.setPhase("awakening");
+  await runtime.adjustObjective("ritual", 1);
+  assert.equal(repos.read().currentPhaseId, "awakening");
+  assert.equal(repos.read().objectives.ritual.progress, 1);
+});
