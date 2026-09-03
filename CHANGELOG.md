@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.1.0-rc.2 - Foundry V14 Chat Hook Compatibility
+
+### Fixed
+- Removed the deprecated `renderChatMessage` hook registration from Encounter Director chat controls. Foundry V14 now uses only `renderChatMessageHTML`, avoiding the V13 compatibility warning and remaining forward-compatible with Foundry V15.
+- Encounter Director chat buttons continue to bind through the existing HTMLElement-aware renderer path; no behavior change is intended beyond removing the deprecated hook.
+
+### Validation
+- Added regression coverage that requires `renderChatMessageHTML` and rejects registration of the legacy `renderChatMessage` hook.
+
 ## 0.1.0-rc.1 - First Release Candidate
 
 ### Changed

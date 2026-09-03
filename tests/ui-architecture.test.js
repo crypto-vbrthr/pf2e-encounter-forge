@@ -343,7 +343,8 @@ test("GM decision flow surfaces a Chat notice with a Director launcher", () => {
   assert.match(runtimeSource, /#notifyDecisionInChat/);
   assert.match(runtimeSource, /data-pf2e-encounter-forge-open-director/);
   assert.match(runtimeSource, /whisper:\s*gmIds/);
-  assert.match(directorUi, /renderChatMessage/);
+  assert.match(directorUi, /Hooks\.on\("renderChatMessageHTML", injectDecisionChatControls\)/);
+  assert.doesNotMatch(directorUi, /Hooks\.on\("renderChatMessage", injectDecisionChatControls\)/);
   assert.match(directorUi, /data-pf2e-encounter-forge-open-director/);
 });
 

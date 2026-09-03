@@ -23,11 +23,11 @@ Suggestions and feature requests are equally welcome. Even small ideas can lead 
 **Open an issue here:** https://github.com/crypto-vbrthr/pf2e-encounter-forge/issues
 
 
-## 0.1.0-rc.1 — First Release Candidate
+## 0.1.0-rc.2 — Foundry V14 Compatibility Fix
 
-This is the first release candidate for Encounter Forge 0.1.0. It promotes the fully reviewed `0.1.0-alpha.13.8` codebase without adding new features. The Director/Runtime lifecycle, persistent Blueprint snapshots, Blueprint archive, Scene-bound Encounter filtering, prepared-Instance deduplication, historical Instance handling, and cross-Forge integration contracts are now considered feature-complete for the 0.1.0 release.
+This second release candidate keeps the feature-complete `0.1.0-rc.1` codebase and removes the deprecated Foundry V13 `renderChatMessage` hook from Encounter Director chat controls. Foundry V14 now uses only `renderChatMessageHTML`, so Director chat buttons retain their behavior without producing the compatibility warning that is scheduled to become an error path once legacy support is removed.
 
-During the RC phase, development is intentionally frozen to bug fixes, compatibility corrections, migration safety, and release-documentation fixes. If Foundry smoke testing reveals no regressions, this RC is intended to become the basis of the final 0.1.0 release.
+The RC phase remains frozen to bug fixes, compatibility corrections, migration safety, and release-documentation fixes. No gameplay, Blueprint, deployment, or Runtime behavior is intentionally changed in this build.
 
 ## 0.1.0-alpha.13.8 — RC Hardening Review
 

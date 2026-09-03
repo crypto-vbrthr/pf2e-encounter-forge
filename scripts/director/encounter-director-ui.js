@@ -208,7 +208,6 @@ export function initializeEncounterDirectorUi() {
   Hooks.on("renderCombatTracker", injectDirectorButton);
   Hooks.on("renderSidebarTab", injectDirectorButton);
   Hooks.on("renderApplicationV2", injectDirectorButton);
-  Hooks.on("renderChatMessage", injectDecisionChatControls);
   Hooks.on("renderChatMessageHTML", injectDecisionChatControls);
   Hooks.on("canvasReady", handleDirectorSceneChange);
   const current = document.querySelector("#combat, .combat-sidebar, .combat-tracker");
